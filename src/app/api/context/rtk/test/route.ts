@@ -7,6 +7,7 @@ import {
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { rtkConfigSchema } from "@/shared/validation/compressionConfigSchemas";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const rtkTestSchema = z
   .object({
@@ -17,6 +18,9 @@ export const rtkTestSchema = z
   .strict();
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

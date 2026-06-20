@@ -27,10 +27,14 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { QuotaPreviewQuerySchema } from "@/shared/schemas/quota";
 import { getPool } from "@/lib/localDb";
 import { enforceQuotaShare } from "@/lib/quota/enforce";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

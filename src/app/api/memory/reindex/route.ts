@@ -6,10 +6,14 @@ import { runReindexBatch, getReindexPending } from "@/lib/memory/reindex";
 import { markAllMemoriesNeedReindex } from "@/lib/localDb";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
 import { logger } from "@omniroute/open-sse/utils/logger.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const log = logger("MEMORY_REINDEX_ROUTE");
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

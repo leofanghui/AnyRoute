@@ -10,6 +10,7 @@ import { z } from "zod";
 import { removeCustomHost, toggleCustomHost, listCustomHosts } from "@/lib/db/inspectorCustomHosts";
 import { getCachedPassword } from "@/mitm/manager";
 import { removeDNSEntries } from "@/mitm/dns/dnsConfig";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 interface Params {
   params: Promise<{ host: string }>;
@@ -20,6 +21,9 @@ const PatchBodySchema = z.object({
 });
 
 export async function DELETE(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { host } = await params;
   const decodedHost = decodeURIComponent(host);
 
@@ -62,6 +66,9 @@ export async function DELETE(_request: Request, { params }: Params): Promise<Res
 }
 
 export async function PATCH(request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { host } = await params;
   const decodedHost = decodeURIComponent(host);
 

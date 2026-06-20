@@ -3,6 +3,7 @@ import { CORS_HEADERS, handleCorsOptions } from "@/shared/utils/cors";
 import { connectServer, disconnectServer, listServers } from "@/lib/gamification/servers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { z } from "zod";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
@@ -12,6 +13,9 @@ export async function OPTIONS() {
  * GET /api/gamification/servers — List connected servers
  */
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -23,6 +27,9 @@ export async function GET(request: NextRequest) {
  * POST /api/gamification/servers — Connect to a server
  */
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -49,6 +56,9 @@ export async function POST(request: NextRequest) {
  * DELETE /api/gamification/servers — Disconnect from a server
  */
 export async function DELETE(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

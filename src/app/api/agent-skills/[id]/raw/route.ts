@@ -10,6 +10,7 @@
  */
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 import { getSkillById, fetchSkillMarkdown } from "@/lib/agentSkills/catalog";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { id } = await params;
 

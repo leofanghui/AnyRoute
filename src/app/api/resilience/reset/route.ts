@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * POST /api/resilience/reset — Reset all provider circuit breakers and model lockouts.
@@ -8,6 +9,9 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
  * routing for all traffic, so it must not be reachable unauthenticated.
  */
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   try {

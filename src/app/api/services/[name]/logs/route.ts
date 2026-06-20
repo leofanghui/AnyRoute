@@ -15,6 +15,7 @@ import type { NextRequest } from "next/server";
 import { getSupervisor } from "@/lib/services/registry";
 import { createErrorResponse } from "@/lib/api/errorResponse";
 import type { LogLine } from "@/lib/services/types";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const MAX_TAIL = 1000;
 const DEFAULT_TAIL = 200;
@@ -28,6 +29,9 @@ function sseChunk(event: string, data: unknown): Uint8Array {
 }
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { name } = await params;
 
   const supervisor = getSupervisor(name);

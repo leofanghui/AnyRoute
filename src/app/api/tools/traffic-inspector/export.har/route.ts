@@ -14,8 +14,12 @@ import { InspectorListQuerySchema } from "@/shared/schemas/inspector";
 import { globalTrafficBuffer } from "@/mitm/inspector/buffer";
 import { toHar } from "@/lib/inspector/harExport";
 import type { ListFilters } from "@/mitm/inspector/types";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const url = new URL(request.url);
   const rawQuery: Record<string, string> = {};
   url.searchParams.forEach((value, key) => {

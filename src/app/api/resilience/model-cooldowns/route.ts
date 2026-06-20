@@ -8,6 +8,7 @@ import {
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { validateBody } from "@/shared/validation/helpers";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const deleteCooldownSchema = z
   .object({
@@ -22,6 +23,9 @@ function getErrorMessage(error: unknown, fallback: string): string {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -38,6 +42,9 @@ export async function GET(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

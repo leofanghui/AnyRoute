@@ -13,6 +13,7 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { encryptMetadata } from "@/lib/webhookDispatcher";
 import { isEncryptionEnabled } from "@/lib/db/encryption";
 import { parseAndValidateWebhookUrl } from "@/shared/network/outboundUrlGuard";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const WEBHOOK_KINDS = ["slack", "telegram", "discord", "custom"] as const;
 
@@ -39,6 +40,9 @@ const createWebhookSchema = z
   });
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -59,6 +63,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

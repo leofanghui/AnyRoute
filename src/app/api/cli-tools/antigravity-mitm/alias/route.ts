@@ -5,9 +5,13 @@ import { requireCliToolsAuth } from "@/lib/api/requireCliToolsAuth";
 import { getMitmAlias, setMitmAliasAll } from "@/models";
 import { cliMitmAliasUpdateSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // GET - Get MITM aliases for a tool
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -24,6 +28,9 @@ export async function GET(request) {
 
 // PUT - Save MITM aliases for a specific tool
 export async function PUT(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

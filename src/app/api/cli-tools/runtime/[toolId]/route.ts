@@ -7,8 +7,12 @@ import {
   getCliPrimaryConfigPath,
   getCliRuntimeStatus,
 } from "@/shared/services/cliRuntime";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

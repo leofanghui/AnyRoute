@@ -23,6 +23,7 @@ import {
   setSystemProxyApplied,
   clearSystemProxy,
 } from "@/lib/inspector/captureState";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const DEFAULT_PORT = Number(process.env.INSPECTOR_HTTP_PROXY_PORT ?? "8080") || 8080;
 const DEFAULT_GUARD_MINUTES = Number(
@@ -30,6 +31,9 @@ const DEFAULT_GUARD_MINUTES = Number(
 ) || 30;
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

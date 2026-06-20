@@ -13,6 +13,7 @@ import {
   getModelComboMappingById,
 } from "@/lib/localDb";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const updateMappingSchema = z.object({
   pattern: z.string().min(1).max(500).optional(),
@@ -23,6 +24,9 @@ const updateMappingSchema = z.object({
 });
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -40,6 +44,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -65,6 +72,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

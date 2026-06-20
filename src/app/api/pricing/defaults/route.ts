@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { getDefaultPricing } from "@/shared/constants/pricing";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/pricing/defaults
  * Get default pricing configuration
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const defaultPricing = getDefaultPricing();
     return NextResponse.json(defaultPricing);

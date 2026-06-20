@@ -8,6 +8,7 @@ import fs from "fs";
 import path from "path";
 import yaml from "js-yaml";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 let cachedSpec: { data: any; mtime: number } | null = null;
 const OPENAPI_SPEC_CANDIDATES = [
@@ -19,6 +20,9 @@ const OPENAPI_SPEC_CANDIDATES = [
 ];
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     let specPath = "";
     for (const p of OPENAPI_SPEC_CANDIDATES) {

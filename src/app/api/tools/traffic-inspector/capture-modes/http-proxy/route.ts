@@ -11,10 +11,14 @@ import { buildErrorBody, sanitizeErrorMessage } from "@omniroute/open-sse/utils/
 import { InspectorCaptureModeActionSchema } from "@/shared/schemas/inspector";
 import { startHttpProxyServer } from "@/mitm/inspector/httpProxyServer";
 import { getHttpProxyHandle, setHttpProxyHandle } from "@/lib/inspector/captureState";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const DEFAULT_PORT = Number(process.env.INSPECTOR_HTTP_PROXY_PORT ?? "8080") || 8080;
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

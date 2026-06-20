@@ -23,12 +23,16 @@ import { buildErrorBody } from "@omniroute/open-sse/utils/error";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { GroupRenameSchema } from "@/shared/schemas/quota";
 import { renameGroup, deleteGroup, getGroup, getPoolsByGroup } from "@/lib/localDb";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -71,6 +75,9 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
 }
 
 export async function DELETE(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

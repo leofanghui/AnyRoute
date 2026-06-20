@@ -10,6 +10,7 @@ import {
   type QuotaProviderEntry,
   type QuotaTokenStatus,
 } from "@/shared/contracts/quota";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 type ProviderConnectionRecord = Record<string, unknown>;
 
@@ -127,6 +128,9 @@ function buildQuotaEntry(
  *   - connectionId (optional): filter by provider connection id
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
     const providerFilter = searchParams.get("provider");

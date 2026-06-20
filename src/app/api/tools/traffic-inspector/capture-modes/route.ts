@@ -17,8 +17,12 @@ import {
   getSystemProxyState,
   isTlsInterceptEnabled,
 } from "@/lib/inspector/captureState";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const customHosts = listCustomHosts();
     const httpProxy = getHttpProxyHandle();

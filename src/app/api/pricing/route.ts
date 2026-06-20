@@ -9,12 +9,16 @@ import {
 } from "@/lib/localDb";
 import { updatePricingSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/pricing
  * Get current pricing configuration (merged user + defaults)
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -38,6 +42,9 @@ export async function GET(request: Request) {
  * Body: { provider: { model: { input: number, output: number, cached: number, ... } } }
  */
 export async function PATCH(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -77,6 +84,9 @@ export async function PATCH(request) {
  * Query params: ?provider=xxx&model=yyy (optional)
  */
 export async function DELETE(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

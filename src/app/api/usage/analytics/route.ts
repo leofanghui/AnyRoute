@@ -21,6 +21,7 @@ import {
   getPresetCostModelRows,
 } from "@/lib/db/usageAnalytics";
 import { getFallbackStats } from "@/lib/db/callLogStats";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function getRangeStartIso(range: string): string | null {
   const end = new Date();
@@ -322,6 +323,9 @@ function computeActivityStreak(activityMap: Record<string, number>): number {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

@@ -5,6 +5,7 @@ import { requireCliToolsAuth } from "@/lib/api/requireCliToolsAuth";
 import { getCliRuntimeStatus, CLI_TOOL_IDS } from "@/shared/services/cliRuntime";
 import { getAllCliToolLastConfigured } from "@/lib/db/cliToolState";
 import { checkToolConfigStatus } from "@/lib/cliTools/checkToolConfigStatus";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/cli-tools/status
@@ -12,6 +13,9 @@ import { checkToolConfigStatus } from "@/lib/cliTools/checkToolConfigStatus";
  * Used by the CLI Tools page to show status badges in collapsed state.
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

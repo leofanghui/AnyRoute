@@ -7,6 +7,7 @@ import {
   getReasoningCacheServiceStats,
 } from "@omniroute/open-sse/services/reasoningCache.ts";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function errorMessage(error: unknown): string {
   return sanitizeErrorMessage(error);
@@ -19,6 +20,9 @@ function errorMessage(error: unknown): string {
  * Query params: ?provider=deepseek&model=deepseek-reasoner&limit=50&offset=0
  */
 export async function GET(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -51,6 +55,9 @@ export async function GET(req: NextRequest) {
  * Query params: ?toolCallId=call_abc (single entry), ?provider=deepseek, or no params.
  */
 export async function DELETE(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

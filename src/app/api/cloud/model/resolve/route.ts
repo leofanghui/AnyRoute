@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { validateApiKey, getModelAliases } from "@/models";
 import { cloudResolveAliasSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Resolve model alias to provider/model
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

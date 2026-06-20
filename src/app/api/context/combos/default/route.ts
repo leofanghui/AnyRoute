@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getDefaultCompressionCombo, setEngineInDefaultCombo } from "@/lib/db/compressionCombos";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const engineToggleSchema = z
   .object({
@@ -13,6 +14,9 @@ const engineToggleSchema = z
   .strict();
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -24,6 +28,9 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

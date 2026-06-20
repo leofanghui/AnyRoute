@@ -9,6 +9,7 @@ import { resolveDataDir } from "@/lib/dataPaths";
 import { compareTr } from "@/shared/utils/turkishText";
 import { codexProfileIdSchema, codexProfileNameSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const PROFILES_DIR = path.join(resolveDataDir(), "codex-profiles");
 
@@ -55,6 +56,9 @@ function extractAuthLabel(authJson) {
 
 // GET - List all saved profiles
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -99,6 +103,9 @@ export async function GET(request: Request) {
 
 // POST - Save current config as a named profile
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -188,6 +195,9 @@ export async function POST(request) {
 
 // PUT - Activate a saved profile (restore its config + auth)
 export async function PUT(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -262,6 +272,9 @@ export async function PUT(request) {
 
 // DELETE - Remove a saved profile
 export async function DELETE(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

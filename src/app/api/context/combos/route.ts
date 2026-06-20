@@ -7,6 +7,7 @@ import {
   cavemanIntensitySchema,
   stackedPipelineStepSchema,
 } from "@/shared/validation/compressionConfigSchemas";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const pipelineStepSchema = stackedPipelineStepSchema;
 
@@ -24,12 +25,18 @@ export const compressionComboCreateSchema = z
   .strict();
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   return NextResponse.json({ combos: listCompressionCombos() });
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

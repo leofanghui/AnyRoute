@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { requireCliToolsAuth } from "@/lib/api/requireCliToolsAuth";
 import { getApiKeys } from "@/lib/localDb";
 import { maskStoredApiKey } from "@/lib/apiKeyExposure";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // GET /api/cli-tools/keys - List API keys with raw values for authenticated CLI tools UI only
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

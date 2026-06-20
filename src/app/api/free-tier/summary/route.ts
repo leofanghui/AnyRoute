@@ -1,5 +1,6 @@
 import { computeFreeModelTotals } from "@omniroute/open-sse/config/freeModelCatalog.ts";
 import { sumUsageTokensThisMonth } from "@/lib/db/usageSummary";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,9 @@ export function OPTIONS(): Response {
 }
 
 export async function GET(req: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const url = new URL(req.url);
   const excludeTosAvoid = url.searchParams.get("excludeTosAvoid") === "1";
   const totals = computeFreeModelTotals({ excludeTosAvoid });

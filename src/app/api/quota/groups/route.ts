@@ -16,10 +16,14 @@ import { buildErrorBody } from "@omniroute/open-sse/utils/error";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { GroupCreateSchema } from "@/shared/schemas/quota";
 import { listGroups, createGroup } from "@/lib/localDb";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -33,6 +37,9 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

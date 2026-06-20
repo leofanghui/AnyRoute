@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { getTaskManager } from "@/lib/a2a/taskManager";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { id } = await params;
     const tm = getTaskManager();

@@ -12,6 +12,7 @@ import type {
 } from "@omniroute/open-sse/services/compression/types";
 import { buildCompressionPreviewDiff } from "@omniroute/open-sse/services/compression/diffHelper";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const PreviewCompressionConfigSchema = compressionPreviewConfigSchema;
 
@@ -46,6 +47,9 @@ function messagesToText(messages: Array<{ role: string; content: unknown }>): st
 }
 
 export async function POST(req: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(req);
   if (authError) return authError;
 

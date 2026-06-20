@@ -10,6 +10,7 @@ import { z } from "zod";
 import { getCombos } from "@/lib/db/combos";
 import { getProviderConnections } from "@/lib/db/providers";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 interface SimulateRequest {
   /** Combo ID to simulate */
@@ -129,6 +130,9 @@ function estimateContextWindow(model: string): number {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const rawBody = await request.json();
     const validation = validateBody(simulateRequestSchema, rawBody);

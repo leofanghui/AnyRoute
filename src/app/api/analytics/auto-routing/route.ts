@@ -5,6 +5,7 @@ import {
   getAutoRoutingVariantBreakdown,
   getAutoRoutingTopProviders,
 } from "@/lib/db/usageLogs";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export const dynamic = "force-dynamic";
  * Returns auto-routing usage statistics and metrics.
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   try {

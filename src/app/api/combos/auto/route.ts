@@ -4,6 +4,7 @@ import {
   VALID_VARIANTS,
   type AutoVariant,
 } from "@omniroute/open-sse/services/autoCombo/autoPrefix";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const ALL_VARIANTS: Array<{ variant: AutoVariant | undefined; name: string }> = [
   { variant: undefined, name: "Auto" },
@@ -15,6 +16,9 @@ const ALL_VARIANTS: Array<{ variant: AutoVariant | undefined; name: string }> = 
 
 // GET /api/combos/auto - List available auto combo variants with candidate info
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

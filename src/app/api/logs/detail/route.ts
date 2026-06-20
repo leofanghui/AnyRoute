@@ -11,10 +11,14 @@ import {
 } from "@/lib/db/detailedLogs";
 import { getUserDatabaseSettings, updateDatabaseSettings } from "@/lib/db/databaseSettings";
 import { updateSettings } from "@/lib/db/settings";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(req);
   if (authError) return authError;
 
@@ -30,6 +34,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(req);
   if (authError) return authError;
 

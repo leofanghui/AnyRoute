@@ -4,6 +4,7 @@ import { updateScore } from "@/lib/gamification/leaderboard";
 import { getConnectedServerByKeyHash } from "@/lib/db/gamification";
 import { z } from "zod";
 import crypto from "crypto";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
@@ -13,6 +14,9 @@ export async function OPTIONS() {
  * POST /api/gamification/federation/score — Receive score from connected instance
  */
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return NextResponse.json(

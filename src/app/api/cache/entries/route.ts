@@ -5,8 +5,12 @@ import {
   deleteSemanticCacheBySignature,
   deleteSemanticCacheByModel,
 } from "@/lib/db/semanticCache";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -37,6 +41,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

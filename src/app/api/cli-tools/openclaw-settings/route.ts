@@ -14,6 +14,7 @@ import { saveCliToolLastConfigured, deleteCliToolLastConfigured } from "@/lib/db
 import { cliModelConfigSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { resolveApiKey } from "@/shared/services/apiKeyResolver";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const getOpenClawSettingsPath = () => getCliPrimaryConfigPath("openclaw");
 const getOpenClawDir = () => path.dirname(getOpenClawSettingsPath());
@@ -38,6 +39,9 @@ const hasOmniRouteConfig = (settings: any) => {
 
 // GET - Check openclaw CLI and read current settings
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -81,6 +85,9 @@ export async function GET(request: Request) {
 
 // POST - Update OmniRoute settings (merge with existing settings)
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -182,6 +189,9 @@ export async function POST(request: Request) {
 
 // DELETE - Remove OmniRoute settings only (keep other settings)
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

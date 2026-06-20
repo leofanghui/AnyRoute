@@ -10,6 +10,7 @@ import { toJsonErrorPayload } from "@/shared/utils/upstreamError";
 import { logTranslationEvent } from "@/lib/translatorEvents";
 import { translatorSendSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function getProviderBaseUrl(providerSpecificData: unknown): string | undefined {
   if (!providerSpecificData || typeof providerSpecificData !== "object") return undefined;
@@ -18,6 +19,9 @@ function getProviderBaseUrl(providerSpecificData: unknown): string | undefined {
 }
 
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

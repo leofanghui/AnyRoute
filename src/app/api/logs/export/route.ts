@@ -1,6 +1,7 @@
 import { exportCallLogsSince } from "@/lib/usage/callLogs";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { exportProxyLogsSince } from "@/lib/db/proxyLogs";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/logs/export — export logs as JSON
@@ -8,6 +9,9 @@ import { exportProxyLogsSince } from "@/lib/db/proxyLogs";
  *               &type=call-logs|request-logs|proxy-logs (default call-logs)
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

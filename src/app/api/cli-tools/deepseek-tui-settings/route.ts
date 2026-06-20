@@ -15,6 +15,7 @@ import { cliModelConfigSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { resolveApiKey } from "@/shared/services/apiKeyResolver";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const TOOL_ID = "deepseek-tui";
 
@@ -61,6 +62,9 @@ const readConfig = async (): Promise<string | null> => {
 
 // GET — check deepseek-tui CLI and return current config
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -106,6 +110,9 @@ export async function GET(request: Request) {
 
 // POST — write OmniRoute settings to DeepSeek TUI config.toml
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -170,6 +177,9 @@ export async function POST(request: Request) {
 
 // DELETE — remove DeepSeek TUI OmniRoute config
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { queryAuditEntries } from "@omniroute/open-sse/mcp-server/audit";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function parseBooleanParam(value: string | null): boolean | undefined {
   if (value === "true" || value === "1") return true;
@@ -16,6 +17,9 @@ function parseNumberParam(value: string | null, fallback: number): number {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   try {

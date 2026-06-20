@@ -7,6 +7,7 @@ import {
   startCloudflaredTunnel,
   stopCloudflaredTunnel,
 } from "@/lib/cloudflaredTunnel";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,9 @@ function unauthorized() {
 }
 
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return unauthorized();
   }
@@ -37,6 +41,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return unauthorized();
   }

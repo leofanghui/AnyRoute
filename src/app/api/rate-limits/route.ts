@@ -12,6 +12,7 @@ import { getAccountDisplayName } from "@/lib/display/names";
 
 import { toggleRateLimitSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -29,6 +30,9 @@ function asRecord(value: unknown): JsonRecord {
  * - Signature cache stats
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const connections = await getProviderConnections();
     const statuses = connections.map((connRaw) => {
@@ -69,6 +73,9 @@ export async function GET() {
  * Body: { connectionId: string, enabled: boolean }
  */
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

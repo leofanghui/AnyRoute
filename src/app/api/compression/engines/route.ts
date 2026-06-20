@@ -3,8 +3,12 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error";
 import { registerBuiltinCompressionEngines } from "@omniroute/open-sse/services/compression/engines/index.ts";
 import { listCompressionEngines } from "@omniroute/open-sse/services/compression/engines/registry.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(req: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(req);
   if (authError) return authError;
   try {

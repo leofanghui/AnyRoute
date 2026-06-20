@@ -1,10 +1,14 @@
 import { getProxyLogs, clearProxyLogs, getProxyLogStats } from "@/lib/proxyLogger";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/usage/proxy-logs — get proxy usage logs
  * Query params: ?status=ok|error|timeout&type=http|socks5&provider=xxx&level=global|provider|combo|key&search=xxx&limit=300
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
 
@@ -30,6 +34,9 @@ export async function GET(request: Request) {
  * DELETE /api/usage/proxy-logs — clear all proxy logs
  */
 export async function DELETE() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     clearProxyLogs();
     return Response.json({ cleared: true });

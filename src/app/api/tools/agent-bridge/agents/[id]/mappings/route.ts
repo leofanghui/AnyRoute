@@ -7,10 +7,14 @@ import { AgentBridgeMappingPutSchema } from "@/shared/schemas/agentBridge";
 import { getMappingsForAgent, setMappings } from "@/lib/db/agentBridgeMappings";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 type Params = { params: { id: string } };
 
 export async function GET(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const mappings = getMappingsForAgent(params.id);
     return Response.json({ mappings });
@@ -21,6 +25,9 @@ export async function GET(_request: Request, { params }: Params): Promise<Respon
 }
 
 export async function PUT(request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

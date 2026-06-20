@@ -5,10 +5,13 @@ import { getOrCreateApiKey, maskApiKey } from "@/lib/services/apiKey";
 import { createErrorResponse } from "@/lib/api/errorResponse";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { logAuditEvent } from "@/lib/compliance/index";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const TOOL = "9router";
 
 export async function GET(request: Request = new Request("http://localhost/")): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
   try {
     const url = new URL(request.url);
     const reveal = url.searchParams.get("reveal");

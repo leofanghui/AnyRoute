@@ -11,6 +11,7 @@ import { updateResilienceSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { resetAllCircuitBreakers } from "@/shared/utils/circuitBreaker";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -120,6 +121,9 @@ async function syncRuntimeSettings(resilienceSettings: ResilienceSettings) {
  * GET /api/resilience — Get current resilience configuration
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const settings = await getSettings();
     const resilience = resolveResilienceSettings(settings);
@@ -149,6 +153,9 @@ export async function GET() {
  * PATCH /api/resilience — Update resilience configuration
  */
 export async function PATCH(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

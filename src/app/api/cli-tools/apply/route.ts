@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { generateConfig } from "@/lib/cli-helper/config-generator";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const applySchema = z.object({
   toolId: z.string().min(1),
@@ -34,6 +35,9 @@ function ensureBackup(configPath: string): string | null {
 
 // POST /api/cli-tools/apply - Apply config for a specific tool
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

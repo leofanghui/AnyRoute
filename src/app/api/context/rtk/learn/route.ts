@@ -5,6 +5,7 @@ import {
   listRtkCommandSamples,
 } from "@omniroute/open-sse/services/compression/engines/rtk";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /** Parse a positive `limit` query param, clamped to [1, 2000]; default 500. */
 function parseLimit(value: string | null): number {
@@ -21,6 +22,9 @@ function parseLimit(value: string | null): number {
  * learned drop/preserve patterns stay specific.
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

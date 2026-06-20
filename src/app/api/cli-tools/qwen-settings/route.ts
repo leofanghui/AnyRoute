@@ -15,6 +15,7 @@ import { saveCliToolLastConfigured, deleteCliToolLastConfigured } from "@/lib/db
 import { cliModelConfigSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { getApiKeyById } from "@/lib/localDb";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const getQwenSettingsPath = () => getCliPrimaryConfigPath("qwen");
 const getQwenDir = () => path.dirname(getQwenSettingsPath());
@@ -66,6 +67,9 @@ const hasOmniRouteConfig = (settings: any) => {
 
 // GET - Check Qwen CLI and read current settings
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -110,6 +114,9 @@ export async function GET(request: Request) {
 
 // POST - Write OmniRoute config to settings.json + .env
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -280,6 +287,9 @@ export async function POST(request: Request) {
 
 // DELETE - Remove OmniRoute config from settings.json and .env
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

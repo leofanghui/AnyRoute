@@ -3,8 +3,12 @@ import { getCostSummary, setBudget, checkBudget } from "@/domain/costRules";
 import { setBudgetSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -41,6 +45,9 @@ export async function GET(request) {
 }
 
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

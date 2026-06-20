@@ -23,6 +23,7 @@ import {
   parseImprovedContent,
 } from "@/lib/playground/promptImprover";
 import { isRequireApiKeyEnabled } from "@/shared/utils/featureFlags";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
@@ -44,6 +45,9 @@ export async function OPTIONS(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   // 1. Parse JSON body
   let rawBody: unknown;
   try {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { buildComboHealthResponse } from "@/lib/usage/comboHealth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const querySchema = z.object({
   range: z.enum(["1h", "24h", "7d", "30d"]),
@@ -12,6 +13,9 @@ const querySchema = z.object({
 });
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
     const parsedQuery = querySchema.safeParse({

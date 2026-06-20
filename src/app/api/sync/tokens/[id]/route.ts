@@ -4,8 +4,12 @@ import { createErrorResponse, createErrorResponseFromUnknown } from "@/lib/api/e
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { getSyncTokenById } from "@/lib/db/syncTokens";
 import { revokeSyncTokenById } from "@/lib/sync/tokens";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

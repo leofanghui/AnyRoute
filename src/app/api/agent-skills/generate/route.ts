@@ -20,10 +20,14 @@ import { NextResponse } from "next/server";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { GenerateBodySchema } from "@/lib/agentSkills/schemas";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   // Management auth — returns null if OK, error Response if not
   const authError = await requireManagementAuth(request);
   if (authError) return authError;

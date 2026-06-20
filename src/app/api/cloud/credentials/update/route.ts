@@ -2,9 +2,13 @@ import { NextResponse } from "next/server";
 import { validateApiKey, getProviderConnections, updateProviderConnection } from "@/models";
 import { cloudCredentialUpdateSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Update provider credentials (for cloud token refresh)
 export async function PUT(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

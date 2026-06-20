@@ -14,8 +14,12 @@ import { InspectorCustomHostSchema } from "@/shared/schemas/inspector";
 import { listCustomHosts, addCustomHost } from "@/lib/db/inspectorCustomHosts";
 import { getCachedPassword } from "@/mitm/manager";
 import { addDNSEntries } from "@/mitm/dns/dnsConfig";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const hosts = listCustomHosts();
     return Response.json({ hosts });
@@ -29,6 +33,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

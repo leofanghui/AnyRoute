@@ -4,8 +4,12 @@ import { parsePaginationParams, buildPaginatedResponse } from "@/shared/types/pa
 import { z } from "zod";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -34,6 +38,9 @@ const executionSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

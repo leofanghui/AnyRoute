@@ -10,6 +10,7 @@
 
 import { buildErrorBody, sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
 import { globalTrafficBuffer } from "@/mitm/inspector/buffer";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -18,6 +19,9 @@ interface Params {
 const OMNIROUTE_BASE = process.env.OMNIROUTE_BASE_URL ?? "http://127.0.0.1:20128";
 
 export async function POST(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
   const entry = globalTrafficBuffer.get(id);
   if (!entry) {

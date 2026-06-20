@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * @deprecated Use /api/rate-limits instead.
@@ -6,12 +7,18 @@ import { NextResponse } from "next/server";
  */
 
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const url = new URL(request.url);
   url.pathname = "/api/rate-limits";
   return NextResponse.redirect(url, 308);
 }
 
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const url = new URL(request.url);
   url.pathname = "/api/rate-limits";
   return NextResponse.redirect(url, 308);

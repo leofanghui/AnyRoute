@@ -10,6 +10,7 @@ import { getAgentBridgeState, upsertAgentBridgeState } from "@/lib/db/agentBridg
 import type { AgentId } from "@/mitm/types";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const PatchSchema = z.object({
   setup_completed: z.boolean(),
@@ -18,6 +19,9 @@ const PatchSchema = z.object({
 type Params = { params: { id: string } };
 
 export async function GET(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { id } = params;
     const target = resolveTarget(id) ?? null;
@@ -34,6 +38,9 @@ export async function GET(_request: Request, { params }: Params): Promise<Respon
 }
 
 export async function PATCH(request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = params;
 
   let body: unknown;

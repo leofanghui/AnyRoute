@@ -4,8 +4,12 @@ import { deleteMemory, getMemory, updateMemory } from "@/lib/memory/store";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
 import { MemoryUpdatePutSchema } from "@/shared/schemas/memory";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function DELETE(request: Request, props: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -23,6 +27,9 @@ export async function DELETE(request: Request, props: { params: Promise<{ id: st
 }
 
 export async function GET(request: Request, props: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -40,6 +47,9 @@ export async function GET(request: Request, props: { params: Promise<{ id: strin
 }
 
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

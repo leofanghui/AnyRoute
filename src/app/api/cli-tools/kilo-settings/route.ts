@@ -11,6 +11,7 @@ import { saveCliToolLastConfigured, deleteCliToolLastConfigured } from "@/lib/db
 import { cliModelConfigSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { resolveApiKey } from "@/shared/services/apiKeyResolver";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const KILO_DATA_DIR = path.join(os.homedir(), ".local", "share", "kilo");
 const AUTH_PATH = path.join(KILO_DATA_DIR, "auth.json");
@@ -40,6 +41,9 @@ const hasOmniRouteConfig = (auth) => {
 
 // GET - Check kilo CLI and read current settings
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -113,6 +117,9 @@ export async function GET(request: Request) {
 
 // POST - Configure Kilo Code to use OmniRoute as OpenAI-compatible provider
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -225,6 +232,9 @@ export async function POST(request) {
 
 // DELETE - Remove OmniRoute config from Kilo
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

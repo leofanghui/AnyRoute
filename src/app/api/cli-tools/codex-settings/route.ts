@@ -15,6 +15,7 @@ import { cliModelConfigSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { getApiKeyById } from "@/lib/localDb";
 import { normalizeCodexBaseUrl } from "@/shared/utils/codexBaseUrl";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const getCodexConfigPath = () => getCliConfigPaths("codex").config;
 const getCodexAuthPath = () => getCliConfigPaths("codex").auth;
@@ -136,6 +137,9 @@ const hasOmniRouteConfig = (config: string | null) => {
 
 // GET - Check codex CLI and read current settings
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -179,6 +183,9 @@ export async function GET(request: Request) {
 
 // POST - Update OmniRoute settings (merge with existing config)
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -322,6 +329,9 @@ export async function POST(request: Request) {
 
 // DELETE - Remove OmniRoute settings only (keep other settings)
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

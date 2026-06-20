@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { buildComboHealthDashboardResponse } from "@/lib/usage/comboHealthDashboard";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const querySchema = z.object({
   range: z.enum(["1h", "24h", "7d", "30d"]).default("24h"),
@@ -13,6 +14,9 @@ const querySchema = z.object({
 });
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

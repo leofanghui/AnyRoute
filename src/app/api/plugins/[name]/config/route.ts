@@ -4,6 +4,7 @@ import { buildErrorBody } from "@omniroute/open-sse/utils/error";
 import { getPluginByName, updatePluginConfig } from "@/lib/db/plugins";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { z } from "zod";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
@@ -13,6 +14,9 @@ export async function OPTIONS() {
  * GET /api/plugins/[name]/config — Get plugin configuration
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const { name } = await params;
@@ -38,6 +42,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
  * PUT /api/plugins/[name]/config — Update plugin configuration
  */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const { name } = await params;

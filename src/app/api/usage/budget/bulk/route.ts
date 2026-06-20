@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCostSummary, checkBudget } from "@/domain/costRules";
 import { getApiKeys } from "@/lib/db/apiKeys";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/usage/budget/bulk — Bulk budget summary for every API key.
@@ -14,6 +15,9 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
  * so it must not be reachable without the dashboard/management token.
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   try {

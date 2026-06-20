@@ -3,12 +3,16 @@ import { z } from "zod";
 
 import { transformChatCompletionSseToResponses } from "@/lib/translator/streamTransform";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const transformStreamSchema = z.object({
   rawSse: z.string().min(1).max(100_000),
 });
 
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
 
   try {

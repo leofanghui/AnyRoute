@@ -7,8 +7,12 @@ import { ALL_TARGETS } from "@/mitm/targets/index";
 import { detectAgent } from "@/mitm/detection/index";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const agents = ALL_TARGETS.map((t) => ({
       id: t.id,

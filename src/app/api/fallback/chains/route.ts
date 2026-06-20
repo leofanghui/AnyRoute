@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { getAllFallbackChains, registerFallback, removeFallback } from "@/domain/fallbackPolicy";
 import { registerFallbackSchema, removeFallbackSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const chains = getAllFallbackChains();
     return NextResponse.json(chains);
@@ -14,6 +18,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();
@@ -45,6 +52,9 @@ export async function POST(request) {
 }
 
 export async function DELETE(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

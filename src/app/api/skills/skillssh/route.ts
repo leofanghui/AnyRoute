@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
 import { searchSkillsSh } from "@/lib/skills/skillssh";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTranslationEvents } from "@/lib/translatorEvents";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/translator/history
@@ -8,6 +9,9 @@ import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
  */
 
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
     const limit = searchParams.get("limit");

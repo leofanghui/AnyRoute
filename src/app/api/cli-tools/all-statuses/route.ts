@@ -13,6 +13,7 @@ import { getAllCliToolLastConfigured } from "@/lib/db/cliToolState";
 import { checkToolConfigStatus } from "@/lib/cliTools/checkToolConfigStatus";
 import { getCached, setCached } from "@/lib/cliTools/batchStatusCache";
 import type { ToolBatchStatus, ToolBatchStatusMap } from "@/shared/types/cliBatchStatus";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const logger = pino({ name: "cli-tools-all-statuses-api" });
 
@@ -88,6 +89,9 @@ async function extractEndpointFromConfig(
  * Response 500: { error: sanitizeErrorMessage(err) }
  */
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

@@ -15,6 +15,7 @@ import {
 import { isCcCompatibleProviderEnabled } from "@/shared/utils/featureFlags";
 import { providerNodeValidateSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function sanitizeAnthropicBaseUrl(baseUrl: string) {
   return (baseUrl || "")
@@ -42,6 +43,9 @@ function sanitizeAuditBaseUrl(baseUrl: string) {
 
 // POST /api/provider-nodes/validate - Validate API key against base URL
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

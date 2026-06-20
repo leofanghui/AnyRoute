@@ -7,12 +7,16 @@ import {
   type LeaderboardScope,
 } from "@/lib/gamification/leaderboard";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
 }
 
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

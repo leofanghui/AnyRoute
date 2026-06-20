@@ -7,6 +7,7 @@ import { parsePaginationParams, buildPaginatedResponse } from "@/shared/types/pa
 import { z } from "zod";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const createMemorySchema = z.object({
   content: z.string().min(1),
@@ -19,6 +20,9 @@ const createMemorySchema = z.object({
 });
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -89,6 +93,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

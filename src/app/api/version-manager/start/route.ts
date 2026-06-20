@@ -7,12 +7,16 @@ import { versionManagerToolSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Only "cliproxy" has a supervisor; for other tools the legacy path is not
 // available in this branch, so we return 409 if the tool is not installed.
 const SUPERVISOR_TOOLS = new Set(["cliproxy", "cliproxyapi"]);
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

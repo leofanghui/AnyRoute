@@ -8,6 +8,7 @@ import {
 import { getProviderConnections } from "@/lib/localDb";
 import { getResolvedModelCapabilities } from "@/lib/modelCapabilities";
 import { getSyncedCapabilities } from "@/lib/modelsDevSync";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * Build the set of provider keys (raw id + alias) that have at least one active/validated
@@ -50,6 +51,9 @@ export async function OPTIONS() {
  * Returns models in Gemini API format with real token limits when available.
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     getSyncedCapabilities();
     const models = [];

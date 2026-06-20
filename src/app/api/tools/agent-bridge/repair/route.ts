@@ -12,6 +12,7 @@ import { z } from "zod";
 import { repairMitm, getCachedPassword } from "@/mitm/manager";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Exported for unit testing. Next.js only treats GET/POST/etc. as route
 // handlers; additional named exports are ignored by the App Router.
@@ -20,6 +21,9 @@ export const RepairBodySchema = z.object({
 });
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const raw = await request.json().catch(() => ({}));
   const parsed = RepairBodySchema.safeParse(raw);
   const sudoPassword =

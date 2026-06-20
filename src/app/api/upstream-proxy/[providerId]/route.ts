@@ -7,6 +7,7 @@ import {
 
 import { z } from "zod";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const upstreamProxySchema = z.object({
   mode: z.enum(["native", "cliproxyapi", "fallback"]).default("native"),
@@ -17,6 +18,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ providerId: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { providerId } = await params;
   if (!providerId) {
     return NextResponse.json({ error: "providerId required" }, { status: 400 });
@@ -32,6 +36,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ providerId: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { providerId } = await params;
   if (!providerId) {
     return NextResponse.json({ error: "providerId required" }, { status: 400 });
@@ -58,6 +65,9 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ providerId: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { providerId } = await params;
   if (!providerId) {
     return NextResponse.json({ error: "providerId required" }, { status: 400 });

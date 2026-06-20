@@ -13,8 +13,12 @@ import { resolveMitmDataDir } from "@/mitm/dataDir";
 import path from "path";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

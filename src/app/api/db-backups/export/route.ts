@@ -5,6 +5,7 @@ import os from "os";
 import { getDbInstance, SQLITE_FILE } from "@/lib/db/core";
 import { isAuthRequired, isAuthenticated } from "@/shared/utils/apiAuth";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/db-backups/export — Download the current database as a .sqlite file.
@@ -15,6 +16,9 @@ import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
  * 🔒 Auth-guarded: requires JWT cookie or Bearer API key (finding #258-2).
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (await isAuthRequired(request)) {
     if (!(await isAuthenticated(request))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

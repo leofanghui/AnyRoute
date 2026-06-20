@@ -18,6 +18,7 @@ import { getMitmStatus } from "@/mitm/manager";
 import { checkCertInstalled } from "@/mitm/cert/install";
 import { resolveMitmDataDir } from "@/mitm/dataDir";
 import { summarizeDiagnostics } from "@/mitm/inspector/diagnostics";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /** Best-effort TCP reachability probe; resolves false on error/timeout. */
 function probeTcp(port: number, host = "127.0.0.1", timeoutMs = 1500): Promise<boolean> {
@@ -38,6 +39,9 @@ function probeTcp(port: number, host = "127.0.0.1", timeoutMs = 1500): Promise<b
 }
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const status = await getMitmStatus();
     const certPath = path.join(resolveMitmDataDir(), "mitm", "server.crt");

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { detectFormat } from "@omniroute/open-sse/services/provider.ts";
 import { translatorDetectSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * POST /api/translator/detect
@@ -10,6 +11,9 @@ import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
  * Returns: { format, label }
  */
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

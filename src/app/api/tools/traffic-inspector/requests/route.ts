@@ -9,8 +9,12 @@ import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 import { InspectorListQuerySchema } from "@/shared/schemas/inspector";
 import { globalTrafficBuffer } from "@/mitm/inspector/buffer";
 import type { ListFilters } from "@/mitm/inspector/types";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const url = new URL(request.url);
   const rawQuery: Record<string, string> = {};
   url.searchParams.forEach((value, key) => {
@@ -39,6 +43,9 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function DELETE(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   globalTrafficBuffer.clear();
   return new Response(null, { status: 204 });
 }

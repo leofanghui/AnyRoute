@@ -27,12 +27,16 @@ import {
 import { resolvePlan } from "@/lib/quota/planResolver";
 import { resolveConnectionProvider } from "@/lib/quota/connectionProvider";
 import { logAuditEvent, getAuditRequestContext } from "@/lib/compliance/index";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 type RouteParams = { params: Promise<{ connectionId: string }> };
 
 export async function GET(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -56,6 +60,9 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Re
 }
 
 export async function PUT(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -91,6 +98,9 @@ export async function PUT(request: Request, { params }: RouteParams): Promise<Re
 }
 
 export async function DELETE(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

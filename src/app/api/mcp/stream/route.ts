@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSettings } from "@/lib/db/settings";
 import { handleMcpStreamableHTTP } from "../../../../../open-sse/mcp-server/httpTransport";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 async function guardEnabled(): Promise<NextResponse | null> {
   const settings = await getSettings();
@@ -33,6 +34,9 @@ async function guardEnabled(): Promise<NextResponse | null> {
 }
 
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const blocked = await guardEnabled();
@@ -41,6 +45,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const blocked = await guardEnabled();
@@ -49,6 +56,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const blocked = await guardEnabled();

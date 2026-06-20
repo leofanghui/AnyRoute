@@ -15,12 +15,16 @@ import {
   renameSession,
   deleteSession,
 } from "@/lib/db/inspectorSessions";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
 
   try {
@@ -49,6 +53,9 @@ export async function GET(_request: Request, { params }: Params): Promise<Respon
 }
 
 export async function PATCH(request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
 
   let body: unknown;
@@ -100,6 +107,9 @@ export async function PATCH(request: Request, { params }: Params): Promise<Respo
 }
 
 export async function DELETE(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
 
   const session = getSession(id);

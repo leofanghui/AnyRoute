@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { getCallLogById } from "@/lib/usageDb";
 import { getCompletedDetails, getPendingById } from "@/lib/usage/usageHistory";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,9 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(req);
   if (authError) return authError;
 

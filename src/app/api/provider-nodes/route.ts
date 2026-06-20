@@ -9,6 +9,7 @@ import { generateId } from "@/shared/utils";
 import { isCcCompatibleProviderEnabled } from "@/shared/utils/featureFlags";
 import { createProviderNodeSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const OPENAI_COMPATIBLE_DEFAULTS = {
   baseUrl: "https://api.openai.com/v1",
@@ -34,6 +35,9 @@ function sanitizeClaudeCodeCompatibleBaseUrl(baseUrl: string) {
 
 // GET /api/provider-nodes - List all provider nodes
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const nodes = await getProviderNodes();
     return NextResponse.json({
@@ -48,6 +52,9 @@ export async function GET() {
 
 // POST /api/provider-nodes - Create provider node
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

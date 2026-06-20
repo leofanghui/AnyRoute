@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
 // @ts-expect-error - .mjs without types
 import { getEnvSyncPlan, syncEnv } from "../../../../../../scripts/dev/sync-env.mjs";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 async function loadSyncHelpers() {
   return { getEnvSyncPlan, syncEnv };
@@ -32,6 +33,9 @@ function createEnvBackup() {
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -56,6 +60,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

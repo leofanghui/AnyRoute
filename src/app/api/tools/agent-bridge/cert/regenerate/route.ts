@@ -6,8 +6,12 @@
 import { generateCert } from "@/mitm/cert/generate";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function POST(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     // generateCert checks for existing files — force-regenerate by deleting first
     // is not in scope; the function is idempotent (returns existing paths). If a

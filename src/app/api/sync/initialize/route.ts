@@ -2,12 +2,16 @@ import { NextResponse } from "next/server";
 import initializeCloudSync from "@/shared/services/initializeCloudSync";
 import { startModelSyncScheduler } from "@/shared/services/modelSyncScheduler";
 import { resolveOmniRouteBaseUrl } from "@/shared/utils/resolveOmniRouteBaseUrl";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 let syncInitialized = false;
 let modelSyncInitialized = false;
 
 // POST /api/sync/initialize - Initialize cloud sync scheduler
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     if (syncInitialized) {
       return NextResponse.json({
@@ -43,6 +47,9 @@ export async function POST(request) {
 
 // GET /api/sync/status - Check sync initialization status
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   return NextResponse.json({
     initialized: syncInitialized,
     modelSyncInitialized,

@@ -14,6 +14,7 @@ import path from "path";
 import fs from "fs";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const CA_PATH_FILE = path.join(resolveMitmDataDir(), "mitm", "upstream-ca.path");
 
@@ -34,6 +35,9 @@ function writeStoredCaPath(caPath: string): void {
 }
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const stored = readStoredCaPath();
     // Prefer env var; file is secondary
@@ -46,6 +50,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

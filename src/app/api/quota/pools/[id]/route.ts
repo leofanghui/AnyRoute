@@ -18,12 +18,16 @@ import { PoolUpdateSchema } from "@/shared/schemas/quota";
 import { getPool, updatePool, deletePool } from "@/lib/localDb";
 import { logAuditEvent, getAuditRequestContext } from "@/lib/compliance/index";
 import { reconcilePoolExclusivity } from "@/lib/quota/quotaKey";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -41,6 +45,9 @@ export async function GET(request: Request, { params }: RouteParams): Promise<Re
 }
 
 export async function PATCH(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -127,6 +134,9 @@ export async function PATCH(request: Request, { params }: RouteParams): Promise<
 }
 
 export async function DELETE(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

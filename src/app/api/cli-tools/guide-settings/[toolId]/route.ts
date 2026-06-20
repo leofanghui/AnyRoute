@@ -10,6 +10,7 @@ import { mergeOpenCodeConfigText } from "@/shared/services/opencodeConfig";
 import { guideSettingsSaveSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { resolveApiKey, getOrCreateApiKey } from "@/shared/services/apiKeyResolver";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * POST /api/cli-tools/guide-settings/:toolId
@@ -18,6 +19,9 @@ import { resolveApiKey, getOrCreateApiKey } from "@/shared/services/apiKeyResolv
  * Currently supports: continue, opencode
  */
 export async function GET(request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   // cli-tools routes require the shared management auth guard on every exported handler.
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
@@ -26,6 +30,9 @@ export async function GET(request, { params }) {
 }
 
 export async function POST(request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

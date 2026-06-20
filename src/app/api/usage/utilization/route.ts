@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getAggregatedSnapshots } from "@/lib/db/quotaSnapshots";
 import type { ProviderUtilizationResponse, UtilizationTimeRange } from "@/shared/types/utilization";
 import { BUCKET_SIZES } from "@/shared/types/utilization";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const VALID_RANGES: UtilizationTimeRange[] = ["1h", "24h", "7d", "30d"];
 
@@ -28,6 +29,9 @@ function getRangeStartIso(range: UtilizationTimeRange): string {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
     const rangeParam = searchParams.get("range");

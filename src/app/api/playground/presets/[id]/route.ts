@@ -20,6 +20,7 @@ import {
 } from "@/lib/db/playgroundPresets";
 import { PlaygroundPresetUpdateSchema } from "@/shared/schemas/playground";
 import { isRequireApiKeyEnabled } from "@/shared/utils/featureFlags";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, PUT, DELETE, OPTIONS",
@@ -67,6 +68,9 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await checkAuth(request);
   if (authError) return authError;
 
@@ -101,6 +105,9 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await checkAuth(request);
   if (authError) return authError;
 
@@ -161,6 +168,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await checkAuth(request);
   if (authError) return authError;
 

@@ -3,6 +3,7 @@ import { CORS_HEADERS, handleCorsOptions } from "@/shared/utils/cors";
 import { type LeaderboardScope, getTopN } from "@/lib/gamification/leaderboard";
 import { getConnectedServerByKeyHash } from "@/lib/db/gamification";
 import crypto from "crypto";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
@@ -14,6 +15,9 @@ export async function OPTIONS() {
  * Requires bearer token authentication against community_servers.
  */
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   // Authenticate: validate bearer token against community_servers
   const authHeader = request.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {

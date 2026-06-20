@@ -10,12 +10,16 @@ import {
 } from "@/lib/logEnv";
 import { getDbBackupMaxFiles, getDbBackupRetentionDays } from "@/lib/db/backup";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/storage/health — Return database storage information.
  * Provides: driver, dbPath, sizeBytes, lastBackupAt, retentionDays
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const dataDir = resolveDataDir({});
     const dbFilePath = path.join(dataDir, "storage.sqlite");

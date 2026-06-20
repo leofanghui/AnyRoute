@@ -22,12 +22,16 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { getApiKeyById, getCombos } from "@/lib/localDb";
 import { resolveQuotaKeyScope } from "@/lib/quota/quotaKey";
 import { filterModelsToQuotaPools } from "@/lib/quota/quotaCombos";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, { params }: RouteParams): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

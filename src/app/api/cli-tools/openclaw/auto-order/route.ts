@@ -8,10 +8,14 @@ import { NextResponse } from "next/server";
 import { requireCliToolsAuth } from "@/lib/api/requireCliToolsAuth";
 import { getComboModelProvider } from "@/lib/combos/steps";
 import { resolveOmniRouteBaseUrl } from "@/shared/utils/resolveOmniRouteBaseUrl";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const OMNIROUTE_BASE_URL = resolveOmniRouteBaseUrl();
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

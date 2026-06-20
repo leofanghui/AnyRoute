@@ -19,6 +19,7 @@ import {
   OutboundUrlGuardError,
 } from "@/shared/network/outboundUrlGuard";
 import crypto from "crypto";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const MAX_RESPONSE_BODY = 2048;
 
@@ -79,6 +80,9 @@ async function testFetch(
 }
 
 export async function POST(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(_);
   if (authError) return authError;
 

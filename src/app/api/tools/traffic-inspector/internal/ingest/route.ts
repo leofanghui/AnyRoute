@@ -24,6 +24,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { InterceptedRequestSchema } from "@/mitm/inspector/types";
 import { globalTrafficBuffer } from "@/mitm/inspector/buffer";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // ── Token management ────────────────────────────────────────────────────────
 
@@ -72,6 +73,9 @@ const IngestBodySchema = InterceptedRequestSchema.partial().required({
 // ── Handler ─────────────────────────────────────────────────────────────────
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   // Token gate (second layer after LOCAL_ONLY IP check).
   const authHeader = request.headers.get("authorization") ?? "";
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";

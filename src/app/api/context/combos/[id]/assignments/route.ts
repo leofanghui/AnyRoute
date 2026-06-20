@@ -7,6 +7,7 @@ import {
 } from "@/lib/db/compressionCombos";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const assignmentsUpdateSchema = z
   .object({
@@ -15,6 +16,9 @@ export const assignmentsUpdateSchema = z
   .strict();
 
 export async function GET(request: Request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const { id } = await params;
@@ -25,6 +29,9 @@ export async function GET(request: Request, { params }) {
 }
 
 export async function PUT(request: Request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const { id } = await params;

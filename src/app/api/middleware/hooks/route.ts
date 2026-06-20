@@ -10,6 +10,7 @@ import { registerHook, getAllHooks } from "@/lib/middleware/registry";
 import type { HookConfig, CreateHookRequest } from "@/lib/middleware/types";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const hookScopeSchema = z.union([
   z.object({ type: z.literal("global") }),
@@ -32,6 +33,9 @@ const createHookSchema = z.object({
  * GET /api/middleware/hooks — List all registered hooks
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -76,6 +80,9 @@ export async function GET(request: Request) {
  * Body: { name, description?, priority?, scope?, code }
  */
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

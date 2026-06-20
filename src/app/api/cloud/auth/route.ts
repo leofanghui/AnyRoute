@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { validateApiKey, getProviderConnections, getModelAliases } from "@/models";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Verify API key and return provider credentials
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const authHeader = request.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {

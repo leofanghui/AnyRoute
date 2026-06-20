@@ -3,6 +3,7 @@ import { countAuditLog, getAuditLog } from "@/lib/compliance/index";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { AuditLogQuerySchema } from "@/shared/schemas/quota";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ function parsePagination(value: string | null, fallback: number, min: number, ma
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

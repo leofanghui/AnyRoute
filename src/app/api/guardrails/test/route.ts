@@ -15,6 +15,7 @@ import { createErrorResponse } from "@/lib/api/errorResponse";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { registerDefaultGuardrails } from "@/lib/guardrails/registry";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const TestRequestSchema = z.object({
   input: z.union([z.string(), z.record(z.unknown()), z.array(z.unknown())]),
@@ -26,6 +27,9 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

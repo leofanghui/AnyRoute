@@ -5,6 +5,7 @@ import { skillRegistry } from "@/lib/skills/registry";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
 import { fetchSkillMd } from "@/lib/skills/skillssh";
 import { getSkillsProviderSetting } from "@/lib/skills/providerSettings";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const skillsshInstallSchema = z.object({
   name: z.string().min(1).max(64),
@@ -15,6 +16,9 @@ const skillsshInstallSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

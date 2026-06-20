@@ -17,9 +17,13 @@ import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error";
 import { QUOTA_MODEL_PREFIX } from "@/lib/quota/quotaModelNaming";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // GET /api/combos/[id] - Get combo by ID
 export async function GET(request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -40,6 +44,9 @@ export async function GET(request, { params }) {
 
 // PUT /api/combos/[id] - Update combo
 export async function PUT(request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -155,6 +162,9 @@ export async function PUT(request, { params }) {
 
 // DELETE /api/combos/[id] - Delete combo
 export async function DELETE(request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

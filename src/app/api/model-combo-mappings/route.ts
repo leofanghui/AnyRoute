@@ -9,6 +9,7 @@ import { NextResponse } from "next/server";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { getModelComboMappings, createModelComboMapping } from "@/lib/localDb";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const createMappingSchema = z.object({
   pattern: z.string().min(1, "Pattern is required").max(500),
@@ -19,6 +20,9 @@ const createMappingSchema = z.object({
 });
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -32,6 +36,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

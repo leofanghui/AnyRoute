@@ -4,6 +4,7 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { processCopilotChat } from "@/lib/copilot/engine";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { sanitizeErrorMessage, buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const copilotRequestSchema = z.object({
   messages: z
@@ -26,6 +27,9 @@ const copilotRequestSchema = z.object({
  * Body: { messages: [{ role: "user"|"assistant"|"system", content: string }] }
  */
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

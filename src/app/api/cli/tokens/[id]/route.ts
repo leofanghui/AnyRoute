@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { revokeAccessToken } from "@/lib/db/accessTokens";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * DELETE /api/cli/tokens/:id — revoke an access token (by id or display prefix).
@@ -11,6 +12,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

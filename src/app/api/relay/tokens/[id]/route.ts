@@ -9,6 +9,7 @@ import {
   getRelayUsage,
 } from "@/lib/db/relayProxies";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const relayTokenPatchSchema = z
   .object({
@@ -25,6 +26,9 @@ const relayTokenPatchSchema = z
   .refine((value) => Object.keys(value).length > 0, "At least one update field is required");
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
   const token = getRelayToken(id);
   if (!token) return NextResponse.json({ error: "Token not found" }, { status: 404 });
@@ -43,6 +47,9 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
   const rawBody = await request.json();
   const validation = validateBody(relayTokenPatchSchema, rawBody);
@@ -73,6 +80,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
   deleteRelayToken(id);
   return NextResponse.json({ success: true });

@@ -11,12 +11,16 @@ import { buildErrorBody, sanitizeErrorMessage } from "@omniroute/open-sse/utils/
 import { getSession, getSessionRequests } from "@/lib/db/inspectorSessions";
 import { toHar } from "@/lib/inspector/harExport";
 import type { InterceptedRequest } from "@/mitm/inspector/types";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
 
   const session = getSession(id);

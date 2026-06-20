@@ -9,9 +9,13 @@ import { cliMitmStartSchema, cliMitmStopSchema } from "@/shared/validation/schem
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { resolveApiKey } from "@/shared/services/apiKeyResolver";
 import { isRoot } from "@/mitm/systemCommands";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // GET - Check MITM status
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -33,6 +37,9 @@ export async function GET(request) {
 
 // POST - Start MITM proxy
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -94,6 +101,9 @@ export async function POST(request) {
 
 // DELETE - Stop MITM proxy
 export async function DELETE(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

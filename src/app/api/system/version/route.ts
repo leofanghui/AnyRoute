@@ -18,6 +18,7 @@ import {
 } from "@/lib/system/autoUpdate";
 import { NEWS_JSON_URL, parseActiveNewsPayload } from "@/shared/utils/releaseNotes";
 import { isNewer, resolveLatestVersion } from "@/lib/system/versionCheck";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const execFileAsync = promisify(execFile);
 
@@ -43,6 +44,9 @@ async function getNews() {
 }
 
 export async function GET(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -70,6 +74,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(req))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

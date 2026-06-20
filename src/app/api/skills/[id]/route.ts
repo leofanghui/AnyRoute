@@ -4,6 +4,7 @@ import { skillRegistry } from "@/lib/skills/registry";
 import { z } from "zod";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const updateSkillSchema = z.object({
   enabled: z.boolean().optional(),
@@ -11,6 +12,9 @@ const updateSkillSchema = z.object({
 });
 
 export async function DELETE(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(_request);
   if (authError) return authError;
 
@@ -28,6 +32,9 @@ export async function DELETE(_request: Request, props: { params: Promise<{ id: s
 }
 
 export async function PUT(request: Request, props: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

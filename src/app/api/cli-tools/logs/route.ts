@@ -26,6 +26,7 @@ import { readFileSync, existsSync } from "fs";
 import { getAppLogFilePath } from "@/lib/logEnv";
 import { requireCliToolsAuth } from "@/lib/api/requireCliToolsAuth";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Map pino numeric levels to string levels
 const NUMERIC_LEVEL_MAP: Record<number, string> = {
@@ -63,6 +64,9 @@ function stringifyLogValue(value: unknown): string {
  * GET /api/cli-tools/logs
  */
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

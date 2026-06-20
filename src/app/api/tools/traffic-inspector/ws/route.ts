@@ -20,6 +20,7 @@
 import { createHash } from "node:crypto";
 import { globalTrafficBuffer } from "@/mitm/inspector/buffer";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 const PING_INTERVAL_MS = 30_000;
@@ -69,6 +70,9 @@ function sendClose(socket: import("node:net").Socket): void {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const upgrade = request.headers.get("upgrade");
   if (!upgrade || upgrade.toLowerCase() !== "websocket") {
     return new Response(JSON.stringify(buildErrorBody(426, "Upgrade Required")), {

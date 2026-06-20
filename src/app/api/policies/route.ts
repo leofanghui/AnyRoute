@@ -2,8 +2,12 @@ import { NextResponse } from "next/server";
 import { getLockedIdentifiers, forceUnlock } from "@/domain/lockoutPolicy";
 import { policyActionSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const lockedIdentifiers = getLockedIdentifiers();
     return NextResponse.json({ lockedIdentifiers });
@@ -14,6 +18,9 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

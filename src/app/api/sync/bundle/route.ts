@@ -1,6 +1,7 @@
 import { buildConfigSyncEnvelope } from "@/lib/sync/bundle";
 import { getSyncTokenFromRequest, markSyncTokenUsed, validateSyncToken } from "@/lib/sync/tokens";
 import { createErrorResponse, createErrorResponseFromUnknown } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function matchesEtag(request: Request, version: string) {
   const ifNoneMatch = request.headers.get("if-none-match");
@@ -21,6 +22,9 @@ function responseHeaders(version: string) {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const rawToken = getSyncTokenFromRequest(request);
     const syncToken = await validateSyncToken(rawToken);

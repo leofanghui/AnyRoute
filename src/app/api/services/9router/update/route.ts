@@ -7,8 +7,12 @@ import {
 } from "@/lib/services/installers/ninerouter";
 import { createErrorResponse } from "@/lib/api/errorResponse";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function POST(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const [installed, latest] = await Promise.all([getInstalledVersion(), getLatestVersion()]);
 

@@ -11,6 +11,7 @@ import {
 import { getSettings, updateSettings } from "@/lib/db/settings";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const customAgentBodySchema = z.object({
   action: z.string().optional(),
@@ -24,6 +25,9 @@ const customAgentBodySchema = z.object({
 });
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -56,6 +60,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -132,6 +139,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

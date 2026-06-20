@@ -10,6 +10,7 @@ import {
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
 import { oauthDeviceCompleteSchema } from "@/shared/validation/schemas";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * Public Codex device-flow completion endpoint (NOT behind dashboard auth).
@@ -27,6 +28,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { token } = await params;
   const ticket = peekDeviceFlowTicket(token);
   if (!ticket || ticket.provider !== PROVIDER || ticket.status !== "pending") {
@@ -47,6 +51,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ token: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { token } = await params;
 
   let rawBody: any;

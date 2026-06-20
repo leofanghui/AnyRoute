@@ -11,6 +11,7 @@ import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { checkLoginGuard, clearLoginAttempts, recordLoginFailure } from "@/server/auth/loginGuard";
 import { createAccessToken } from "@/lib/db/accessTokens";
 import { ACCESS_SCOPES } from "@/lib/accessTokens/scopes";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * POST /api/cli/connect — remote-mode bootstrap.
@@ -33,6 +34,9 @@ const connectSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const auditContext = getAuditRequestContext(request);
 
   try {

@@ -7,10 +7,14 @@ import {
 } from "@/lib/services/installers/cliproxy";
 import { createErrorResponse } from "@/lib/api/errorResponse";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const TOOL = "cliproxy";
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const sup = getSupervisor(TOOL);
     const row = await getServiceRow(TOOL);

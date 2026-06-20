@@ -14,8 +14,12 @@
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 import { InspectorTlsInterceptToggleSchema } from "@/shared/schemas/inspector";
 import { isTlsInterceptEnabled, setTlsIntercept } from "@/lib/inspector/captureState";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

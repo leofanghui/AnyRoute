@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { CORS_HEADERS, handleCorsOptions } from "@/shared/utils/cors";
 import { computeFreeProviderRankings } from "@/lib/freeProviderRankings";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const QuerySchema = z.object({
   category: z.string().min(1).max(50).optional(),
@@ -20,6 +21,9 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const url = new URL(request.url);
   const parsed = QuerySchema.safeParse({
     category: url.searchParams.get("category") || undefined,

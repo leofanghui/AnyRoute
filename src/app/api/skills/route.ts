@@ -4,6 +4,7 @@ import { parsePaginationParams, buildPaginatedResponse } from "@/shared/types/pa
 import { getSkillsProviderSetting } from "@/lib/skills/providerSettings";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { matchesSearch } from "@/shared/utils/turkishText";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const POPULAR_BY_PROVIDER = {
   skillsmp: ["web-search", "file-reader", "sql-assistant", "devops-helper", "docs-assistant"],
@@ -11,6 +12,9 @@ const POPULAR_BY_PROVIDER = {
 } as const;
 
 export async function GET(request?: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

@@ -11,6 +11,7 @@ import {
 } from "@/lib/cli-helper/config-generator/hermes-agent";
 import { getHermesConfigPath } from "@/lib/cli-helper/config-generator/hermesHome";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const hermesAgentSettingsSchema = z.object({
   baseUrl: z.string().min(1, "baseUrl is required"),
@@ -43,6 +44,9 @@ function getMetadataPath(configPath: string) {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   // cli-tools routes touch host config files — guard every handler with the shared auth.
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
@@ -70,6 +74,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

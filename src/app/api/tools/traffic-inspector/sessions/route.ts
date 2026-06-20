@@ -8,8 +8,12 @@
 import { buildErrorBody, sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
 import { InspectorSessionStartSchema } from "@/shared/schemas/inspector";
 import { listSessions, createSession } from "@/lib/db/inspectorSessions";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const sessions = listSessions();
     return Response.json({ sessions });
@@ -23,6 +27,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let body: unknown;
   try {
     body = await request.json();

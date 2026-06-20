@@ -6,9 +6,13 @@ import {
   resetAllComboMetrics,
 } from "@omniroute/open-sse/services/comboMetrics.ts";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // GET /api/combos/metrics - Get per-combo metrics
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
@@ -34,6 +38,9 @@ export async function GET(request) {
 
 // DELETE /api/combos/metrics - Reset metrics
 export async function DELETE(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

@@ -7,8 +7,12 @@ import { resolveMitmDataDir } from "@/mitm/dataDir";
 import path from "path";
 import fs from "fs";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const crtPath = path.join(resolveMitmDataDir(), "mitm", "server.crt");
 
   if (!fs.existsSync(crtPath)) {

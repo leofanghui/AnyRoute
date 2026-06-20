@@ -12,8 +12,12 @@
 import { NextResponse } from "next/server";
 import { getPerEngineAnalytics } from "@/lib/db/compressionAnalytics";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(req: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(req);
   if (authError) return authError;
 

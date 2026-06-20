@@ -16,6 +16,7 @@ import {
   testProxiesAgainstTarget,
   getProxyCandidates,
 } from "@omniroute/open-sse/utils/proxyFallback";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const testSchema = z.object({
   targetUrl: z.string().url("Invalid target URL"),
@@ -40,6 +41,9 @@ function blockedPrivateUrl(rawUrl: string): boolean {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

@@ -11,6 +11,7 @@ import path from "path";
 import fs from "fs";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Exported for unit testing. Next.js only treats GET/POST/etc. as route
 // handlers; additional named exports are ignored by the App Router.
@@ -23,6 +24,9 @@ function certPath(): string {
 }
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const crtPath = certPath();
     const exists = fs.existsSync(crtPath);
@@ -35,6 +39,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const raw = await request.json().catch(() => ({}));
   const parsed = CertTrustBodySchema.safeParse(raw);
   const sudoPassword =
@@ -66,6 +73,9 @@ export async function POST(request: Request): Promise<Response> {
  * always-trusted MITM root CA whose key lives on disk is an attack surface.)
  */
 export async function DELETE(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const raw = await request.json().catch(() => ({}));
   const parsed = CertTrustBodySchema.safeParse(raw);
   const sudoPassword =

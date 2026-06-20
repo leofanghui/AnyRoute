@@ -4,6 +4,7 @@ import pino from "pino";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 
 import { getProviderMetrics } from "@/lib/db/callLogStats";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const logger = pino({ name: "provider-metrics-api" });
 
@@ -21,6 +22,9 @@ function toNumber(value: unknown): number {
  * Returns aggregate metrics plus topology recency/error hints for dashboard visualization.
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const rows = getProviderMetrics();
 

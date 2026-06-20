@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getTaskManager } from "@/lib/a2a/taskManager";
 import { getSettings } from "@/lib/db/settings";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const [settings, stats] = await Promise.all([
       getSettings(),

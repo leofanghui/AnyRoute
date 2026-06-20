@@ -3,6 +3,7 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { getCallLogs } from "@/lib/usageDb";
 import { getCompletedDetails, getPendingById } from "@/lib/usage/usageHistory";
 import { getProviderConnections } from "@/lib/localDb";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 type CallLogListRowsInput = {
   logs: any[];
@@ -111,6 +112,9 @@ export function buildCallLogListRows({
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const authError = await requireManagementAuth(request);
     if (authError) return authError;

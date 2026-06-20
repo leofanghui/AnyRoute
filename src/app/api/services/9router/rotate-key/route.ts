@@ -5,8 +5,12 @@ import { updateServiceField } from "@/lib/db/versionManager";
 import { encrypt } from "@/lib/db/encryption";
 import { createErrorResponse } from "@/lib/api/errorResponse";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function POST(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const newKey = generateServiceApiKey("nr");
     await updateServiceField("9router", "apiKey", encrypt(newKey) ?? newKey);

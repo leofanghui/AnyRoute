@@ -9,6 +9,7 @@ import { NextRequest } from "next/server";
 import { type LeaderboardScope, getTopN } from "@/lib/gamification/leaderboard";
 import { CORS_HEADERS } from "@/shared/utils/cors";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const VALID_SCOPES: ReadonlySet<string> = new Set([
   "global",
@@ -25,6 +26,9 @@ const VALID_SCOPES: ReadonlySet<string> = new Set([
  *   scope — one of: global, weekly, monthly, tokens_shared, contributions (default: global)
  */
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authErr = await requireManagementAuth(request);
   if (authErr) return authErr;
 

@@ -14,11 +14,15 @@ import { NextResponse } from "next/server";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 import { ListQuerySchema } from "@/lib/agentSkills/schemas";
 import { filterCatalog, computeCoverage } from "@/lib/agentSkills/catalog";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // Catalog reads filesystem on demand — disable static caching
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
 

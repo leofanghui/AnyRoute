@@ -15,8 +15,12 @@ import {
   exportConfig,
   importConfig,
 } from "@/lib/inspector/configPortability";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     return Response.json(exportConfig());
   } catch (err) {
@@ -26,6 +30,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const raw = await request.json().catch(() => null);
   const parsed = AgentBridgeConfigSchema.safeParse(raw);
   if (!parsed.success) {

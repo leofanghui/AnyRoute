@@ -10,6 +10,7 @@ import { FORMATS } from "@omniroute/open-sse/translator/formats.ts";
 import { getProviderConnections } from "@/lib/localDb";
 import { translatorTranslateSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -44,6 +45,9 @@ async function getActiveProviderSpecificData(provider?: string | null): Promise<
 }
 
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

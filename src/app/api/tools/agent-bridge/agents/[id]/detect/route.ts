@@ -7,6 +7,7 @@ import { detectAgent } from "@/mitm/detection/index";
 import type { AgentId } from "@/mitm/types";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { createErrorResponse } from "@/lib/api/errorResponse";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const VALID_IDS = new Set<AgentId>([
   "antigravity",
@@ -23,6 +24,9 @@ const VALID_IDS = new Set<AgentId>([
 type Params = { params: { id: string } };
 
 export async function GET(_request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = params;
 
   if (!VALID_IDS.has(id as AgentId)) {

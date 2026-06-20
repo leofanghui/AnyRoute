@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireCliToolsAuth } from "@/lib/api/requireCliToolsAuth";
 import { detectAllTools, detectTool } from "@/lib/cli-helper/tool-detector";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // GET /api/cli-tools/detect - Detect all installed CLI tools
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

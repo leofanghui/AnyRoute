@@ -4,6 +4,7 @@ import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { createAccessToken, listAccessTokens } from "@/lib/db/accessTokens";
 import { ACCESS_SCOPES } from "@/lib/accessTokens/scopes";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * /api/cli/tokens — manage scoped CLI access tokens. Admin-only: the path is in
@@ -12,6 +13,9 @@ import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
  */
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   return NextResponse.json({ tokens: listAccessTokens() });
@@ -24,6 +28,9 @@ const createSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

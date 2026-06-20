@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { REGISTRY } from "@omniroute/open-sse/config/providerRegistry.ts";
 import { getAllCustomModels, getAllSyncedAvailableModels, getPricing } from "@/lib/localDb";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -25,6 +26,9 @@ function asModelArray(value: unknown): Array<{ id?: string; name?: string }> {
  *  4. pricing data (DB — models with pricing configured but not in sources 1/2/3)
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const catalog: Record<string, any> = {};
 

@@ -3,6 +3,7 @@ import { CORS_HEADERS, handleCorsOptions } from "@/shared/utils/cors";
 import { buildErrorBody } from "@omniroute/open-sse/utils/error";
 import { pluginManager } from "@/lib/plugins/manager";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
@@ -15,6 +16,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ name: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const { name } = await params;

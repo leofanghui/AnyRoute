@@ -6,11 +6,15 @@ import { listBackups, restoreBackup, deleteBackup } from "@/shared/services/back
 import { ensureCliConfigWriteAllowed } from "@/shared/services/cliRuntime";
 import { cliBackupMutationSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const VALID_TOOLS = ["claude", "codex", "droid", "openclaw", "cline", "kilo", "qwen"];
 
 // GET /api/cli-tools/backups?tool=claude — list backups
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -41,6 +45,9 @@ export async function GET(request) {
 
 // POST /api/cli-tools/backups { tool, backupId } — restore a backup
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -93,6 +100,9 @@ export async function POST(request) {
 
 // DELETE /api/cli-tools/backups { tool, backupId } — delete a backup
 export async function DELETE(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

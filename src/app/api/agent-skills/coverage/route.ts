@@ -9,10 +9,14 @@ import { NextResponse } from "next/server";
 
 import { buildErrorBody } from "@omniroute/open-sse/utils/error.ts";
 import { computeCoverage } from "@/lib/agentSkills/catalog";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const coverage = computeCoverage();
     return NextResponse.json(coverage);

@@ -3,10 +3,14 @@ import { getCompressionSettings, updateCompressionSettings } from "@/lib/db/comp
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { rtkConfigSchema } from "@/shared/validation/compressionConfigSchemas";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export { rtkConfigSchema };
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const settings = await getCompressionSettings();
@@ -14,6 +18,9 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   let rawBody: unknown;

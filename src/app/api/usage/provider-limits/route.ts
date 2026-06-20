@@ -5,12 +5,16 @@ import {
   getSanitizedCachedProviderLimitsMap,
   syncAllProviderLimits,
 } from "@/lib/usage/providerLimits";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/usage/provider-limits
  * Returns cached Provider Limits data without triggering live refreshes.
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     return NextResponse.json({
       caches: await getSanitizedCachedProviderLimitsMap(),
@@ -28,6 +32,9 @@ export async function GET() {
  * Manually refresh all supported Provider Limits entries.
  */
 export async function POST() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const result = await syncAllProviderLimits({ source: "manual" });
     const caches = await getSanitizedCachedProviderLimitsMap();

@@ -5,6 +5,7 @@ import { listPlugins } from "@/lib/db/plugins";
 import { pluginManager } from "@/lib/plugins/manager";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { z } from "zod";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
@@ -16,6 +17,9 @@ export async function OPTIONS() {
 const StatusSchema = z.enum(["installed", "active", "inactive", "error"]).optional();
 
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const url = new URL(request.url);
@@ -43,6 +47,9 @@ export async function GET(request: NextRequest) {
  * POST /api/plugins — Install a plugin from a local path
  */
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
   const body = await request.json();

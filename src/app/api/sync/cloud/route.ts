@@ -8,12 +8,16 @@ import os from "os";
 import { cloudSyncActionSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/sync/cloud
  * Returns current cloud sync status for sidebar indicator
  */
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { isCloudEnabled } = await import("@/lib/db/settings");
     const enabled = await isCloudEnabled();
@@ -61,6 +65,9 @@ export async function GET() {
  * Sync data with Cloud
  */
 export async function POST(request: any) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

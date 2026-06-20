@@ -4,9 +4,13 @@ import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { syncToCloud } from "@/lib/cloudSync";
 import { cloudModelAliasUpdateSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // PUT /api/cloud/models/alias - Set model alias (for cloud/CLI)
 export async function PUT(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();
@@ -83,6 +87,9 @@ async function syncToCloudIfEnabled() {
 
 // GET /api/cloud/models/alias - Get all aliases
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const authHeader = request.headers.get("authorization");
     const apiKey = authHeader?.replace("Bearer ", "");

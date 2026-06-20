@@ -7,6 +7,7 @@ import path from "path";
 import os from "os";
 import { execFileSync } from "node:child_process";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/db-backups/exportAll
@@ -14,6 +15,9 @@ import { isAuthenticated } from "@/shared/utils/apiAuth";
  * Security: Requires admin authentication.
  */
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

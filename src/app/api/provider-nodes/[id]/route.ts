@@ -10,6 +10,7 @@ import {
 import { isClaudeCodeCompatibleProvider } from "@/shared/constants/providers";
 import { updateProviderNodeSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -33,6 +34,9 @@ function sanitizeClaudeCodeCompatibleBaseUrl(baseUrl: string) {
 
 // PUT /api/provider-nodes/[id] - Update provider node
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody: unknown;
   try {
     rawBody = await request.json();
@@ -140,6 +144,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
 // DELETE /api/provider-nodes/[id] - Delete provider node and its connections
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { id } = await params;
     const node = await getProviderNodeById(id);

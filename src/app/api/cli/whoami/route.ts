@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { extractBearer, ACCESS_TOKEN_PREFIX } from "@/server/authz/accessTokenAuth";
 import { verifyAccessToken, getAccessToken } from "@/lib/db/accessTokens";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/cli/whoami — report the current credential to the CLI.
@@ -13,6 +14,9 @@ import { verifyAccessToken, getAccessToken } from "@/lib/db/accessTokens";
  * token) report `viaAccessToken: false`.
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

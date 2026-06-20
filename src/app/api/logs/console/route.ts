@@ -16,6 +16,7 @@ import { getAppLogFilePath } from "@/lib/logEnv";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { matchesSearch } from "@/shared/utils/turkishText";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const LEVEL_ORDER: Record<string, number> = {
   trace: 5,
@@ -64,6 +65,9 @@ function stringifyLogValue(value: unknown): string {
 }
 
 export async function GET(req: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(req);
   if (authError) return authError;
 

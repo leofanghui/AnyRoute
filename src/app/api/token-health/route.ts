@@ -7,8 +7,12 @@
 
 import { getProviderConnections } from "@/lib/localDb";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const connections = await getProviderConnections({ authType: "oauth" });
     const oauthConns = (connections || []).filter((c) => c.isActive && c.refreshToken);

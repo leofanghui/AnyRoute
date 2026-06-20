@@ -3,8 +3,12 @@ import { getCacheStats } from "@omniroute/open-sse/services/searchCache.ts";
 import { SEARCH_PROVIDERS } from "@omniroute/open-sse/config/searchRegistry.ts";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
 import { getSearchProviderStats, getRecentSearchLogs } from "@/lib/db/callLogStats";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

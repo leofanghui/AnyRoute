@@ -11,12 +11,16 @@ import {
   OutboundUrlGuardError,
 } from "@/shared/network/outboundUrlGuard";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const validateUrlSchema = z.object({
   url: z.string().min(1).max(2000),
 });
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

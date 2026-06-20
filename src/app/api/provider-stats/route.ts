@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { getProviderCallStats, getModelCallStats } from "@/lib/db/providerStats";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     // Hard Rule #5: SQL lives in src/lib/db/providerStats.ts, not inline here.
     const providerStats = getProviderCallStats();

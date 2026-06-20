@@ -13,6 +13,7 @@ import { extractApiKey, isValidApiKey } from "@/sse/services/auth";
 import { listPlaygroundPresets, createPlaygroundPreset } from "@/lib/db/playgroundPresets";
 import { PlaygroundPresetCreateSchema } from "@/shared/schemas/playground";
 import { isRequireApiKeyEnabled } from "@/shared/utils/featureFlags";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -46,6 +47,9 @@ export async function OPTIONS(): Promise<Response> {
  * Returns { presets: PlaygroundPresetListItem[] }
  */
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await checkAuth(request);
   if (authError) return authError;
 
@@ -69,6 +73,9 @@ export async function GET(request: Request): Promise<Response> {
  * Returns the created preset with status 201.
  */
 export async function POST(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await checkAuth(request);
   if (authError) return authError;
 

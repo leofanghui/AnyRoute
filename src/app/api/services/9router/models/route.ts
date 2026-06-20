@@ -18,11 +18,15 @@ import { getSupervisor } from "@/lib/services/registry";
 import { getOrCreateApiKey } from "@/lib/services/apiKey";
 import { createErrorResponse } from "@/lib/api/errorResponse";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const TOOL = "9router";
 const DEFAULT_PORT = parseInt(process.env.NINEROUTER_PORT ?? "20130", 10);
 
 export async function GET(request: Request): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
     const refresh = searchParams.get("refresh") === "true";

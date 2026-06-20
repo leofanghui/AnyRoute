@@ -3,6 +3,7 @@ import { z } from "zod";
 import { skillRegistry } from "@/lib/skills/registry";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const installManifestSchema = z.object({
   name: z.string().min(1).max(100),
@@ -20,6 +21,9 @@ const installManifestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

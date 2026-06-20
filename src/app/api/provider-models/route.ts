@@ -24,6 +24,7 @@ import {
 import { isAuthenticated } from "@/shared/utils/apiAuth";
 import { providerModelMutationSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 function normalizeRequestedModelIds(
   searchParams: URLSearchParams,
@@ -45,6 +46,9 @@ function normalizeRequestedModelIds(
  * List custom models (all providers if no provider param)
  */
 export async function GET(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     // Require authentication for security
     if (!(await isAuthenticated(request))) {
@@ -74,6 +78,9 @@ export async function GET(request) {
  * Body: { provider, modelId, modelName? }
  */
 export async function POST(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();
@@ -124,6 +131,9 @@ export async function POST(request) {
  * Body: { provider, modelId, modelName?, apiFormat?, supportedEndpoints? }
  */
 export async function PUT(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();
@@ -257,6 +267,9 @@ export async function PUT(request) {
  * Body: { isHidden: boolean, modelIds?: string[] }
  */
 export async function PATCH(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();
@@ -346,6 +359,9 @@ export async function PATCH(request) {
  * DELETE /api/provider-models?provider=<id>&model=<modelId>
  */
 export async function DELETE(request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     // Require authentication for security
     if (!(await isAuthenticated(request))) {

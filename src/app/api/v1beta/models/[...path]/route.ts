@@ -3,6 +3,7 @@ import { initTranslators } from "@omniroute/open-sse/translator/index.ts";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { v1betaGeminiGenerateSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 let initialized = false;
 
@@ -34,6 +35,9 @@ export async function OPTIONS() {
  * Converts Gemini format to internal format and handles via handleChat
  */
 export async function POST(request, { params }) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   await ensureInitialized();
 
   let rawBody;

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSettings } from "@/lib/db/settings";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
 import { getSkillsProviderSetting } from "@/lib/skills/providerSettings";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const POPULAR_BY_PROVIDER = {
   skillsmp: ["web-search", "file-reader", "sql-assistant", "devops-helper", "docs-assistant"],
@@ -9,6 +10,9 @@ const POPULAR_BY_PROVIDER = {
 } as const;
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

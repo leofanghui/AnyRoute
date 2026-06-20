@@ -21,8 +21,12 @@ import {
   resetWindowIfElapsed,
 } from "@/lib/localDb";
 import type { TokenLimit } from "@/lib/db/tokenLimits";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
     const apiKeyId = searchParams.get("apiKeyId");
@@ -51,6 +55,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody: unknown;
   try {
     rawBody = await request.json();
@@ -83,6 +90,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (!id) {

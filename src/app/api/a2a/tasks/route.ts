@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTaskManager, type TaskState } from "@/lib/a2a/taskManager";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const VALID_TASK_STATES = new Set<TaskState>([
   "submitted",
@@ -17,6 +18,9 @@ function parseIntParam(value: string | null, fallback: number): number {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { searchParams } = new URL(request.url);
     const stateParam = searchParams.get("state");

@@ -14,12 +14,16 @@
 import { buildErrorBody, sanitizeErrorMessage } from "@omniroute/open-sse/utils/error.ts";
 import { InspectorSessionRequestAppendSchema } from "@/shared/schemas/inspector";
 import { getSession, appendSessionRequest } from "@/lib/db/inspectorSessions";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 interface Params {
   params: Promise<{ id: string }>;
 }
 
 export async function POST(request: Request, { params }: Params): Promise<Response> {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const { id } = await params;
 
   // Verify session exists before attempting to append

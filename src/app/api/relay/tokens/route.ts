@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getRelayTokens, createRelayToken } from "@/lib/db/relayProxies";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const relayTokenInputSchema = z.object({
   name: z.string().trim().min(1, "name is required"),
@@ -17,6 +18,9 @@ const relayTokenInputSchema = z.object({
 });
 
 export async function GET() {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const tokens = getRelayTokens();
   // Strip hash from response
   const safe = tokens.map((t) => ({
@@ -40,6 +44,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const rawBody = await request.json();
     const validation = validateBody(relayTokenInputSchema, rawBody);

@@ -1,4 +1,5 @@
 import { fetchAndPersistProviderLimits } from "@/lib/usage/providerLimits";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/usage/[connectionId] - Get live usage data for a specific connection
@@ -15,6 +16,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ connectionId: string }> }
 ) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     const { connectionId } = await params;
     const { usage } = await fetchAndPersistProviderLimits(connectionId, "manual", {

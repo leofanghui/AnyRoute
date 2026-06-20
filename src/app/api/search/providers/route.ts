@@ -12,6 +12,7 @@ import {
   type SearchProviderCatalogItem,
 } from "@/shared/schemas/searchTools";
 import * as log from "@/sse/utils/logger";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 // ---------------------------------------------------------------------------
 // Fetch provider metadata (hardcoded — no registry for these 3)
@@ -114,6 +115,9 @@ async function resolveProviderStatus(
 // ---------------------------------------------------------------------------
 
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json(
       buildErrorBody(401, "Unauthorized"),

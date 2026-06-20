@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { requireCliToolsAuth } from "@/lib/api/requireCliToolsAuth";
 import { generateConfig, generateAllConfigs } from "@/lib/cli-helper/config-generator";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 const generateConfigSchema = z.object({
   toolId: z.string().min(1),
@@ -12,6 +13,9 @@ const generateConfigSchema = z.object({
 
 // GET /api/cli-tools/config - List generated configs for all tools
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 
@@ -34,6 +38,9 @@ export async function GET(request: Request) {
 
 // POST /api/cli-tools/config - Generate config for a specific tool
 export async function POST(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireCliToolsAuth(request);
   if (authError) return authError;
 

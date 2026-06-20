@@ -1,11 +1,15 @@
 import { getSyncedAvailableModels, getAllSyncedAvailableModels } from "@/lib/db/models";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * GET /api/synced-available-models?provider=<id>
  * List synced available models for a provider (or all providers).
  */
 export async function GET(request: Request) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   try {
     if (!(await isAuthenticated(request))) {
       return Response.json(

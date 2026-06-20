@@ -3,12 +3,16 @@ import { CORS_HEADERS, handleCorsOptions } from "@/shared/utils/cors";
 import { redeemInvite } from "@/lib/gamification/invites";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
 import { z } from "zod";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
 }
 
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 

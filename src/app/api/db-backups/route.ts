@@ -13,6 +13,7 @@ import { dbBackupCleanupSchema, dbBackupRestoreSchema } from "@/shared/validatio
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { isAuthenticated } from "@/shared/utils/apiAuth";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import { disabledRouteIfLean } from "@/lib/api/disabledRoute";
 
 async function readOptionalJsonBody(request: NextRequest | Request): Promise<unknown> {
   try {
@@ -42,6 +43,9 @@ function persistDbBackupRetentionSettings(input: { keepLatest?: number; retentio
  * Security: Requires admin authentication.
  */
 export async function PUT(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -63,6 +67,9 @@ export async function PUT(request: NextRequest) {
  * Security: Requires admin authentication.
  */
 export async function GET(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -82,6 +89,9 @@ export async function GET(request: NextRequest) {
  * Security: Requires admin authentication.
  */
 export async function POST(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -121,6 +131,9 @@ export async function POST(request: NextRequest) {
  * Body: { keepLatest?: number, retentionDays?: number }
  */
 export async function PATCH(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -161,6 +174,9 @@ export async function PATCH(request: NextRequest) {
  * Body: { keepLatest?: number, retentionDays?: number }
  */
 export async function DELETE(request: NextRequest) {
+  const __lean = disabledRouteIfLean(request);
+  if (__lean) return __lean;
+
   if (!(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
