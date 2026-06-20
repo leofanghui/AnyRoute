@@ -45,15 +45,20 @@ export const ACCOUNT_FALLBACK_STRATEGY_VALUES = [
 
 export type AccountFallbackStrategyValue = (typeof ACCOUNT_FALLBACK_STRATEGY_VALUES)[number];
 
+import { isRoutingStrategyAllowed } from "@/lib/config/leanProfile";
+
 export function normalizeRoutingStrategy(value: unknown): RoutingStrategyValue {
   if (typeof value !== "string") return "priority";
   const normalized = value.trim().toLowerCase();
   if (normalized === "usage") return "least-used";
   if (normalized === "context") return "context-optimized";
   if (normalized === "weekly-reset" || normalized === "reset-window-order") return "reset-window";
-  return (ROUTING_STRATEGY_VALUES as readonly string[]).includes(normalized)
+  const candidate: RoutingStrategyValue = (ROUTING_STRATEGY_VALUES as readonly string[]).includes(
+    normalized
+  )
     ? (normalized as RoutingStrategyValue)
     : "priority";
+  return isRoutingStrategyAllowed(candidate) ? candidate : "priority";
 }
 
 type RoutingStrategyOption = {
