@@ -29,8 +29,14 @@ import {
   type SidebarItemGroup,
   type SidebarItemOrder,
 } from "@/shared/constants/sidebarVisibility";
+import { LEAN_HIDDEN_SIDEBAR_ITEMS } from "@/lib/config/leanProfile";
 
 const isE2EMode = process.env.NEXT_PUBLIC_OMNIROUTE_E2E_MODE === "1";
+const IS_LEAN_CLIENT =
+  typeof process !== "undefined" &&
+  ["1", "true", "yes", "on"].includes(
+    String(process.env.NEXT_PUBLIC_OMNIROUTE_LEAN_MODE ?? "").toLowerCase()
+  );
 const DEFAULT_EXPANDED: SidebarSectionId = "omni-proxy";
 const EXPANDED_SECTIONS_KEY = "sidebar-expanded-sections";
 const PINNED_SECTIONS_KEY = "sidebar-pinned-sections";
@@ -196,6 +202,9 @@ export default function Sidebar({
   };
 
   const hiddenSidebarSet = new Set(hiddenSidebarItems);
+  if (IS_LEAN_CLIENT) {
+    for (const id of LEAN_HIDDEN_SIDEBAR_ITEMS) hiddenSidebarSet.add(id);
+  }
   const hiddenSidebarGroupLabelsSet = new Set(hiddenSidebarGroupLabels);
 
   const orderedSections = applySectionOrder(
