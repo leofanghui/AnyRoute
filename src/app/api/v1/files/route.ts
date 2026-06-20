@@ -2,12 +2,16 @@ import { CORS_HEADERS, handleCorsOptions } from "@/shared/utils/cors";
 import { createFile, listFiles, formatFileResponse, countFiles } from "@/lib/localDb";
 import { NextResponse } from "next/server";
 import { getApiKeyRequestScope } from "@/app/api/v1/_helpers/apiKeyScope";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function OPTIONS() {
   return handleCorsOptions();
 }
 
 export async function POST(request: Request) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const scope = await getApiKeyRequestScope(request);
   if (scope.rejection) return scope.rejection;
   const apiKeyId = scope.apiKeyId;
@@ -73,6 +77,9 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const scope = await getApiKeyRequestScope(request);
   if (scope.rejection) return scope.rejection;
   const apiKeyId = scope.apiKeyId;

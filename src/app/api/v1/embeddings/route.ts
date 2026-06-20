@@ -14,6 +14,7 @@ import { getAllCustomModels, getApiKeyMetadata } from "@/lib/localDb";
 import { createEmbeddingResponse, type EmbeddingHandlerOptions } from "@/lib/embeddings/service";
 import { extractApiKey, isValidApiKey } from "@/sse/services/auth";
 import { withInjectionGuard } from "@/middleware/promptInjectionGuard";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 function toProviderScopedModelId(providerId: string, modelId: string): string {
   return modelId.startsWith(`${providerId}/`) ? modelId : `${providerId}/${modelId}`;
@@ -29,6 +30,9 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const builtInModels = getAllEmbeddingModels();
   const timestamp = Math.floor(Date.now() / 1000);
 
@@ -77,6 +81,9 @@ export async function handleValidatedEmbeddingRequestBody(
 }
 
 async function postHandler(request, context) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

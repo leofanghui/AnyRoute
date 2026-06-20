@@ -2,6 +2,7 @@ import { CORS_HEADERS, handleCorsOptions } from "@/shared/utils/cors";
 import { getBatch, updateBatch } from "@/lib/localDb";
 import { NextResponse } from "next/server";
 import { getApiKeyRequestScope } from "@/app/api/v1/_helpers/apiKeyScope";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 function formatBatchResponse(batch: any) {
   return {
@@ -39,6 +40,9 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const scope = await getApiKeyRequestScope(request);
   if (scope.rejection) return scope.rejection;
   const apiKeyId = scope.apiKeyId;

@@ -26,6 +26,7 @@ import { runWithProxyContext } from "@omniroute/open-sse/utils/proxyFetch.ts";
 import { attachOmniRouteMetaHeaders } from "@/domain/omnirouteResponseMeta";
 import { calculateModalCost } from "@/lib/usage/costCalculator";
 import { generateRequestId } from "@/shared/utils/requestId";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * Handle CORS preflight
@@ -43,6 +44,9 @@ export async function OPTIONS() {
  * GET /v1/images/generations — list available image models
  */
 export async function GET() {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const builtInModels = getAllImageModels();
   const timestamp = Math.floor(Date.now() / 1000);
 
@@ -123,6 +127,9 @@ function publicBaseUrlHeaders(headers: Headers): Record<string, string> {
 }
 
 async function postHandler(request, context) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

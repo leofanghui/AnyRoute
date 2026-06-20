@@ -25,6 +25,7 @@ import {
 import { attachOmniRouteMetaHeaders } from "@/domain/omnirouteResponseMeta";
 import { calculateModalCost } from "@/lib/usage/costCalculator";
 import { generateRequestId } from "@/shared/utils/requestId";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * Handle CORS preflight
@@ -42,6 +43,9 @@ export async function OPTIONS() {
  * GET /v1/music/generations — list available music models
  */
 export async function GET() {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const models = getAllMusicModels();
   return new Response(
     JSON.stringify({
@@ -64,6 +68,9 @@ export async function GET() {
  * POST /v1/music/generations — generate music
  */
 async function postHandler(request, context) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

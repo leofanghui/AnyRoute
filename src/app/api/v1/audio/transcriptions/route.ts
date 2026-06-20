@@ -18,6 +18,7 @@ import {
 } from "@/app/api/v1/_shared/rateLimit";
 import { attachOmniRouteMetaToResponse } from "@/domain/omnirouteResponseMeta";
 import { generateRequestId } from "@/shared/utils/requestId";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * Handle CORS preflight
@@ -36,6 +37,9 @@ export async function OPTIONS() {
  * OpenAI Whisper API compatible (multipart/form-data)
  */
 export async function POST(request) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   let formData;
   try {
     formData = await request.formData();

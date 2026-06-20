@@ -20,6 +20,7 @@ import {
 import { attachOmniRouteMetaToResponse } from "@/domain/omnirouteResponseMeta";
 import { calculateModalCost } from "@/lib/usage/costCalculator";
 import { generateRequestId } from "@/shared/utils/requestId";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * Handle CORS preflight
@@ -38,6 +39,9 @@ export async function OPTIONS() {
  * OpenAI TTS API compatible. Returns audio stream.
  */
 async function postHandler(request, context) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

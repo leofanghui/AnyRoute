@@ -27,6 +27,7 @@ import {
   type RateLimitedCredentials,
 } from "@/app/api/v1/_shared/rateLimit";
 import { withInjectionGuard } from "@/middleware/promptInjectionGuard";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -44,6 +45,9 @@ export async function OPTIONS() {
  * GET /v1/search — list available search providers
  */
 export async function GET() {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const providers = getAllSearchProviders();
   const timestamp = Math.floor(Date.now() / 1000);
 
@@ -103,6 +107,9 @@ function buildDomainFilter(filters?: {
  * POST /v1/search — execute a web search
  */
 async function postHandler(request: Request, context: unknown) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody: unknown;
   try {
     rawBody = await request.json();

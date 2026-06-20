@@ -15,6 +15,7 @@ import {
   extractImageEditInputFromJson,
 } from "@/lib/images/imageRouteModel";
 import { z } from "zod";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 // JSON edit body (Open WebUI / OpenAI-style). All fields optional — the prompt
 // and resolvable image are enforced after extraction in POST — but the top-level
@@ -138,6 +139,9 @@ function jsonResponse(data: unknown, status = 200): Response {
 }
 
 async function postHandler(request: Request, context) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const input = await readEditInput(request);
   if (!input) {
     return errorResponse(

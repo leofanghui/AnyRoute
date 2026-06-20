@@ -11,6 +11,7 @@ import {
   isAllRateLimitedCredentials,
   rateLimitedProviderResponse,
 } from "@/app/api/v1/_shared/rateLimit";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 /**
  * Handle CORS preflight
@@ -29,6 +30,9 @@ export async function OPTIONS() {
  * OpenAI Moderations API compatible.
  */
 async function postHandler(request, context) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   let rawBody;
   try {
     rawBody = await request.json();

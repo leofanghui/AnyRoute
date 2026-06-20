@@ -9,8 +9,12 @@ import { NextResponse } from "next/server";
 import { SEARCH_PROVIDERS } from "@omniroute/open-sse/config/searchRegistry.ts";
 import { enforceApiKeyPolicy } from "@/shared/utils/apiKeyPolicy";
 import { getSearchAggregateStats, getSearchProviderCounts } from "@/lib/db/callLogStats";
+import { disabledV1RouteIfLean } from "@/lib/api/disabledRoute";
 
 export async function GET(req: Request) {
+  const __lean = disabledV1RouteIfLean(request);
+  if (__lean) return __lean;
+
   const policy = await enforceApiKeyPolicy(req, "analytics");
   if (policy.rejection) return policy.rejection;
 
