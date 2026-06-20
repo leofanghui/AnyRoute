@@ -52,6 +52,7 @@ import { TheOldLlmExecutor } from "./theoldllm.ts";
 import { ChipotleExecutor } from "./chipotle.ts";
 import { LMArenaExecutor } from "./lmarena.ts";
 import { MimocodeExecutor } from "./mimocode.ts";
+import { isExecutorAllowed } from "@/lib/config/leanProfile";
 
 const executors = {
   antigravity: new AntigravityExecutor(),
@@ -154,13 +155,13 @@ const executors = {
 const defaultCache = new Map();
 
 export function getExecutor(provider) {
-  if (executors[provider]) return executors[provider];
+  if (executors[provider] && isExecutorAllowed(provider)) return executors[provider];
   if (!defaultCache.has(provider)) defaultCache.set(provider, new DefaultExecutor(provider));
   return defaultCache.get(provider);
 }
 
 export function hasSpecializedExecutor(provider) {
-  return !!executors[provider];
+  return !!executors[provider] && isExecutorAllowed(provider);
 }
 
 export { BaseExecutor } from "./base.ts";
