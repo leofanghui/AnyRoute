@@ -39,6 +39,17 @@ if (process.argv.includes("--mcp")) {
   console.warn = stderrConsole.warn.bind(stderrConsole);
 }
 
+// Lean Profile banner — 仅在非 MCP stdio 路径下输出（不污染 JSON-RPC stdout）。
+if (!process.argv.includes("--mcp")) {
+  const __leanRaw = String(process.env.OMNIROUTE_LEAN_MODE ?? "").toLowerCase();
+  if (["1", "true", "yes", "on"].includes(__leanRaw)) {
+    process.stderr.write(
+      "\x1b[1;33m[OmniRoute] LEAN MODE 已启用 — 仅 chat 主线 + Claude/Codex OAuth\x1b[0m\n" +
+        "  说明: docs/security/LEAN_PROFILE.md\n"
+    );
+  }
+}
+
 function loadEnvFile() {
   const envPaths = [];
 
