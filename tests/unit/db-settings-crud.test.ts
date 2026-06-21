@@ -56,14 +56,12 @@ test("getSettings exposes defaults and updateSettings persists typed values", as
   const defaults = await settingsDb.getSettings();
   const updated = await settingsDb.updateSettings({
     requireLogin: false,
-    cloudEnabled: true,
     stickyRoundRobinLimit: 7,
     requestRetry: 5,
     maxRetryIntervalSec: 12,
     label: "task-303",
   });
 
-  assert.equal(defaults.cloudEnabled, true);
   assert.equal(defaults.requireLogin, true);
   assert.deepEqual(defaults.hiddenSidebarItems, []);
   assert.deepEqual(defaults.hiddenSidebarGroupLabels, []);
@@ -75,13 +73,11 @@ test("getSettings exposes defaults and updateSettings persists typed values", as
   assert.equal(defaults.mcpEnabled, false);
   assert.equal(defaults.a2aEnabled, false);
   assert.equal(updated.requireLogin, false);
-  assert.equal(updated.cloudEnabled, true);
   assert.equal(updated.stickyRoundRobinLimit, 7);
   assert.equal(updated.requestRetry, 5);
   assert.equal(updated.maxRetryIntervalSec, 12);
   assert.equal(updated.antigravitySignatureCacheMode, "enabled");
   assert.equal(updated.label, "task-303");
-  assert.equal(await settingsDb.isCloudEnabled(), true);
 });
 
 test("INITIAL_PASSWORD marks onboarding as complete on first read", async () => {
@@ -293,12 +289,7 @@ test("settings and pricing readers skip malformed rows while merging surviving l
 
     if (text.includes("namespace = 'settings'")) {
       return {
-        all: () => [
-          123,
-          { key: 456, value: "true" },
-          { key: "cloudEnabled", value: "true" },
-          { key: "requireLogin", value: null },
-        ],
+        all: () => [123, { key: 456, value: "true" }, { key: "requireLogin", value: null }],
       };
     }
 
@@ -357,7 +348,6 @@ test("settings and pricing readers skip malformed rows while merging surviving l
     const pricing = await settingsDb.getPricing();
     const modelPricing = await settingsDb.getPricingForModel("layered-provider", "model-a");
 
-    assert.equal(settings.cloudEnabled, true);
     assert.equal(settings.requireLogin, true);
     assert.deepEqual(pricing["layered-provider"]["model-a"], {
       prompt: 9,

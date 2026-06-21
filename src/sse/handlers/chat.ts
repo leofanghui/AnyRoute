@@ -110,7 +110,6 @@ import {
   resolveCooldownAwareRetrySettings,
   waitForCooldownAwareRetry,
 } from "../services/cooldownAwareRetry";
-import { constrainConnectionsToQuota, resolveQuotaKeyScope } from "../../lib/quota/quotaKey";
 
 registerCodexQuotaFetcher();
 
@@ -554,15 +553,6 @@ export async function handleChat(request: any, clientRawRequest: any = null) {
         target?.allowedConnectionIds ?? null
       );
 
-      // A4: quota-exclusive keys must only use the pool's connection(s).
-      if (apiKeyInfo?.allowedQuotas && apiKeyInfo.allowedQuotas.length > 0) {
-        const quotaScope = await resolveQuotaKeyScope(apiKeyInfo.allowedQuotas);
-        allowedConnections = constrainConnectionsToQuota(
-          allowedConnections ?? [],
-          quotaScope.connectionIds
-        );
-      }
-
       if (Array.isArray(allowedConnections) && allowedConnections.length === 0) {
         return false;
       }
@@ -867,15 +857,6 @@ async function handleSingleModelChat(
     runtimeOptions.allowedConnectionIds ?? null
   );
 
-  // A4: quota-exclusive keys must only use the pool's connection(s).
-  if (apiKeyInfo?.allowedQuotas && apiKeyInfo.allowedQuotas.length > 0) {
-    const quotaScope = await resolveQuotaKeyScope(apiKeyInfo.allowedQuotas);
-    effectiveAllowedConnections = constrainConnectionsToQuota(
-      effectiveAllowedConnections ?? [],
-      quotaScope.connectionIds
-    );
-  }
-
   const bypassReason = forceLiveComboTest
     ? "combo live test"
     : hasForcedConnection
@@ -1128,7 +1109,7 @@ async function handleSingleModelChat(
         getTargetFormat(provider, credentials.providerSpecificData) ||
         targetFormat;
 
-      // 5. Log proxy + translation events (fire-and-forget; never blocks the response)
+      // 5. Log proxy events (fire-and-forget; never blocks the response)
       void safeLogEvents({
         result,
         proxyInfo,

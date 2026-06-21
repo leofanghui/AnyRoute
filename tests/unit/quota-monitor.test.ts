@@ -146,7 +146,7 @@ test("startQuotaMonitor schedules the initial normal poll once per session", asy
 });
 
 test("registerMonitorFetcher shares the same fetcher with quota preflight", async () => {
-  const provider = `quota-shared-${Date.now()}`;
+  const provider = `quota-monitor-${Date.now()}`;
 
   registerMonitorFetcher(provider, async () => ({
     used: 90,

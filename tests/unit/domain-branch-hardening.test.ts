@@ -9,13 +9,8 @@ process.env.DATA_DIR = TEST_DATA_DIR;
 
 const core = await import("../../src/lib/db/core.ts");
 const costRules = await import("../../src/domain/costRules.ts");
-const fallbackPolicy = await import("../../src/domain/fallbackPolicy.ts");
-const lockoutPolicy = await import("../../src/domain/lockoutPolicy.ts");
 const providerExpiration = await import("../../src/domain/providerExpiration.ts");
 const quotaCache = await import("../../src/domain/quotaCache.ts");
-const comboResolver = await import("../../src/domain/comboResolver.ts");
-const policyEngineModule = await import("../../src/domain/policyEngine.ts");
-const domainState = await import("../../src/lib/db/domainState.ts");
 
 const originalDateNow = Date.now;
 const originalMathRandom = Math.random;
@@ -26,7 +21,6 @@ function isoFromNow(offsetMs) {
 
 async function resetStorage() {
   costRules.resetCostData();
-  fallbackPolicy.resetAllFallbacks();
   providerExpiration.resetExpirations();
   quotaCache.stopBackgroundRefresh();
   core.resetDbInstance();
@@ -60,133 +54,9 @@ test.after(async () => {
   Math.random = originalMathRandom;
   quotaCache.stopBackgroundRefresh();
   costRules.resetCostData();
-  fallbackPolicy.resetAllFallbacks();
   providerExpiration.resetExpirations();
   core.resetDbInstance();
   fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
-});
-
-test("resolveComboModel covers empty combos, priority, round-robin, random, least-used and default fallback", () => {
-  assert.throws(
-    () => comboResolver.resolveComboModel({ name: "empty", models: [] }),
-    /has no models configured/
-  );
-
-  assert.deepEqual(
-    comboResolver.resolveComboModel({
-      id: "priority-combo",
-      models: ["model-a", "model-b"],
-      strategy: "priority",
-    }),
-    { model: "model-a", index: 0 }
-  );
-
-  const rrCombo = {
-    id: "rr-combo",
-    models: ["m1", "m2"],
-    strategy: "round-robin",
-  };
-  assert.deepEqual(comboResolver.resolveComboModel(rrCombo), { model: "m1", index: 0 });
-  assert.deepEqual(comboResolver.resolveComboModel(rrCombo), { model: "m2", index: 1 });
-  assert.deepEqual(comboResolver.resolveComboModel(rrCombo), { model: "m1", index: 0 });
-
-  Math.random = () => 0.9;
-  assert.deepEqual(
-    comboResolver.resolveComboModel({
-      name: "random-combo",
-      strategy: "random",
-      models: [
-        { model: "small", weight: 1 },
-        { model: "large", weight: 9 },
-      ],
-    }),
-    { model: "large", index: 1 }
-  );
-
-  Math.random = () => Number.NaN;
-  assert.deepEqual(
-    comboResolver.resolveComboModel({
-      name: "random-fallback",
-      strategy: "random",
-      models: ["fallback-a", "fallback-b"],
-    }),
-    { model: "fallback-a", index: 0 }
-  );
-
-  assert.deepEqual(
-    comboResolver.resolveComboModel(
-      {
-        name: "least-used",
-        strategy: "least-used",
-        models: ["used-a", "used-b", "used-c"],
-      },
-      { modelUsageCounts: { "used-a": 5, "used-b": 1 } }
-    ),
-    { model: "used-c", index: 2 }
-  );
-
-  assert.deepEqual(
-    comboResolver.resolveComboModel({
-      name: "unknown-strategy",
-      strategy: "not-real",
-      models: [
-        { model: "default-a", weight: 2 },
-        { model: "default-b", weight: 1 },
-      ],
-    }),
-    { model: "default-a", index: 0 }
-  );
-
-  assert.deepEqual(
-    comboResolver.getComboFallbacks(
-      {
-        models: ["alpha", { model: "beta" }, "gamma"],
-      },
-      1
-    ),
-    ["gamma", "alpha"]
-  );
-});
-
-test("resolveComboModel also covers implicit defaults and missing optional fields", () => {
-  assert.throws(() => comboResolver.resolveComboModel({}), /has no models configured/);
-
-  assert.deepEqual(comboResolver.resolveComboModel({ models: ["implicit-a", "implicit-b"] }), {
-    model: "implicit-a",
-    index: 0,
-  });
-
-  const anonymousRoundRobin = {
-    strategy: "round-robin",
-    models: ["rr-a", "rr-b"],
-  };
-  assert.deepEqual(comboResolver.resolveComboModel(anonymousRoundRobin), {
-    model: "rr-a",
-    index: 0,
-  });
-  assert.deepEqual(comboResolver.resolveComboModel(anonymousRoundRobin), {
-    model: "rr-b",
-    index: 1,
-  });
-
-  Math.random = () => 0.9;
-  assert.deepEqual(
-    comboResolver.resolveComboModel({
-      strategy: "random",
-      models: [{ model: "weighted-default-a" }, { model: "weighted-default-b" }],
-    }),
-    { model: "weighted-default-b", index: 1 }
-  );
-
-  assert.deepEqual(
-    comboResolver.resolveComboModel({
-      strategy: "least-used",
-      models: ["least-default-a", "least-default-b"],
-    }),
-    { model: "least-default-a", index: 0 }
-  );
-
-  assert.deepEqual(comboResolver.getComboFallbacks({}, 0), []);
 });
 
 test("providerExpiration derives status, sorting, summary and header-based expiration hints", () => {
@@ -372,108 +242,4 @@ test("quotaCache covers empty quotas, invalid dates and fallback percentage norm
     daily: { remainingPercentage: 0, resetAt: "still-not-a-date" },
   });
   assert.equal(quotaCache.isAccountQuotaExhausted("quota-invalid-exhausted"), true);
-});
-
-test("policyEngine evaluates lockout, budget, fallback chains and policy class actions", () => {
-  const lockConfig = {
-    maxAttempts: 1,
-    lockoutDurationMs: 500,
-    attemptWindowMs: 1_000,
-  };
-  let now = 50_000;
-  Date.now = () => now;
-
-  lockoutPolicy.recordFailedAttempt("10.0.0.1", lockConfig);
-  const locked = policyEngineModule.evaluateRequest({
-    model: "claude-sonnet",
-    clientIp: "10.0.0.1",
-  });
-  assert.equal(locked.allowed, false);
-  assert.equal(locked.policyPhase, "lockout");
-
-  lockoutPolicy.recordSuccess("10.0.0.1");
-  Date.now = originalDateNow;
-  costRules.setBudget("key-budget", { dailyLimitUsd: 5, warningThreshold: 0.5 });
-  costRules.recordCost("key-budget", 6);
-
-  const overBudget = policyEngineModule.evaluateRequest({
-    model: "claude-sonnet",
-    apiKeyId: "key-budget",
-  });
-  assert.equal(overBudget.allowed, false);
-  assert.equal(overBudget.policyPhase, "budget");
-
-  fallbackPolicy.registerFallback("claude-sonnet", [
-    { provider: "vertex", priority: 2 },
-    { provider: "bedrock", priority: 3 },
-  ]);
-  const passed = policyEngineModule.evaluateRequest({
-    model: "claude-sonnet",
-    apiKeyId: "missing-key",
-  });
-  assert.equal(passed.allowed, true);
-  assert.deepEqual(passed.adjustments.fallbackChain, [
-    { provider: "vertex", priority: 2, enabled: true },
-    { provider: "bedrock", priority: 3, enabled: true },
-  ]);
-
-  const firstAllowed = policyEngineModule.evaluateFirstAllowed(["claude-sonnet", "gpt-4o"], {
-    clientIp: "10.0.0.2",
-  });
-  assert.equal(firstAllowed.model, "claude-sonnet");
-  assert.equal(firstAllowed.verdict.allowed, true);
-
-  const engine = new policyEngineModule.PolicyEngine();
-  engine.loadPolicies([
-    {
-      id: "disabled",
-      name: "Disabled Policy",
-      type: "routing",
-      enabled: false,
-      priority: 1,
-      actions: { prefer_provider: ["ignored"] },
-    },
-    {
-      id: "routing",
-      name: "Prefer Vertex",
-      type: "routing",
-      enabled: true,
-      priority: 2,
-      conditions: { model_pattern: "claude-*" },
-      actions: { prefer_provider: ["vertex", "bedrock"] },
-    },
-    {
-      id: "budget",
-      name: "Token Cap",
-      type: "budget",
-      enabled: true,
-      priority: 3,
-      conditions: { model_pattern: "claude-*" },
-      actions: { max_tokens: 4096 },
-    },
-  ]);
-
-  const routed = engine.evaluate({ model: "claude-sonnet-4" });
-  assert.deepEqual(routed.preferredProviders, ["vertex", "bedrock"]);
-  assert.equal(routed.maxTokens, 4096);
-  assert.deepEqual(routed.appliedPolicies, ["Prefer Vertex", "Token Cap"]);
-
-  engine.addPolicy({
-    id: "access",
-    name: "Block Claude Sonnet",
-    type: "access",
-    enabled: true,
-    priority: 0,
-    actions: { block_model: ["claude-sonnet-*"] },
-  });
-  const blocked = engine.evaluate({ model: "claude-sonnet-4" });
-  assert.equal(blocked.allowed, false);
-  assert.match(blocked.reason, /blocked by policy/);
-  assert.deepEqual(blocked.appliedPolicies, ["Block Claude Sonnet"]);
-
-  engine.removePolicy("access");
-  assert.equal(
-    engine.getPolicies().some((policy) => policy.id === "access"),
-    false
-  );
 });

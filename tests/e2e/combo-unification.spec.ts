@@ -62,14 +62,6 @@ async function mockCombosPageApis(page: import("@playwright/test").Page) {
     });
   });
 
-  await page.route("**/api/settings/proxy", async (route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ combos: {} }),
-    });
-  });
-
   await page.route("**/api/monitoring/health", async (route) => {
     await route.fulfill({
       status: 200,

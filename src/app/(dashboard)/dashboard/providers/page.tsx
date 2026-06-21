@@ -4,11 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardSkeleton, Badge, Button, CollapsibleSection } from "@/shared/components";
 import {
   AGGREGATOR_PROVIDER_IDS,
-  EMBEDDING_RERANK_PROVIDER_IDS,
   ENTERPRISE_CLOUD_PROVIDER_IDS,
   IDE_PROVIDER_IDS,
-  IMAGE_ONLY_PROVIDER_IDS,
-  VIDEO_PROVIDER_IDS,
   isClaudeCodeCompatibleProvider,
 } from "@/shared/constants/providers";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -190,7 +187,6 @@ export default function ProvidersPage() {
   const notify = useNotificationStore();
   const hasSearchQuery = searchQuery.trim().length > 0 || modelSearchQuery.trim().length > 0;
   const sectionCategoryAliases: Record<string, string> = {
-    cloud: "cloudagent",
     noauth: "no-auth",
     proxy: "upstream-proxy",
     web: "webcookie",
@@ -543,11 +539,8 @@ export default function ProvidersPage() {
   const apiKeyProviderEntriesAll = buildStaticProviderEntries("apikey", getProviderStats);
   const llmProviderEntriesAll = apiKeyProviderEntriesAll.filter(
     (entry) =>
-      !IMAGE_ONLY_PROVIDER_IDS.has(entry.providerId) &&
       !AGGREGATOR_PROVIDER_IDS.has(entry.providerId) &&
-      !ENTERPRISE_CLOUD_PROVIDER_IDS.has(entry.providerId) &&
-      !VIDEO_PROVIDER_IDS.has(entry.providerId) &&
-      !EMBEDDING_RERANK_PROVIDER_IDS.has(entry.providerId)
+      !ENTERPRISE_CLOUD_PROVIDER_IDS.has(entry.providerId)
   );
   const llmProviderEntries = filterConfiguredProviderEntries(
     llmProviderEntriesAll,
@@ -566,16 +559,6 @@ export default function ProvidersPage() {
     showFreeOnly,
     modelSearchQuery
   );
-  const imageProviderEntriesAll = apiKeyProviderEntriesAll.filter((entry) =>
-    IMAGE_ONLY_PROVIDER_IDS.has(entry.providerId)
-  );
-  const imageProviderEntries = filterConfiguredProviderEntries(
-    imageProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
   const enterpriseProviderEntriesAll = apiKeyProviderEntriesAll.filter((entry) =>
     ENTERPRISE_CLOUD_PROVIDER_IDS.has(entry.providerId)
   );
@@ -586,27 +569,6 @@ export default function ProvidersPage() {
     showFreeOnly,
     modelSearchQuery
   );
-  const videoProviderEntriesAll = apiKeyProviderEntriesAll.filter((entry) =>
-    VIDEO_PROVIDER_IDS.has(entry.providerId)
-  );
-  const videoProviderEntries = filterConfiguredProviderEntries(
-    videoProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-  const embeddingRerankProviderEntriesAll = apiKeyProviderEntriesAll.filter((entry) =>
-    EMBEDDING_RERANK_PROVIDER_IDS.has(entry.providerId)
-  );
-  const embeddingRerankProviderEntries = filterConfiguredProviderEntries(
-    embeddingRerankProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
   const webCookieProviderEntriesAll = buildStaticProviderEntries("web-cookie", getProviderStats);
   const webCookieProviderEntries = filterConfiguredProviderEntries(
     webCookieProviderEntriesAll,
@@ -619,33 +581,6 @@ export default function ProvidersPage() {
   const localProviderEntriesAll = buildStaticProviderEntries("local", getProviderStats);
   const localProviderEntries = filterConfiguredProviderEntries(
     localProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
-  const searchProviderEntriesAll = buildStaticProviderEntries("search", getProviderStats);
-  const searchProviderEntries = filterConfiguredProviderEntries(
-    searchProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
-  const audioProviderEntriesAll = buildStaticProviderEntries("audio", getProviderStats);
-  const audioProviderEntries = filterConfiguredProviderEntries(
-    audioProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
-  const cloudAgentProviderEntriesAll = buildStaticProviderEntries("cloud-agent", getProviderStats);
-  const cloudAgentProviderEntries = filterConfiguredProviderEntries(
-    cloudAgentProviderEntriesAll,
     effectiveShowConfiguredOnly,
     searchQuery,
     showFreeOnly,
@@ -698,9 +633,6 @@ export default function ProvidersPage() {
     ...apiKeyProviderEntriesAll,
     ...webCookieProviderEntriesAll,
     ...localProviderEntriesAll,
-    ...searchProviderEntriesAll,
-    ...audioProviderEntriesAll,
-    ...cloudAgentProviderEntriesAll,
     ...upstreamProxyEntriesAll,
   ] as DashboardProviderEntry[]);
   const dashboardProviderEntriesAll = dedupeProviderEntries([
@@ -734,21 +666,6 @@ export default function ProvidersPage() {
     .filter((e) => e.toggleAuthType === "oauth")
     .filter((e) => !IDE_PROVIDER_IDS.has(e.providerId));
 
-  // Web Fetch providers: filter across all entries by serviceKinds
-  const webFetchEntriesAll = dedupeProviderEntries(
-    [...staticProviderEntriesAll, ...compatibleProviderEntriesAll].filter((e) => {
-      const p = e.provider as DashboardProviderInfo & { serviceKinds?: string[] };
-      return p.serviceKinds?.includes("webFetch") === true;
-    }) as DashboardProviderEntry[]
-  );
-  const webFetchEntries = filterConfiguredProviderEntries(
-    webFetchEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
   const compactProviderEntries = buildCompactProviderEntriesForPage({
     activeCategory,
     showFreeOnly,
@@ -761,15 +678,8 @@ export default function ProvidersPage() {
     llmProviderEntries,
     aggregatorProviderEntries,
     enterpriseProviderEntries,
-    embeddingRerankProviderEntries,
-    imageProviderEntries,
-    videoProviderEntries,
     webCookieProviderEntries,
-    searchProviderEntries,
-    webFetchEntries,
-    audioProviderEntries,
     localProviderEntries,
-    cloudAgentProviderEntries,
   });
 
   const summaryStats = {
@@ -780,13 +690,9 @@ export default function ProvidersPage() {
     apikey: countConfigured(apiKeyProviderEntriesAll),
     compatible: countConfigured(compatibleProviderEntriesAll),
     webcookie: countConfigured(webCookieProviderEntriesAll),
-    search: countConfigured(searchProviderEntriesAll),
-    audio: countConfigured(audioProviderEntriesAll),
     local: countConfigured(localProviderEntriesAll),
     upstreamproxy: countConfigured(upstreamProxyEntriesAll),
-    cloudagent: countConfigured(cloudAgentProviderEntriesAll),
     ide: countConfigured(ideProviderEntriesAll),
-    webfetch: countConfigured(webFetchEntriesAll),
   };
   if (loading) {
     return (
@@ -1356,39 +1262,6 @@ export default function ProvidersPage() {
             </div>
           )}
 
-          {/* Web Fetch Providers */}
-          {showSection("webfetch") && webFetchEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("webFetchProvidersHeading")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-orange-500"
-                    title={t("webFetchTooltip")}
-                  />
-                  <ProviderCountBadge {...countConfigured(webFetchEntriesAll)} />
-                </h2>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("webFetchProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {webFetchEntries.map(
-                  ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={`webfetch-${providerId}`}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Aggregators Gateways */}
           {showSection("apikey") && aggregatorProviderEntries.length > 0 && (
             <div className="flex flex-col gap-4">
@@ -1455,54 +1328,6 @@ export default function ProvidersPage() {
             </div>
           )}
 
-          {/* Cloud Agent Providers */}
-          {showSection("cloud") && cloudAgentProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("cloudAgentProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-violet-500"
-                    title={t("cloudAgentProviders")}
-                  />
-                  <ProviderCountBadge {...countConfigured(cloudAgentProviderEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("cloud-agent")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "cloud-agent"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "cloud-agent" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "cloud-agent" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("cloudAgentProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {cloudAgentProviderEntries.map(
-                  ({ providerId, provider, stats, toggleAuthType }) => (
-                    <ProviderCard
-                      key={providerId}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType="cloud-agent"
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Local / Self-Hosted Providers */}
           {showSection("local") && localProviderEntries.length > 0 && (
             <div className="flex flex-col gap-4">
@@ -1543,193 +1368,6 @@ export default function ProvidersPage() {
                     onToggle={(active) => handleToggleProvider(providerId, toggleAuthType, active)}
                   />
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* Search Providers */}
-          {showSection("search") && searchProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("searchProvidersHeading")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-teal-500"
-                    title={t("searchProvidersHeading")}
-                  />
-                  <ProviderCountBadge {...countConfigured(searchProviderEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("search")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "search"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "search" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "search" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("searchProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {searchProviderEntries.map(({ providerId, provider, stats, toggleAuthType }) => (
-                  <ProviderCard
-                    key={providerId}
-                    providerId={providerId}
-                    provider={provider}
-                    stats={stats}
-                    authType="search"
-                    onToggle={(active) => handleToggleProvider(providerId, toggleAuthType, active)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Embeddings & Rerank */}
-          {showSection("apikey") && embeddingRerankProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("embeddingRerankProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-amber-500"
-                    title={t("embeddingRerankProviders")}
-                  />
-                  <ProviderCountBadge {...countConfigured(embeddingRerankProviderEntriesAll)} />
-                </h2>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("embeddingRerankProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {embeddingRerankProviderEntries.map(
-                  ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={providerId}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Image Providers */}
-          {showSection("apikey") && imageProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("imageProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-amber-500"
-                    title={t("imageProviders")}
-                  />
-                  <ProviderCountBadge {...countConfigured(imageProviderEntriesAll)} />
-                </h2>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("imageProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {imageProviderEntries.map(
-                  ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={providerId}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Audio Only Providers */}
-          {showSection("audio") && audioProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("audioProvidersHeading")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-rose-500"
-                    title={t("audioProvidersHeading")}
-                  />
-                  <ProviderCountBadge {...countConfigured(audioProviderEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("audio")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "audio"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "audio" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "audio" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("audioProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {audioProviderEntries.map(({ providerId, provider, stats, toggleAuthType }) => (
-                  <ProviderCard
-                    key={providerId}
-                    providerId={providerId}
-                    provider={provider}
-                    stats={stats}
-                    authType="audio"
-                    onToggle={(active) => handleToggleProvider(providerId, toggleAuthType, active)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Video Generation */}
-          {showSection("apikey") && videoProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("videoProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-amber-500"
-                    title={t("videoProviders")}
-                  />
-                  <ProviderCountBadge {...countConfigured(videoProviderEntriesAll)} />
-                </h2>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("videoProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {videoProviderEntries.map(
-                  ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={providerId}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
               </div>
             </div>
           )}

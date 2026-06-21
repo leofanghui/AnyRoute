@@ -46,8 +46,7 @@ test("parseRetryAfterHeader parses an HTTP-date into a non-negative seconds delt
 });
 
 // ---------------------------------------------------------------------------
-// detectTestKind — picks the right test endpoint (chat / embeddings / rerank)
-// from the model id + custom-model metadata. Rerank must win over embedding.
+// detectTestKind keeps every model on the retained chat test path.
 // ---------------------------------------------------------------------------
 
 test("detectTestKind defaults to a plain chat test for ordinary models", () => {
@@ -57,32 +56,33 @@ test("detectTestKind defaults to a plain chat test for ordinary models", () => {
   });
 });
 
-test("detectTestKind detects embeddings by id heuristics", () => {
+test("detectTestKind ignores pruned non-chat endpoint heuristics", () => {
   for (const id of [
-    "openai/text-embedding-3-small",
-    "jina/jina-embeddings-v3",
-    "baai/bge-m3",
-    "jinaai/jina-clip-v2",
+    "openai/vector-small",
+    "vendor/vector-model",
+    "baai/vector-m3",
+    "vendor/clip-model",
     "colbert-ir/colbertv2",
+    "vendor/ranker-v2",
+    "vendor/ranker-vector-hybrid",
   ]) {
-    assert.equal(detectTestKind(id, null).isEmbedding, true, `${id} should be embedding`);
-    assert.equal(detectTestKind(id, null).isRerank, false, `${id} should not be rerank`);
+    assert.deepEqual(detectTestKind(id, null), {
+      isRerank: false,
+      isEmbedding: false,
+    });
   }
 });
 
-test("detectTestKind detects rerank by id and by metadata, and rerank wins over embedding", () => {
-  assert.deepEqual(detectTestKind("jina/jina-reranker-v2", null), {
-    isRerank: true,
+test("detectTestKind ignores pruned non-chat custom-model metadata", () => {
+  assert.deepEqual(detectTestKind("vendor/opaque-model", { apiFormat: "legacy-rank" }), {
+    isRerank: false,
     isEmbedding: false,
   });
-  // apiFormat metadata drives detection even when the id is opaque
-  assert.equal(detectTestKind("vendor/opaque-model", { apiFormat: "rerank" }).isRerank, true);
-  assert.equal(
-    detectTestKind("vendor/opaque-model", { supportedEndpoints: ["embeddings"] }).isEmbedding,
-    true
+  assert.deepEqual(
+    detectTestKind("vendor/opaque-model", { supportedEndpoints: ["legacy-vector"] }),
+    {
+      isRerank: false,
+      isEmbedding: false,
+    }
   );
-  // A model that looks like both rerank and embedding resolves to rerank only.
-  const both = detectTestKind("vendor/rerank-embedding-hybrid", null);
-  assert.equal(both.isRerank, true);
-  assert.equal(both.isEmbedding, false);
 });

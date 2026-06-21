@@ -418,16 +418,13 @@ test("idempotency: full claude pipeline running twice does not duplicate blocks"
 });
 
 // ────────────────────────────────────────────────────────────────────────────
-// UI ↔ server defaults parity
+// Server defaults snapshot
 // ────────────────────────────────────────────────────────────────────────────
 //
-// The Settings UI keeps a hand-maintained mirror of DEFAULT_SYSTEM_TRANSFORMS_CONFIG
-// in src/app/(dashboard)/dashboard/settings/components/RoutingTab.tsx so it can
-// render + reset to defaults without a server roundtrip. The snapshot below is
-// the contract between server and UI — if it drifts, both must be updated in
-// the same commit.
+// Keep the runtime default transform config intentional so request-path behavior
+// does not drift without review.
 
-const UI_DEFAULTS_SNAPSHOT = {
+const DEFAULTS_SNAPSHOT = {
   providers: {
     claude: {
       enabled: true,
@@ -544,12 +541,10 @@ const UI_DEFAULTS_SNAPSHOT = {
   },
 };
 
-test("defaults parity: DEFAULT_SYSTEM_TRANSFORMS_CONFIG matches the UI mirror snapshot", () => {
+test("defaults snapshot: DEFAULT_SYSTEM_TRANSFORMS_CONFIG stays intentional", () => {
   assert.deepEqual(
     JSON.parse(JSON.stringify(DEFAULT_SYSTEM_TRANSFORMS_CONFIG)),
-    UI_DEFAULTS_SNAPSHOT,
-    "Server DEFAULT_SYSTEM_TRANSFORMS_CONFIG drifted from the UI mirror in " +
-      "src/app/(dashboard)/dashboard/settings/components/RoutingTab.tsx " +
-      "(DEFAULT_SYSTEM_TRANSFORMS_CLIENT). Update both in the same commit."
+    DEFAULTS_SNAPSHOT,
+    "Server DEFAULT_SYSTEM_TRANSFORMS_CONFIG drifted from the expected defaults snapshot."
   );
 });

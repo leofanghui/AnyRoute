@@ -9,7 +9,7 @@
 
 import { fetch as undiciFetch } from "undici";
 import { createProxyDispatcher, normalizeProxyUrl } from "./proxyDispatcher.ts";
-import { resolveProxyForScopeFromRegistry, listProxies, listOneproxyProxies } from "@/lib/localDb";
+import { resolveProxyForScopeFromRegistry, listProxies } from "@/lib/localDb";
 import { isFeatureFlagEnabled } from "@/shared/utils/featureFlags";
 
 // ---------------------------------------------------------------------------
@@ -52,10 +52,9 @@ export function clearProxyFallbackCache(): void {
  * Build a full proxy URL string from a proxy record's fields.
  */
 function proxyRecordToUrl(proxy: ProxyShape): string {
-  const auth =
-    proxy.username
-      ? `${encodeURIComponent(proxy.username)}:${encodeURIComponent(proxy.password || "")}@`
-      : "";
+  const auth = proxy.username
+    ? `${encodeURIComponent(proxy.username)}:${encodeURIComponent(proxy.password || "")}@`
+    : "";
   return `${proxy.type}://${auth}${proxy.host}:${proxy.port}`;
 }
 
@@ -130,8 +129,7 @@ function resolveEnvProxyUrl(targetUrl: string): string | null {
  * Collect all available proxy candidates from every source:
  * 1. Global proxy from registry
  * 2. All user-configured proxies from the proxy registry
- * 3. Top 5 1proxy marketplace proxies
- * 4. Environment proxy (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)
+ * 3. Environment proxy (HTTP_PROXY / HTTPS_PROXY / ALL_PROXY)
  *
  * @param targetUrl Optional. When provided, the env proxy is resolved for this URL.
  * @returns Deduplicated array of normalized proxy URLs.
@@ -161,19 +159,7 @@ export async function getProxyCandidates(targetUrl?: string): Promise<string[]> 
     // Table may not exist yet
   }
 
-  // 3. Top 5 1proxy marketplace proxies
-  try {
-    const oneproxyProxies = await listOneproxyProxies({ limit: 5 });
-    for (const p of oneproxyProxies) {
-      if (p.host && p.port) {
-        candidates.add(proxyRecordToUrl(p as unknown as ProxyShape));
-      }
-    }
-  } catch {
-    // Table may not exist yet
-  }
-
-  // 4. Environment proxy (needs targetUrl to determine protocol)
+  // 3. Environment proxy (needs targetUrl to determine protocol)
   if (targetUrl) {
     try {
       const envProxy = resolveEnvProxyUrl(targetUrl);
@@ -252,9 +238,7 @@ export async function testProxiesAgainstTarget(
   );
 
   return results.map((r) =>
-    r.status === "fulfilled"
-      ? r.value
-      : { proxyUrl: "unknown", ok: false, latencyMs: null }
+    r.status === "fulfilled" ? r.value : { proxyUrl: "unknown", ok: false, latencyMs: null }
   );
 }
 
@@ -304,9 +288,7 @@ export async function findWorkingProxy(
     })
   );
 
-  const working = results.find(
-    (r) => r.status === "fulfilled" && r.value.ok
-  );
+  const working = results.find((r) => r.status === "fulfilled" && r.value.ok);
 
   if (working && working.status === "fulfilled") {
     const proxyUrl = working.value.proxyUrl;
@@ -340,9 +322,7 @@ export async function findWorkingProxy(
  * @param _connectionId  Optional connection ID (reserved for future use).
  * @returns A proxy resolution result with level "autoSelect", or null.
  */
-export async function selectWorkingProxyFallback(
-  _connectionId?: string
-): Promise<{
+export async function selectWorkingProxyFallback(_connectionId?: string): Promise<{
   proxy: { type: string; host: string; port: number; username: string; password: string } | null;
   level: string;
   levelId: string | null;

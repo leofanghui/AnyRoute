@@ -2,7 +2,7 @@
 /**
  * Validates that:
  *   1. All t("key") calls in bin/cli/commands/ resolve to existing keys in en.json.
- *   2. pt-BR.json has the same top-level shape as en.json (no missing top-level sections).
+ *   2. zh-CN.json has the same top-level shape as en.json (no missing top-level sections).
  *   3. No raw string literals are passed to .description() in commands without going
  *      through t() — only warns, does not fail hard (many descriptions use || fallback).
  */
@@ -68,7 +68,7 @@ function loadJson(file) {
 const files = walk(COMMANDS_DIR);
 const usedKeys = collectTKeys(files);
 const en = loadJson(join(LOCALES_DIR, "en.json"));
-const ptBR = loadJson(join(LOCALES_DIR, "pt-BR.json"));
+const zhCN = loadJson(join(LOCALES_DIR, "zh-CN.json"));
 const enKeys = flattenKeys(en);
 
 let errors = 0;
@@ -83,16 +83,16 @@ if (missingInEn.length > 0) {
   console.log(`[cli-i18n] ✓ All ${usedKeys.size} t() keys found in en.json`);
 }
 
-// Check 2: pt-BR.json has the same top-level sections as en.json
+// Check 2: zh-CN.json has the same top-level sections as en.json
 const enTopLevel = Object.keys(en);
-const ptTopLevel = new Set(Object.keys(ptBR));
-const missingTopLevel = enTopLevel.filter((k) => !ptTopLevel.has(k));
+const zhTopLevel = new Set(Object.keys(zhCN));
+const missingTopLevel = enTopLevel.filter((k) => !zhTopLevel.has(k));
 if (missingTopLevel.length > 0) {
-  console.error("[cli-i18n] Top-level sections in en.json missing from pt-BR.json:");
+  console.error("[cli-i18n] Top-level sections in en.json missing from zh-CN.json:");
   for (const k of missingTopLevel) console.error(`  ✗ ${k}`);
   errors += missingTopLevel.length;
 } else {
-  console.log(`[cli-i18n] ✓ pt-BR.json has all ${enTopLevel.length} top-level sections`);
+  console.log(`[cli-i18n] ✓ zh-CN.json has all ${enTopLevel.length} top-level sections`);
 }
 
 if (errors > 0) {

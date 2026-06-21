@@ -1,11 +1,10 @@
 import { exportCallLogsSince } from "@/lib/usage/callLogs";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
-import { exportProxyLogsSince } from "@/lib/db/proxyLogs";
 
 /**
  * GET /api/logs/export — export logs as JSON
  * Query params: ?hours=24 (1, 6, 12, 24; default 24)
- *               &type=call-logs|request-logs|proxy-logs (default call-logs)
+ *               &type=call-logs|request-logs (default call-logs)
  */
 export async function GET(request: Request) {
   const authError = await requireManagementAuth(request);
@@ -24,16 +23,13 @@ export async function GET(request: Request) {
     if (logType === "call-logs" || logType === "request-logs") {
       tableName = "call_logs";
       rows = await exportCallLogsSince(since);
-    } else if (logType === "proxy-logs") {
-      tableName = "proxy_logs";
-      // NOTE: exportProxyLogsSince returns the historical `public_ip` column, NOT `clientIp`.
-      // This intentionally differs from GET /api/usage/proxy-logs which exposes the
-      // value as `clientIp`. Callers of this export endpoint should read `public_ip`.
-      // This inconsistency will be resolved in a future DB migration (#2880).
-      rows = exportProxyLogsSince(since);
+    } else {
+      return Response.json({ error: { message: "Unsupported log export type" } }, { status: 400 });
     }
 
-    const filename = `omniroute-${tableName}-${hours}h-${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = `omniroute-${tableName}-${hours}h-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
 
     return new Response(
       JSON.stringify({ logs: rows, count: rows.length, hours, type: logType }, null, 2),

@@ -1,20 +1,15 @@
-import {
-  SELF_ACCOUNT_QUOTA_SCOPE,
-  SELF_USAGE_SCOPE,
-} from "@/shared/constants/selfServiceScopes";
+import { SELF_USAGE_SCOPE } from "@/shared/constants/selfServiceScopes";
 
 const MANAGEMENT_SCOPE = "manage";
 
 export interface CreateScopeOptions {
   manageEnabled: boolean;
   selfUsageEnabled?: boolean;
-  selfAccountQuotaEnabled?: boolean;
 }
 
 export interface PermissionScopeOptions {
   manageEnabled: boolean;
   selfUsageEnabled: boolean;
-  selfAccountQuotaEnabled: boolean;
 }
 
 export function buildApiKeyCreateScopes(options: CreateScopeOptions): string[] {
@@ -22,9 +17,6 @@ export function buildApiKeyCreateScopes(options: CreateScopeOptions): string[] {
   const selfUsageEnabled = options.selfUsageEnabled ?? true;
   if (options.manageEnabled) scopes.push(MANAGEMENT_SCOPE);
   if (selfUsageEnabled) scopes.push(SELF_USAGE_SCOPE);
-  if (selfUsageEnabled && options.selfAccountQuotaEnabled === true) {
-    scopes.push(SELF_ACCOUNT_QUOTA_SCOPE);
-  }
   return scopes;
 }
 
@@ -36,11 +28,6 @@ export function mergeApiKeyPermissionScopes(
 
   setScope(scopes, MANAGEMENT_SCOPE, options.manageEnabled);
   setScope(scopes, SELF_USAGE_SCOPE, options.selfUsageEnabled);
-  setScope(
-    scopes,
-    SELF_ACCOUNT_QUOTA_SCOPE,
-    options.selfUsageEnabled && options.selfAccountQuotaEnabled
-  );
 
   return [...scopes];
 }

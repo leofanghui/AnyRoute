@@ -8,8 +8,6 @@ lastUpdated: 2026-05-13
 
 > **For Users**: Looking for quick fixes? See the [Quick Reference](#quick-reference) below.
 
-🌐 **Languages:** 🇺🇸 [English](./TROUBLESHOOTING.md) | 🇧🇷 [Português (Brasil)](../i18n/pt-BR/docs/guides/TROUBLESHOOTING.md) | 🇪🇸 [Español](../i18n/es/docs/guides/TROUBLESHOOTING.md) | 🇫🇷 [Français](../i18n/fr/docs/guides/TROUBLESHOOTING.md) | 🇮🇹 [Italiano](../i18n/it/docs/guides/TROUBLESHOOTING.md) | 🇷🇺 [Русский](../i18n/ru/docs/guides/TROUBLESHOOTING.md) | 🇨🇳 [中文 (简体)](../i18n/zh-CN/docs/guides/TROUBLESHOOTING.md) | 🇩🇪 [Deutsch](../i18n/de/docs/guides/TROUBLESHOOTING.md) | 🇮🇳 [हिन्दी](../i18n/in/docs/guides/TROUBLESHOOTING.md) | 🇹🇭 [ไทย](../i18n/th/docs/guides/TROUBLESHOOTING.md) | 🇺🇦 [Українська](../i18n/uk-UA/docs/guides/TROUBLESHOOTING.md) | 🇸🇦 [العربية](../i18n/ar/docs/guides/TROUBLESHOOTING.md) | 🇯🇵 [日本語](../i18n/ja/docs/guides/TROUBLESHOOTING.md) | 🇻🇳 [Tiếng Việt](../i18n/vi/docs/guides/TROUBLESHOOTING.md) | 🇧🇬 [Български](../i18n/bg/docs/guides/TROUBLESHOOTING.md) | 🇩🇰 [Dansk](../i18n/da/docs/guides/TROUBLESHOOTING.md) | 🇫🇮 [Suomi](../i18n/fi/docs/guides/TROUBLESHOOTING.md) | 🇮🇱 [עברית](../i18n/he/docs/guides/TROUBLESHOOTING.md) | 🇭🇺 [Magyar](../i18n/hu/docs/guides/TROUBLESHOOTING.md) | 🇮🇩 [Bahasa Indonesia](../i18n/id/docs/guides/TROUBLESHOOTING.md) | 🇰🇷 [한국어](../i18n/ko/docs/guides/TROUBLESHOOTING.md) | 🇲🇾 [Bahasa Melayu](../i18n/ms/docs/guides/TROUBLESHOOTING.md) | 🇳🇱 [Nederlands](../i18n/nl/docs/guides/TROUBLESHOOTING.md) | 🇳🇴 [Norsk](../i18n/no/docs/guides/TROUBLESHOOTING.md) | 🇵🇹 [Português (Portugal)](../i18n/pt/docs/guides/TROUBLESHOOTING.md) | 🇷🇴 [Română](../i18n/ro/docs/guides/TROUBLESHOOTING.md) | 🇵🇱 [Polski](../i18n/pl/docs/guides/TROUBLESHOOTING.md) | 🇸🇰 [Slovenčina](../i18n/sk/docs/guides/TROUBLESHOOTING.md) | 🇸🇪 [Svenska](../i18n/sv/docs/guides/TROUBLESHOOTING.md) | 🇵🇭 [Filipino](../i18n/phi/docs/guides/TROUBLESHOOTING.md) | 🇨🇿 [Čeština](../i18n/cs/docs/guides/TROUBLESHOOTING.md)
-
 Common problems and solutions for OmniRoute.
 
 ---
@@ -18,17 +16,17 @@ Common problems and solutions for OmniRoute.
 
 **New to OmniRoute?** Start here — these solve 90% of problems:
 
-| I see this | What it means | What to do |
-|------------|--------------|------------|
-| "Can't connect" | OmniRoute isn't running | Run `omniroute` or `docker restart omniroute` |
-| "Invalid API key" | Your key is wrong or expired | Re-copy the key from the provider's website |
-| "Rate limit exceeded" | You're sending too many requests | Wait 1 minute, or use `model: "auto"` for automatic fallback |
-| "Quota exceeded" | You've used up your free/paid quota | Connect more providers, or use free providers (Kiro, Pollinations) |
-| "Slow responses" | Provider is busy or far away | Use `model: "auto/fast"` or connect a faster provider (Groq, Cerebras) |
-| "Wrong provider used" | `auto` picked a different provider | That's normal! `auto` picks the best one. Force a specific provider with `model: "openai/gpt-4o"` |
-| "502 Bad Gateway" | Provider is down | Wait and retry, or use `model: "auto"` to switch providers |
-| "401 Unauthorized" | Your credentials are wrong | Check your API key or re-authenticate with OAuth |
-| "429 Too Many Requests" | Rate limited | Wait 1 minute, or connect more providers |
+| I see this              | What it means                       | What to do                                                                                        |
+| ----------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------- |
+| "Can't connect"         | OmniRoute isn't running             | Run `omniroute` or `docker restart omniroute`                                                     |
+| "Invalid API key"       | Your key is wrong or expired        | Re-copy the key from the provider's website                                                       |
+| "Rate limit exceeded"   | You're sending too many requests    | Wait 1 minute, or use `model: "auto"` for automatic fallback                                      |
+| "Quota exceeded"        | You've used up your free/paid quota | Connect more providers, or use free providers (Kiro, Pollinations)                                |
+| "Slow responses"        | Provider is busy or far away        | Use `model: "auto/fast"` or connect a faster provider (Groq, Cerebras)                            |
+| "Wrong provider used"   | `auto` picked a different provider  | That's normal! `auto` picks the best one. Force a specific provider with `model: "openai/gpt-4o"` |
+| "502 Bad Gateway"       | Provider is down                    | Wait and retry, or use `model: "auto"` to switch providers                                        |
+| "401 Unauthorized"      | Your credentials are wrong          | Check your API key or re-authenticate with OAuth                                                  |
+| "429 Too Many Requests" | Rate limited                        | Wait 1 minute, or connect more providers                                                          |
 
 **Still stuck?** See the [Quick Fixes](#quick-fixes) below, or ask on [Discord](https://discord.gg/EkzRkpzKYt).
 
@@ -178,46 +176,14 @@ see [`docs/guides/KIRO_SETUP.md`](../guides/KIRO_SETUP.md).
 
 ---
 
-## Cloud Issues
-
-### Cloud Sync Errors
-
-1. Verify `BASE_URL` points to your running instance (e.g., `http://localhost:20128`)
-2. Verify `CLOUD_URL` points to your cloud endpoint (e.g., `https://omniroute.dev`)
-3. Keep `NEXT_PUBLIC_*` values aligned with server-side values
-
-### Cloud `stream=false` Returns 500
-
-**Symptom:** `Unexpected token 'd'...` on cloud endpoint for non-streaming calls.
-
-**Cause:** Upstream returns SSE payload while client expects JSON.
-
-**Workaround:** Use `stream=true` for cloud direct calls. Local runtime includes SSE→JSON fallback.
-
-### Cloud Says Connected but "Invalid API key"
-
-1. Create a fresh key from local dashboard (`/api/keys`)
-2. Run cloud sync: Enable Cloud → Sync Now
-3. Old/non-synced keys can still return `401` on cloud
-
----
-
 ## Docker Issues
 
-### CLI Tool Shows Not Installed
+### Dashboard Starts But Requests Fail
 
-1. Check runtime fields: `curl http://localhost:20128/api/cli-tools/runtime/codex | jq`
-2. For portable mode: use image target `runner-cli` (bundled CLIs)
-3. For host mount mode: set `CLI_EXTRA_PATHS` and mount host bin directory as read-only
-4. If `installed=true` and `runnable=false`: binary was found but failed healthcheck
-
-### Quick Runtime Validation
-
-```bash
-curl -s http://localhost:20128/api/cli-tools/codex-settings | jq '{installed,runnable,commandPath,runtimeMode,reason}'
-curl -s http://localhost:20128/api/cli-tools/claude-settings | jq '{installed,runnable,commandPath,runtimeMode,reason}'
-curl -s http://localhost:20128/api/cli-tools/openclaw-settings | jq '{installed,runnable,commandPath,runtimeMode,reason}'
-```
+1. Confirm the mounted `DATA_DIR` is writable by the container user.
+2. Check `GET /api/health` from the host network.
+3. Confirm `PORT` matches the published container port.
+4. Restart with a longer stop timeout so SQLite can checkpoint WAL cleanly.
 
 ---
 
@@ -272,17 +238,16 @@ When a provider's circuit breaker is OPEN, requests are blocked until the cooldo
 
 **Fix:**
 
-1. Go to **Dashboard → Settings → Resilience**
-2. Check the circuit breaker card for the affected provider
-3. Click **Reset All** to clear all breakers, or wait for the cooldown to expire
-4. Verify the provider is actually available before resetting
+1. Open **Dashboard -> Health** and check the affected provider state
+2. Wait for the cooldown to expire before retrying
+3. Verify the provider is actually available before sending traffic again
 
 ### Provider keeps tripping the circuit breaker
 
 If a provider repeatedly enters OPEN state:
 
 1. Check **Dashboard → Health → Provider Health** for the failure pattern
-2. Go to **Settings → Resilience → Provider Profiles** and increase the failure threshold
+2. Review the runtime resilience defaults in `open-sse/config/constants.ts` if the threshold needs code-level tuning
 3. Check if the provider has changed API limits or requires re-authentication
 4. Review latency telemetry — high latency may cause timeout-based failures
 
@@ -331,7 +296,7 @@ Use **Dashboard → Translator** to debug format translation issues:
 ### Auto rate-limit not triggering
 
 - Auto rate-limit only applies to API key providers (not OAuth/subscription)
-- Verify **Settings → Resilience → Provider Profiles** has auto-rate-limit enabled
+- Verify the provider returns `429` status codes or `Retry-After` headers
 - Check if the provider returns `429` status codes or `Retry-After` headers
 
 ### Tuning exponential backoff
@@ -433,8 +398,7 @@ Issues specific to the v3.8.0 release and their current workarounds. If a fix la
 
 **Manual reset:**
 
-- **Dashboard:** **Settings → Model Cooldowns** → click **Re-enable** on the affected card
-- **API:** `DELETE /api/resilience/model-cooldowns` with management auth headers
+- Restart the affected provider connection or wait for the cooldown timestamp to expire.
 
 ### Command Code provider connection fails with 403
 
@@ -462,7 +426,7 @@ Issues specific to the v3.8.0 release and their current workarounds. If a fix la
 **Fix:**
 
 - Ensure you are on v3.8.0 or later
-- Verify the `useUpstream429BreakerHints` toggle is enabled under **Settings → Resilience**
+- Verify `useUpstream429BreakerHints` is enabled in the runtime resilience settings
 
 ### OMNIROUTE_WS_BRIDGE_SECRET missing in production
 
@@ -498,7 +462,7 @@ Issues specific to the v3.8.0 release and their current workarounds. If a fix la
 ## Still Stuck?
 
 - **GitHub Issues**: [github.com/diegosouzapw/OmniRoute/issues](https://github.com/diegosouzapw/OmniRoute/issues)
-- **Architecture**: See [`docs/architecture/ARCHITECTURE.md`](../architecture/ARCHITECTURE.md) for internal details
-- **API Reference**: See [`docs/reference/API_REFERENCE.md`](../reference/API_REFERENCE.md) for all endpoints
+- **Docs home**: See [`docs/README.md`](../README.md) for retained minimal documentation
+- **Routing**: See [`docs/routing/AUTO-COMBO.md`](../routing/AUTO-COMBO.md) for combo behavior
 - **Health Dashboard**: Check **Dashboard → Health** for real-time system status
 - **Translator**: Use **Dashboard → Translator** to debug format issues

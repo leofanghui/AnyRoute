@@ -376,7 +376,7 @@ test("model sync route writes synced available models for Gemini connections", a
         {
           id: "gemini-custom-preview",
           name: "Gemini Custom Preview",
-          supportedEndpoints: ["chat", "embeddings"],
+          supportedEndpoints: ["chat"],
           inputTokenLimit: 32768,
           outputTokenLimit: 8192,
           description: "Custom Gemini preview model",
@@ -408,7 +408,7 @@ test("model sync route writes synced available models for Gemini connections", a
       id: "gemini-custom-preview",
       name: "Gemini Custom Preview",
       source: "imported",
-      supportedEndpoints: ["chat", "embeddings"],
+      supportedEndpoints: ["chat"],
       inputTokenLimit: 32768,
       outputTokenLimit: 8192,
       description: "Custom Gemini preview model",
@@ -547,7 +547,7 @@ test("model sync route import mode ignores supported endpoint ordering changes",
       id: "router-v4",
       name: "Router V4",
       source: "imported",
-      supportedEndpoints: ["chat", "embeddings"],
+      supportedEndpoints: ["chat"],
     },
   ]);
 
@@ -562,7 +562,7 @@ test("model sync route import mode ignores supported endpoint ordering changes",
         {
           id: "router-v4",
           name: "Router V4",
-          supportedEndpoints: ["embeddings", "chat"],
+          supportedEndpoints: ["chat"],
         },
       ],
     });
@@ -590,7 +590,7 @@ test("model sync route import mode ignores supported endpoint ordering changes",
       id: model.id,
       supportedEndpoints: model.supportedEndpoints,
     })),
-    [{ id: "router-v4", supportedEndpoints: ["chat", "embeddings"] }]
+    [{ id: "router-v4", supportedEndpoints: ["chat"] }]
   );
   assert.deepEqual(body.models, []);
   assert.equal(logs.length, 0);
@@ -626,7 +626,7 @@ test("model sync route import mode reports updates without counting them as new 
         {
           id: "router-v4",
           name: "Router V4 Updated",
-          supportedEndpoints: ["chat", "embeddings"],
+          supportedEndpoints: ["chat"],
         },
       ],
     });
@@ -657,7 +657,7 @@ test("model sync route import mode reports updates without counting them as new 
       {
         id: "router-v4",
         name: "Router V4 Updated",
-        supportedEndpoints: ["chat", "embeddings"],
+        supportedEndpoints: ["chat"],
       },
     ]
   );
@@ -700,7 +700,7 @@ test("model sync route records added, removed, and updated model diffs with fall
         {
           id: "persisted-model",
           name: "Persisted Model v2",
-          supportedEndpoints: ["chat", "embeddings"],
+          supportedEndpoints: ["chat"],
         },
         {
           model: "fallback-model",
@@ -736,7 +736,7 @@ test("model sync route records added, removed, and updated model diffs with fall
       {
         id: "persisted-model",
         name: "Persisted Model v2",
-        supportedEndpoints: ["chat", "embeddings"],
+        supportedEndpoints: ["chat"],
         description: undefined,
       },
       {

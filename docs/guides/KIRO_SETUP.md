@@ -89,7 +89,7 @@ Create a combo with both connections as targets to load-balance or fall back bet
 kiro/kiro-dev → kiro/kiro-pro
 ```
 
-See [FEATURES.md](./FEATURES.md) and the routing documentation for combo configuration.
+See the [Auto-Combo guide](../getting-started/AUTO-COMBO-GUIDE.md) for combo configuration.
 
 ---
 
@@ -137,4 +137,4 @@ expiry is tracked as a future improvement.
   region). If you are behind a corporate proxy, set a provider-level proxy in
   **Dashboard → Settings → Proxies**.
 
-For other issues, see the main [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+For other issues, see the main [Troubleshooting guide](../getting-started/TROUBLESHOOTING.md).

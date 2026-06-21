@@ -8,8 +8,6 @@ import { SignJWT } from "jose";
 const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "omr-mgmt-policy-"));
 process.env.DATA_DIR = TEST_DATA_DIR;
 process.env.API_KEY_SECRET = "test-secret";
-// API-key validation falls through to a Redis-backed cache otherwise — disable
-// it for the local test loop so isValidApiKey() does not stall on ETIMEDOUT.
 process.env.OMNIROUTE_DISABLE_REDIS_AUTH_CACHE = "1";
 
 const core = await import("../../../src/lib/db/core.ts");
@@ -47,15 +45,7 @@ async function loadPolicy() {
 }
 
 async function dashboardCookieHeader(expiresIn = "1h"): Promise<string> {
-  // Mirrors tests/unit/authz/pipeline.test.ts: mint a real HS256 auth_token
-  // JWT against process.env.JWT_SECRET so isDashboardSessionAuthenticated()
-  // accepts it. The header path is sufficient — the policy reads the cookie
-  // from `request.headers.get("cookie")` when there's no `request.cookies`
-  // accessor on the plain ctx() object.
-  assert.ok(
-    process.env.JWT_SECRET,
-    "JWT_SECRET must be set before minting dashboard cookie (otherwise TextEncoder would encode the string 'undefined' and silently mint a wrong-secret JWT)"
-  );
+  assert.ok(process.env.JWT_SECRET, "JWT_SECRET must be set before minting dashboard cookie");
   const secret = new TextEncoder().encode(process.env.JWT_SECRET);
   const token = await new SignJWT({ authenticated: true })
     .setProtectedHeader({ alg: "HS256" })
@@ -108,7 +98,7 @@ function remoteCtx(headers: Headers, method = "GET", path = "/api/keys") {
   };
 }
 
-test("managementPolicy: allows when auth not required (no password set)", async () => {
+test("managementPolicy: allows when auth not required on localhost", async () => {
   await settingsDb.updateSettings({ requireLogin: true, password: null });
   const policy = await loadPolicy();
   const out = await policy.evaluate(ctx(new Headers()));
@@ -122,9 +112,7 @@ test("managementPolicy: allows when auth not required (no password set)", async 
 test("managementPolicy: rejects remote fresh bootstrap without a password", async () => {
   await settingsDb.updateSettings({ requireLogin: true, password: null });
   const policy = await loadPolicy();
-
   const out = await policy.evaluate(remoteCtx(new Headers()));
-
   assert.equal(out.allow, false);
   if (!out.allow) {
     assert.equal(out.status, 401);
@@ -196,7 +184,6 @@ test("managementPolicy: rejects valid API keys that lack manage scope", async ()
 
   assert.equal(out.allow, false);
   if (!out.allow) {
-    // A valid bearer is present but its scope is insufficient → 403.
     assert.equal(out.status, 403);
     assert.equal(out.code, "AUTH_001");
   }
@@ -219,25 +206,13 @@ test("managementPolicy: rejects invalid API keys with 403 when bearer is present
   }
 });
 
-// ─── LOCAL_ONLY manage-scope bypass for /api/mcp/* ───────────────────────────
-//
-// `/api/mcp/*` is in LOCAL_ONLY_API_PREFIXES (because it can spawn child
-// processes for unauthenticated callers) AND in
-// LOCAL_ONLY_MANAGE_SCOPE_BYPASS_PREFIXES (so a manage-scoped API key
-// presented from non-loopback may reach it). `/api/cli-tools/runtime/*` is
-// LOCAL_ONLY but NOT bypassable — the carve-out is path-scoped.
-//
-// `ctx()` uses `new Headers()` without an explicit `host`, so
-// `isLoopbackHost(null)` returns false → the policy treats it as non-loopback,
-// which is the exact case this block exercises.
-
-test("LOCAL_ONLY manage-scope bypass: no Bearer + non-loopback → 403 (regression guard)", async () => {
+test("managementPolicy: local-only version route blocks non-loopback requests", async () => {
   process.env.JWT_SECRET = "test-jwt-secret-for-mgmt-policy";
   process.env.INITIAL_PASSWORD = "initial-pass";
   await settingsDb.updateSettings({ requireLogin: true });
 
   const policy = await loadPolicy();
-  const out = await policy.evaluate(ctx(new Headers(), "GET", "/api/mcp/stream"));
+  const out = await policy.evaluate(ctx(new Headers(), "GET", "/api/system/version"));
 
   assert.equal(out.allow, false);
   if (!out.allow) {
@@ -246,61 +221,17 @@ test("LOCAL_ONLY manage-scope bypass: no Bearer + non-loopback → 403 (regressi
   }
 });
 
-test("LOCAL_ONLY manage-scope bypass: non-manage key + non-loopback → 403", async () => {
+test("managementPolicy: manage key cannot bypass spawn-capable local-only route", async () => {
   process.env.JWT_SECRET = "test-jwt-secret-for-mgmt-policy";
   process.env.INITIAL_PASSWORD = "initial-pass";
   await settingsDb.updateSettings({ requireLogin: true });
-  const created = await apiKeysDb.createApiKey("chat-only", "machine-chat-only", ["chat"]);
-
-  const policy = await loadPolicy();
-  const out = await policy.evaluate(
-    ctx(new Headers({ authorization: `Bearer ${created.key}` }), "GET", "/api/mcp/stream")
-  );
-
-  assert.equal(out.allow, false);
-  if (!out.allow) {
-    assert.equal(out.status, 403);
-    assert.equal(out.code, "LOCAL_ONLY");
-  }
-});
-
-test("LOCAL_ONLY manage-scope bypass: manage-scope key + non-loopback → allow", async () => {
-  process.env.JWT_SECRET = "test-jwt-secret-for-mgmt-policy";
-  process.env.INITIAL_PASSWORD = "initial-pass";
-  await settingsDb.updateSettings({ requireLogin: true });
-  const created = await apiKeysDb.createApiKey("mcp-bypass-key", "machine-mcp-bypass", ["manage"]);
-
-  const policy = await loadPolicy();
-  const out = await policy.evaluate(
-    ctx(new Headers({ authorization: `Bearer ${created.key}` }), "GET", "/api/mcp/stream")
-  );
-
-  assert.equal(out.allow, true);
-  if (out.allow) {
-    assert.equal(out.subject.kind, "management_key");
-    assert.equal(out.subject.id, created.id);
-    assert.ok(
-      (out.subject.label ?? "").includes("local-only-bypass"),
-      `expected label to include 'local-only-bypass', got ${out.subject.label}`
-    );
-  }
-});
-
-test("LOCAL_ONLY manage-scope bypass: carve-out does not extend to /api/cli-tools/runtime/*", async () => {
-  process.env.JWT_SECRET = "test-jwt-secret-for-mgmt-policy";
-  process.env.INITIAL_PASSWORD = "initial-pass";
-  await settingsDb.updateSettings({ requireLogin: true });
-  const created = await apiKeysDb.createApiKey("cli-runtime-denied", "machine-cli-runtime-denied", [
+  const created = await apiKeysDb.createApiKey("version-denied", "machine-version-denied", [
     "manage",
   ]);
 
   const policy = await loadPolicy();
   const out = await policy.evaluate(
-    ctx(
-      new Headers({ authorization: `Bearer ${created.key}` }),
-      "GET",
-      "/api/cli-tools/runtime/foo"
-    )
+    ctx(new Headers({ authorization: `Bearer ${created.key}` }), "GET", "/api/system/version")
   );
 
   assert.equal(out.allow, false);
@@ -310,66 +241,33 @@ test("LOCAL_ONLY manage-scope bypass: carve-out does not extend to /api/cli-tool
   }
 });
 
-test("LOCAL_ONLY manage-scope bypass: loopback + no Bearer → allow (local CLI flow preserved)", async () => {
-  // Match the fresh-bootstrap pattern used by the "allows when auth not
-  // required" test above: no password configured + loopback request →
-  // `isAuthRequired` returns false → anonymous-allow fires once the LOCAL_ONLY
-  // gate is satisfied. Locality comes from the real peer (socket.remoteAddress)
-  // under the peer-stamp model (2026-05-31) — the spoofable `host` header alone
-  // is deliberately NOT enough.
+test("managementPolicy: dashboard cookie cannot bypass spawn-capable local-only route", async () => {
+  process.env.JWT_SECRET = "test-jwt-secret-for-mgmt-policy";
+  process.env.INITIAL_PASSWORD = "initial-pass";
+  await settingsDb.updateSettings({ requireLogin: true });
+
+  const cookie = await dashboardCookieHeader();
+  const policy = await loadPolicy();
+  const out = await policy.evaluate(ctx(new Headers({ cookie }), "GET", "/api/system/version"));
+
+  assert.equal(out.allow, false);
+  if (!out.allow) {
+    assert.equal(out.status, 403);
+    assert.equal(out.code, "LOCAL_ONLY");
+  }
+});
+
+test("managementPolicy: loopback local-only route allows bootstrap flow", async () => {
   await settingsDb.updateSettings({ requireLogin: true, password: null });
 
   const policy = await loadPolicy();
   const out = await policy.evaluate(
-    ctx(new Headers({ host: "localhost:20128" }), "GET", "/api/mcp/stream", {
+    ctx(new Headers({ host: "localhost:20128" }), "GET", "/api/system/version", {
       socket: { remoteAddress: "127.0.0.1" },
     })
   );
 
   assert.equal(out.allow, true);
-});
-
-// ─── LOCAL_ONLY dashboard-session bypass ─────────────────────────────────────
-//
-// Regression cover for commit ca284a91 ("refine LOCAL_ONLY bypass — dashboard
-// cookie + admin label + error log"). The dashboard-session bypass mirrors the
-// manage-scope bypass: an authenticated `auth_token` cookie reaching a
-// bypassable LOCAL_ONLY path (e.g. /api/mcp/status) from a public hostname is
-// allowed, but the cli-tools-runtime carve-out is NOT extended to it.
-
-test("LOCAL_ONLY dashboard-session bypass: authenticated dashboard cookie + non-loopback → allow", async () => {
-  process.env.JWT_SECRET = "test-jwt-secret-for-mgmt-policy";
-  process.env.INITIAL_PASSWORD = "initial-pass";
-  await settingsDb.updateSettings({ requireLogin: true });
-
-  const cookie = await dashboardCookieHeader();
-  const policy = await loadPolicy();
-  const out = await policy.evaluate(ctx(new Headers({ cookie }), "GET", "/api/mcp/stream"));
-
-  assert.equal(out.allow, true);
-  if (out.allow) {
-    assert.equal(out.subject.kind, "dashboard_session");
-    assert.equal(out.subject.id, "dashboard");
-    assert.equal(out.subject.label, "dashboard-session-local-only-bypass");
-  }
-});
-
-test("LOCAL_ONLY dashboard-session bypass: authenticated dashboard cookie + /api/cli-tools/runtime/ → 403 LOCAL_ONLY", async () => {
-  process.env.JWT_SECRET = "test-jwt-secret-for-mgmt-policy";
-  process.env.INITIAL_PASSWORD = "initial-pass";
-  await settingsDb.updateSettings({ requireLogin: true });
-
-  const cookie = await dashboardCookieHeader();
-  const policy = await loadPolicy();
-  const out = await policy.evaluate(
-    ctx(new Headers({ cookie }), "GET", "/api/cli-tools/runtime/foo")
-  );
-
-  assert.equal(out.allow, false);
-  if (!out.allow) {
-    assert.equal(out.status, 403);
-    assert.equal(out.code, "LOCAL_ONLY");
-  }
 });
 
 test("managementPolicy: allows internal model sync only on the dedicated provider routes", async () => {

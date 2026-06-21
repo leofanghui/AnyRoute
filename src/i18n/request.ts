@@ -26,7 +26,10 @@ export function deepMergeFallback(
       typeof targetValue === "object" &&
       !Array.isArray(targetValue)
     ) {
-      deepMergeFallback(targetValue as Record<string, unknown>, sourceValue as Record<string, unknown>);
+      deepMergeFallback(
+        targetValue as Record<string, unknown>,
+        sourceValue as Record<string, unknown>
+      );
     } else if (targetValue === undefined) {
       target[key] = sourceValue;
     }
@@ -40,7 +43,12 @@ function setNestedValue(target: Record<string, unknown>, dottedKey: string, valu
 
   for (let index = 0; index < segments.length; index += 1) {
     const segment = segments[index];
-    if (!segment || segment === "__proto__" || segment === "constructor" || segment === "prototype") {
+    if (
+      !segment ||
+      segment === "__proto__" ||
+      segment === "constructor" ||
+      segment === "prototype"
+    ) {
       return;
     }
 
@@ -65,7 +73,9 @@ export function normalizeComplianceEventTypes(
   messages: Record<string, unknown>
 ): Record<string, unknown> {
   const compliance =
-    messages.compliance && typeof messages.compliance === "object" && !Array.isArray(messages.compliance)
+    messages.compliance &&
+    typeof messages.compliance === "object" &&
+    !Array.isArray(messages.compliance)
       ? (messages.compliance as Record<string, unknown>)
       : null;
   const eventTypes =
@@ -122,13 +132,10 @@ export default getRequestConfig(async () => {
     messages = deepMergeFallback({ ...localeMessages }, fallbackMessages);
   }
 
-  // 4. Merge EN as namespace-level fallback for locales that are missing new namespaces.
-  //    Only applied when the active locale is not EN (avoids a redundant import).
+  // Merge EN as namespace-level fallback for minimal secondary locales.
+  // Merging is shallow at the top-level namespace key: if a namespace is present
   //    Merging is shallow at the top-level namespace key — if a namespace is already
-  //    present in the locale file it is kept as-is; missing namespaces fall back to EN.
-  //    This ensures new namespaces (e.g. cliCode, cliAgents, acpAgents, cliCommon added
-  //    in plan 14 F9) are displayed in English for the 39 non-EN/non-pt-BR locales until
-  //    translations are shipped.
+  // in the locale file it is kept as-is; missing namespaces fall back to EN.
   let mergedMessages: Record<string, unknown> = messages as Record<string, unknown>;
   if (locale !== DEFAULT_LOCALE) {
     const enMessages = normalizeComplianceEventTypes(

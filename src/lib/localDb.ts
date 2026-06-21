@@ -86,9 +86,6 @@ export {
   deleteCombo,
 } from "./db/combos";
 
-export * from "./db/compressionCacheStats";
-export * from "./db/compressionCombos";
-
 export {
   // API Keys
   getApiKeys,
@@ -105,31 +102,9 @@ export {
 } from "./db/apiKeys";
 
 export {
-  // Evals
-  saveEvalRun,
-  listEvalRuns,
-  getEvalScorecard,
-  listCustomEvalSuites,
-  getCustomEvalSuite,
-  saveCustomEvalSuite,
-  deleteCustomEvalSuite,
-  serializeEvalTargetKey,
-} from "./db/evals";
-
-export type {
-  EvalCaseRecord,
-  EvalSuiteRecord,
-  EvalTargetType,
-  EvalTargetDescriptor,
-  EvalRunSummary,
-  PersistedEvalRun,
-} from "./db/evals";
-
-export {
   // Settings
   getSettings,
   updateSettings,
-  isCloudEnabled,
 
   // LKGP (Last Known Good Provider) (#919)
   getLKGP,
@@ -214,13 +189,6 @@ export {
 export type { ExportAllRows } from "./db/backup";
 
 export {
-  // Skills DB operations (#3500 slice 5)
-  updateSkill,
-} from "./db/skills";
-
-export type { SkillPatch } from "./db/skills";
-
-export {
   // Read Cache (cached wrappers for hot-read paths)
   getCachedSettings,
   getCachedPricing,
@@ -255,61 +223,9 @@ export type {
   IssueKeyParams,
 } from "./db/registeredKeys";
 
-export {
-  // Model-Combo Mappings (#563)
-  getModelComboMappings,
-  getModelComboMappingById,
-  createModelComboMapping,
-  updateModelComboMapping,
-  deleteModelComboMapping,
-  resolveComboForModel,
-} from "./db/modelComboMappings";
-
-export {
-  // Files
-  createFile,
-  getFile,
-  getFileContent,
-  listFiles,
-  countFiles,
-  formatFileResponse,
-  deleteFile,
-} from "./db/files";
-
-export {
-  // Batches
-  createBatch,
-  getBatch,
-  updateBatch,
-  listBatches,
-  countBatches,
-  getPendingBatches,
-  getTerminalBatches,
-  deleteBatch,
-  deleteCompletedBatches,
-} from "./db/batches";
-
-export type { FileRecord } from "./db/files";
-export type { BatchRecord } from "./db/batches";
+export { resolveComboForModel } from "./db/modelComboMappings";
 
 export type { ModelComboMapping } from "./db/modelComboMappings";
-
-export {
-  // Webhooks
-  getWebhooks,
-  getWebhook,
-  getEnabledWebhooks,
-  createWebhook,
-  updateWebhook as updateWebhookRecord,
-  deleteWebhook,
-  recordWebhookDelivery,
-  disableWebhooksWithHighFailures,
-} from "./db/webhooks";
-
-export type { Webhook, WebhookKind } from "./db/webhooks";
-
-export { insertDelivery, getDeliveries } from "./db/webhookDeliveries";
-export type { WebhookDelivery } from "./db/webhookDeliveries";
 
 export {
   saveQuotaSnapshot,
@@ -321,28 +237,6 @@ export {
 export * from "./db/sessionAccountAffinity";
 
 export type { QuotaSnapshotRow, ProviderUtilizationPoint } from "@/shared/types/utilization";
-
-export {
-  getVersionManagerStatus,
-  getVersionManagerTool,
-  upsertVersionManagerTool,
-  updateVersionManagerTool,
-  deleteVersionManagerTool,
-  updateToolHealth,
-  updateToolVersion,
-  setToolStatus,
-  getServiceRow,
-  updateServiceField,
-} from "./db/versionManager";
-
-export {
-  listSyncTokens,
-  getSyncTokenById,
-  getSyncTokenByHash,
-  createSyncTokenRecord,
-  revokeSyncToken,
-  touchSyncTokenLastUsed,
-} from "./db/syncTokens";
 
 export {
   getUpstreamProxyConfigs,
@@ -372,16 +266,6 @@ export {
 } from "./db/creditBalance";
 
 export {
-  insertCompressionAnalyticsRow,
-  getCompressionAnalyticsSummary,
-} from "./db/compressionAnalytics";
-
-export type {
-  CompressionAnalyticsRow,
-  CompressionAnalyticsSummary,
-} from "./db/compressionAnalytics";
-
-export {
   // Reasoning Replay Cache (#1628)
   setReasoningCache,
   getReasoningCache,
@@ -392,20 +276,6 @@ export {
 export type { ReasoningCacheEntry, ReasoningCacheStats } from "./db/reasoningCache";
 
 export {
-  // 1proxy Integration (#1788)
-  listOneproxyProxies,
-  getOneproxyStats,
-  upsertOneproxyProxy,
-  getOneproxyProxyById,
-  deleteOneproxyProxy,
-  clearAllOneproxyProxies,
-  getOneproxyProxyForRotation,
-  markOneproxyProxyFailed,
-} from "./db/oneproxy";
-
-export type { OneproxyProxyRecord, OneproxyStats } from "./db/oneproxy";
-
-export {
   getSessionAccountAffinity,
   upsertSessionAccountAffinity,
   touchSessionAccountAffinity,
@@ -414,42 +284,6 @@ export {
   startSessionAccountAffinityCleanup,
   stopSessionAccountAffinityCleanupForTests,
 } from "./db/sessionAccountAffinity";
-
-export {
-  // Gamification & Leaderboard
-  updateScore,
-  getRank,
-  getTopN,
-  addXp,
-  getXp,
-  updateLevel,
-  unlockBadge,
-  hasBadge,
-  getBadges,
-  getBadgeDefinitions,
-  transferTokens,
-  getBalance,
-  getHistory,
-  createInviteToken,
-  getInviteByCode,
-  redeemInvite,
-  revokeInvite,
-  connectServer,
-  disconnectServer,
-  listServers,
-  getConnectedServerByKeyHash,
-} from "./db/gamification";
-
-export type {
-  LeaderboardRow,
-  UserLevelRow,
-  BadgeDefinition,
-  UserBadge,
-  XpAuditLogEntry,
-  TokenLedgerEntry,
-  InviteToken,
-  CommunityServer,
-} from "./db/gamification";
 
 export * from "./db/featureFlags";
 
@@ -464,20 +298,6 @@ export {
 } from "./db/contextHandoffs";
 
 export type { HandoffPayload } from "./db/contextHandoffs";
-
-export {
-  getAllMiddlewareHooks,
-  getEnabledMiddlewareHooks,
-  getComboMiddlewareHooks,
-  getMiddlewareHook,
-  createMiddlewareHook,
-  updateMiddlewareHook,
-  deleteMiddlewareHook,
-  recordHookExecution,
-  insertHookLog,
-  getHookLogs,
-  cleanupHookLogs,
-} from "./db/middleware";
 
 export {
   getAllKeyGroups,
@@ -497,105 +317,8 @@ export {
   checkKeyModelAccess,
 } from "./db/apiKeyGroups";
 
-export {
-  createRelayToken,
-  getRelayTokens,
-  getRelayToken,
-  getRelayTokenByHash,
-  updateRelayToken,
-  deleteRelayToken,
-  toggleRelayToken,
-  checkRateLimit,
-  recordRelayUsage,
-  getRelayUsage,
-  getRelayLogs,
-} from "./db/relayProxies";
-
-export type {
-  RelayToken,
-  RelayTokenRow,
-  RelayLogRow,
-  CreateRelayTokenInput,
-  RelayTokenWithSecret,
-} from "./db/relayProxies";
-
-export {
-  upsertFreeProxy,
-  listFreeProxies,
-  listFreeProxiesBySource,
-  getFreeProxyById,
-  markFreeProxyInPool,
-  promoteFreeProxyToPool,
-  deleteFreeProxy,
-  clearFreeProxiesBySource,
-  getFreeProxyStats,
-} from "./db/freeProxies";
-
-export type { FreeProxyRecord, FreeProxyStats } from "./db/freeProxies";
-
-export {
-  listPlaygroundPresets,
-  getPlaygroundPreset,
-  createPlaygroundPreset,
-  updatePlaygroundPreset,
-  deletePlaygroundPreset,
-} from "./db/playgroundPresets";
-
-export type { PlaygroundPresetListItem } from "./db/playgroundPresets";
 // Plan 21 — Memory Engine Redesign
-export {
-  getMemoryVecMeta,
-  setMemoryVecMeta,
-  markMemoryNeedsReindex,
-  markAllMemoriesNeedReindex,
-  getMemoryReindexQueue,
-  countMemoryReindexPending,
-} from "./db/memoryVec";
-
-export type { MemoryVecMeta } from "./db/memoryVec";
-// T-A-F2: AgentBridge state/mappings/bypass + Inspector custom hosts/sessions
-export * from "./db/agentBridgeState";
-export * from "./db/agentBridgeMappings";
-export * from "./db/agentBridgeBypass";
-export * from "./db/inspectorCustomHosts";
-export * from "./db/inspectorSessions";
 // Quota Sharing — Group B (planos 16+22)
-export {
-  listPools,
-  getPool,
-  getPoolsByGroup,
-  createPool,
-  updatePool,
-  deletePool,
-  upsertAllocations,
-  listAllocationsForApiKey,
-} from "./db/quotaPools";
-
-export {
-  // Quota Groups (B2)
-  createGroup,
-  getGroup,
-  getGroupName,
-  listGroups,
-  renameGroup,
-  deleteGroup,
-} from "./db/quotaGroups";
-
-export type { QuotaGroup } from "./db/quotaGroups";
-export {
-  getBucket,
-  incrementBucket,
-  getPair,
-  sumPoolDimension,
-  gcOlderThan as gcQuotaConsumption,
-} from "./db/quotaConsumption";
-export {
-  getPlan as getProviderPlan,
-  listPlans as listProviderPlans,
-  upsertPlan as upsertProviderPlan,
-  deletePlan as deleteProviderPlan,
-} from "./db/providerPlans";
-
 export {
   // Per-API-Key Token Limits (migration 073)
   upsertTokenLimit,
@@ -616,29 +339,6 @@ export type {
 } from "./db/tokenLimits";
 
 export {
-  insertPlugin,
-  getPluginById,
-  getPluginByName,
-  listPlugins,
-  updatePluginStatus,
-  updatePluginConfig,
-  deletePlugin,
-  pluginExists,
-} from "./db/plugins";
-
-export type { PluginRow, PluginCreateInput } from "./db/plugins";
-
-export {
-  getApiKeyContextSource,
-  setApiKeyContextSource,
-  deleteApiKeyContextSource,
-  listApiKeyContextSources,
-} from "./db/apiKeyContextSources";
-export type { ApiKeyContextSource } from "./db/apiKeyContextSources";
-
-export { sumUsageTokensThisMonth } from "./db/usageSummary";
-
-export {
   // Model Intelligence (task-fitness scores)
   getModelIntelligence,
   getModelIntelligenceBySource,
@@ -655,22 +355,8 @@ export {
 
 export type { ModelIntelligenceEntry } from "./db/modelIntelligence";
 
-export {
-  getProviderMetrics,
-  getSearchProviderStats,
-  getRecentSearchLogs,
-  getSearchAggregateStats,
-  getSearchProviderCounts,
-  getFallbackStats,
-} from "./db/callLogStats";
-export type {
-  ProviderMetricRow,
-  SearchProviderStatRow,
-  SearchRecentRow,
-  SearchAggregateStats,
-  SearchProviderCountRow,
-  FallbackStatsRow,
-} from "./db/callLogStats";
+export { getProviderMetrics, getFallbackStats } from "./db/callLogStats";
+export type { ProviderMetricRow, FallbackStatsRow } from "./db/callLogStats";
 
 export {
   buildUnifiedSource,
@@ -712,38 +398,3 @@ export type {
   WeeklyPatternRow,
   PresetCostModelRow,
 } from "./db/usageAnalytics";
-
-// ---------------------------------------------------------------------------
-// usage_logs — auto-routing analytics (#3500 slice 4)
-// ---------------------------------------------------------------------------
-export {
-  getAutoRoutingTotalCount,
-  getAutoRoutingVariantBreakdown,
-  getAutoRoutingTopProviders,
-} from "./db/usageLogs";
-export type {
-  AutoRoutingTotalResult,
-  AutoRoutingVariantRow,
-  AutoRoutingTopProviderRow,
-} from "./db/usageLogs";
-
-// ---------------------------------------------------------------------------
-// semantic_cache — cache entries CRUD (#3500 slice 4)
-// ---------------------------------------------------------------------------
-export {
-  listSemanticCacheEntries,
-  deleteSemanticCacheBySignature,
-  deleteSemanticCacheByModel,
-} from "./db/semanticCache";
-export type {
-  SemanticCacheEntry,
-  SemanticCacheListOptions,
-  SemanticCacheListResult,
-  DeleteSemanticCacheBySignatureResult,
-  DeleteSemanticCacheByModelResult,
-} from "./db/semanticCache";
-
-// ---------------------------------------------------------------------------
-// proxy_logs — export query (#3500 slice 4)
-// ---------------------------------------------------------------------------
-export { exportProxyLogsSince } from "./db/proxyLogs";

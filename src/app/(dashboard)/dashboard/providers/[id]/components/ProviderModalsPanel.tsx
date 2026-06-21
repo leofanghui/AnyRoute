@@ -8,7 +8,6 @@ import {
   KiroOAuthWrapper,
   CursorAuthModal,
   TraeAuthModal,
-  ProxyConfigModal,
 } from "@/shared/components";
 import RiskNoticeModal from "../../components/RiskNoticeModal";
 import CodexCliGuideModal from "../../components/CodexCliGuideModal";
@@ -32,12 +31,6 @@ interface ProviderInfo {
   name: string;
   riskNoticeVariant?: string;
   [key: string]: unknown;
-}
-
-interface ProxyTarget {
-  level: string;
-  id: string;
-  label: string;
 }
 
 interface ProviderModalsPanelProps {
@@ -127,10 +120,6 @@ interface ProviderModalsPanelProps {
   batchTestResults: BatchTestResults | null;
   setBatchTestResults: (r: BatchTestResults | null) => void;
   emailsVisible: boolean;
-  // Proxy config
-  proxyTarget: ProxyTarget | null;
-  setProxyTarget: (t: ProxyTarget | null) => void;
-  fetchProxyConfig: () => Promise<void>;
   // Import progress
   importProgress: ImportProgress;
   showImportModal: boolean;
@@ -212,9 +201,6 @@ export default function ProviderModalsPanel({
   batchTestResults,
   setBatchTestResults,
   emailsVisible,
-  proxyTarget,
-  setProxyTarget,
-  fetchProxyConfig,
   importProgress,
   showImportModal,
   setShowImportModal,
@@ -403,18 +389,6 @@ export default function ProviderModalsPanel({
         onClose={() => setBatchTestResults(null)}
         t={t}
       />
-      {proxyTarget && (
-        <ProxyConfigModal
-          isOpen={!!proxyTarget}
-          onClose={() => setProxyTarget(null)}
-          level={proxyTarget.level}
-          levelId={proxyTarget.id}
-          levelLabel={proxyTarget.label}
-          onSaved={() => {
-            void fetchProxyConfig();
-          }}
-        />
-      )}
       <ImportProgressModal
         importProgress={importProgress}
         isOpen={showImportModal}

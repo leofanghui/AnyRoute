@@ -510,11 +510,9 @@ export default function ComboControlCenterClient({ comboId }: { comboId: string 
         <h2 className="text-lg font-semibold text-text-main">Quick links</h2>
         <div className="mt-4 flex flex-wrap gap-2">
           {[
-            ["Combo Health", "/dashboard/analytics/combo-health"],
+            ["Analytics", "/dashboard/analytics"],
             ["Call Logs", "/dashboard/logs"],
             ["Costs", "/dashboard/costs"],
-            ["Quota", "/dashboard/quota"],
-            ["Playground", "/dashboard/playground"],
             ["Providers", "/dashboard/providers"],
           ].map(([label, href]) => (
             <Link

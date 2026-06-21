@@ -1,8 +1,7 @@
 /**
  * Codex multi-account family-revocation cascade — quota-sync trigger.
  *
- * The Quota / Providers dashboard (POST /api/usage/provider-limits ->
- * syncAllProviderLimits, and GET /api/usage/[connectionId]) calls
+ * Manual and scheduled quota sync calls
  * refreshAndUpdateCredentials() for each connection, in chunks of N CONCURRENT.
  * For rotating-refresh providers (Codex/OpenAI share one Auth0 client_id) a
  * single-use refresh_token is rotated on every refresh; refreshing several
@@ -90,11 +89,7 @@ test("non-rotating OAuth provider is still refreshed proactively from quota-sync
       }),
       "a non-rotating provider with a failed refresh should surface the 401"
     );
-    assert.equal(
-      refreshCalls,
-      1,
-      "non-rotating provider must still attempt the proactive refresh"
-    );
+    assert.equal(refreshCalls, 1, "non-rotating provider must still attempt the proactive refresh");
   } finally {
     exec.needsRefresh = origNeeds;
     exec.refreshCredentials = origRefresh;

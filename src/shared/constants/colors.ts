@@ -3,7 +3,6 @@
  *
  * Previously duplicated in:
  * - RequestLoggerV2.js (PROTOCOL_COLORS, PROVIDER_COLORS, getStatusStyle)
- * - ProxyLogger.js (PROVIDER_COLORS, TYPE_COLORS, LEVEL_COLORS, getStatusStyle)
  * - UsageAnalytics.js (MODEL_COLORS, getModelColor)
  */
 
@@ -46,28 +45,6 @@ const PROTOCOL_KEY_ALIASES = {
 function normalizeProtocolKey(protocol) {
   return PROTOCOL_KEY_ALIASES[protocol] || protocol;
 }
-
-// ═══════════════════════════════════════════
-// Proxy Type Colors (ProxyLogger)
-// ═══════════════════════════════════════════
-
-export const TYPE_COLORS = {
-  http: { bg: "#3B82F6", text: "#fff", label: "HTTP" },
-  https: { bg: "#10B981", text: "#fff", label: "HTTPS" },
-  socks5: { bg: "#8B5CF6", text: "#fff", label: "SOCKS5" },
-};
-
-// ═══════════════════════════════════════════
-// Level Colors (ProxyLogger)
-// ═══════════════════════════════════════════
-
-export const LEVEL_COLORS = {
-  key: { bg: "#F59E0B", text: "#000", label: "Key" },
-  combo: { bg: "#8B5CF6", text: "#fff", label: "Combo" },
-  provider: { bg: "#3B82F6", text: "#fff", label: "Provider" },
-  global: { bg: "#6B7280", text: "#fff", label: "Global" },
-  direct: { bg: "#374151", text: "#9CA3AF", label: "Direct" },
-};
 
 // ═══════════════════════════════════════════
 // Model Colors (charts/analytics)
@@ -114,18 +91,6 @@ export function getHttpStatusStyle(status) {
   if (status >= 400 && status < 500) return { bg: "#D97706", text: "#fff" };
   if (status >= 500) return { bg: "#DC2626", text: "#fff" };
   if (status === 0) return { bg: "#6366F1", text: "#fff" }; // pending
-  return { bg: "#6B7280", text: "#fff" };
-}
-
-/**
- * Get badge style for string-based status (ProxyLogger).
- * @param {string} status - Status string ("success", "error", "timeout")
- * @returns {{ bg: string, text: string }}
- */
-export function getProxyStatusStyle(status) {
-  if (status === "success") return { bg: "#059669", text: "#fff" };
-  if (status === "error") return { bg: "#DC2626", text: "#fff" };
-  if (status === "timeout") return { bg: "#D97706", text: "#fff" };
   return { bg: "#6B7280", text: "#fff" };
 }
 

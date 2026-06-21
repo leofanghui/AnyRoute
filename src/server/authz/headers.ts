@@ -2,8 +2,8 @@
  * Header constants used by the authz pipeline.
  *
  * Middleware adds these headers to the upstream request after a successful
- * auth decision. Route handlers and downstream services read them through
- * the assertAuth() helper instead of re-running auth logic.
+ * auth decision. Route handlers and downstream services can read these
+ * trusted headers instead of re-running auth logic.
  *
  * All header names are lowercase to match Next.js / fetch semantics.
  *

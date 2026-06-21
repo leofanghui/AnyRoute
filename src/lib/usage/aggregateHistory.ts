@@ -133,7 +133,7 @@ export async function rollupHourlyQuota(
 /**
  * Roll up usage_history into daily_usage_summary before raw rows are deleted.
  * This is the authoritative rollup — sourced from actual per-request token data,
- * not from quota_snapshots. Should be called before cleanupUsageHistory() deletes rows.
+ * not from quota_snapshots. Should be called before raw usage rows are deleted.
  *
  * The ON CONFLICT clause uses SUM so re-running is additive-safe: if a date already
  * has a partial rollup (e.g. from a previous partial cleanup), new rows accumulate.

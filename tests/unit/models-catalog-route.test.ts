@@ -736,7 +736,7 @@ test("v1 models catalog uses provider-node prefixes for compatible provider cust
   assert.equal(ids.has("anthropic-compatible-demo/claude-edge"), false);
 });
 
-test("v1 models catalog includes synced Gemini models and duplicates audio models for speech", async () => {
+test("v1 models catalog filters pruned Gemini synced models", async () => {
   const connection = await seedConnection("gemini", {
     name: "gemini-synced",
     apiKey: "gm-key",
@@ -747,17 +747,17 @@ test("v1 models catalog includes synced Gemini models and duplicates audio model
     (connection as any).id,
     [
       {
-        id: "gemini-audio-live",
-        name: "Gemini Audio Live",
+        id: "gemini-pruned-live",
+        name: "Gemini Pruned Live",
         source: "imported",
-        supportedEndpoints: ["audio"],
+        supportedEndpoints: ["legacy-live"],
         inputTokenLimit: 4096,
       },
       {
-        id: "text-embedding-004",
-        name: "Text Embedding 004",
+        id: "gemini-pruned-vector",
+        name: "Gemini Pruned Vector",
         source: "imported",
-        supportedEndpoints: ["embeddings"],
+        supportedEndpoints: ["legacy-vector"],
         inputTokenLimit: 2048,
       },
       {
@@ -774,13 +774,12 @@ test("v1 models catalog includes synced Gemini models and duplicates audio model
     new Request("http://localhost/api/v1/models")
   );
   const body = (await response.json()) as any;
-  const audioVariants = body.data.filter((item) => item.id === "gemini/gemini-audio-live");
-  const embedding = body.data.find((item) => item.id === "gemini/text-embedding-004");
+  const liveVariants = body.data.filter((item) => item.id === "gemini/gemini-pruned-live");
+  const vectorModel = body.data.find((item) => item.id === "gemini/gemini-pruned-vector");
 
   assert.equal(response.status, 200);
-  assert.equal(audioVariants.length, 2);
-  assert.deepEqual(audioVariants.map((item) => item.subtype).sort(), ["speech", "transcription"]);
-  assert.equal(embedding.type, "embedding");
+  assert.equal(liveVariants.length, 0);
+  assert.equal(vectorModel, undefined);
   assert.equal(
     body.data.some((item) => item.id === "gemini/gemini-hidden"),
     false
@@ -841,147 +840,6 @@ test("v1 models catalog includes synced non-Gemini provider models from discover
   assert.ok(syncedModel);
   assert.equal(syncedModel.owned_by, "opencode-go");
   assert.equal(syncedModel.context_length, 262144);
-});
-
-test("v1 models catalog includes media, moderation, rerank, video, and music models for active providers", async () => {
-  await seedConnection("openai", { name: "openai-media" });
-  await seedConnection("cohere", { name: "cohere-rerank" });
-  await seedConnection("comfyui", {
-    name: "comfy-media",
-    apiKey: null,
-    accessToken: null,
-  });
-
-  const response = await v1ModelsCatalog.getUnifiedModelsResponse(
-    new Request("http://localhost/api/v1/models")
-  );
-  const body = (await response.json()) as any;
-  const byId = new Map(body.data.map((item) => [item.id, item]));
-
-  assert.equal(response.status, 200);
-  assert.equal((byId.get("openai/gpt-image-2") as any).type, "image");
-  assert.equal((byId.get("openai/whisper-1") as any).type, "audio");
-  assert.equal((byId.get("openai/whisper-1") as any).subtype, "transcription");
-  assert.equal((byId.get("openai/omni-moderation-latest") as any).type, "moderation");
-  assert.equal((byId.get("cohere/rerank-v3.5") as any).type, "rerank");
-  assert.equal((byId.get("comfyui/animatediff") as any).type, "video");
-  assert.equal((byId.get("comfyui/stable-audio-open") as any).type, "music");
-});
-
-test("v1 models catalog does not duplicate imported Jina specialty models", async () => {
-  const connection = await seedConnection("jina-ai", {
-    name: "jina-synced",
-    apiKey: "jina-key",
-  });
-
-  await modelsDb.replaceSyncedAvailableModelsForConnection("jina-ai", (connection as any).id, [
-    {
-      id: "jina-embeddings-v5-text-small",
-      name: "Jina Embeddings v5 Text Small",
-      source: "imported",
-      apiFormat: "embeddings",
-      supportedEndpoints: ["embeddings"],
-    },
-    {
-      id: "jina-reranker-v3",
-      name: "Jina Reranker v3",
-      source: "imported",
-      apiFormat: "rerank",
-      supportedEndpoints: ["rerank"],
-    },
-  ]);
-
-  const response = await v1ModelsCatalog.getUnifiedModelsResponse(
-    new Request("http://localhost/api/v1/models")
-  );
-  const body = (await response.json()) as any;
-  const visibleJinaEmbeddingRows = body.data.filter(
-    (item) =>
-      item.owned_by === "jina-ai" &&
-      item.root === "jina-embeddings-v5-text-small" &&
-      item.type === "embedding" &&
-      !item.parent
-  );
-  const visibleJinaRerankRows = body.data.filter(
-    (item) =>
-      item.owned_by === "jina-ai" &&
-      item.root === "jina-reranker-v3" &&
-      item.type === "rerank" &&
-      !item.parent
-  );
-
-  assert.equal(response.status, 200);
-  assert.equal(visibleJinaEmbeddingRows.length, 1);
-  assert.equal(visibleJinaEmbeddingRows[0].id, "jina/jina-embeddings-v5-text-small");
-  assert.equal(visibleJinaRerankRows.length, 1);
-  assert.equal(visibleJinaRerankRows[0].id, "jina/jina-reranker-v3");
-});
-
-test("v1 models catalog does not duplicate custom Jina specialty models", async () => {
-  await seedConnection("jina-ai", {
-    name: "jina-custom",
-    apiKey: "jina-key",
-  });
-  await modelsDb.addCustomModel(
-    "jina-ai",
-    "jina-embeddings-v5-text-small",
-    "Jina Embeddings v5 Text Small",
-    "imported",
-    "embeddings",
-    ["embeddings"]
-  );
-  await modelsDb.addCustomModel(
-    "jina-ai",
-    "jina-reranker-v3",
-    "Jina Reranker v3",
-    "imported",
-    "rerank",
-    ["rerank"]
-  );
-
-  const response = await v1ModelsCatalog.getUnifiedModelsResponse(
-    new Request("http://localhost/api/v1/models")
-  );
-  const body = (await response.json()) as any;
-  const visibleJinaEmbeddingRows = body.data.filter(
-    (item) =>
-      item.owned_by === "jina-ai" &&
-      item.root === "jina-embeddings-v5-text-small" &&
-      item.type === "embedding" &&
-      !item.parent
-  );
-  const visibleJinaRerankRows = body.data.filter(
-    (item) =>
-      item.owned_by === "jina-ai" &&
-      item.root === "jina-reranker-v3" &&
-      item.type === "rerank" &&
-      !item.parent
-  );
-
-  assert.equal(response.status, 200);
-  assert.equal(visibleJinaEmbeddingRows.length, 1);
-  assert.equal(visibleJinaEmbeddingRows[0].id, "jina-ai/jina-embeddings-v5-text-small");
-  assert.equal(visibleJinaRerankRows.length, 1);
-  assert.equal(visibleJinaRerankRows[0].id, "jina-ai/jina-reranker-v3");
-});
-
-test("v1 models catalog exposes image model input and output modalities for advanced image providers", async () => {
-  await seedConnection("together", { name: "together-images" });
-  await seedConnection("topaz", { name: "topaz-images" });
-
-  const response = await v1ModelsCatalog.getUnifiedModelsResponse(
-    new Request("http://localhost/api/v1/models")
-  );
-  const body = (await response.json()) as any;
-  const byId = new Map(body.data.map((item) => [item.id, item]));
-
-  assert.equal(response.status, 200);
-  assert.deepEqual((byId as any).get("flux-2-dev")?.input_modalities, ["text", "image"]);
-  (assert as any).deepEqual((byId.get("flux-2-dev") as any).output_modalities, ["image"]);
-  (assert as any).equal((byId.get("flux-2-dev") as any).type, "image");
-  assert.ok((byId.get("flux-2-dev") as any).supported_sizes?.includes("1024x1024"));
-  (assert as any).deepEqual((byId.get("topaz/topaz-enhance") as any).input_modalities, ["image"]);
-  assert.deepEqual((byId.get("topaz/topaz-enhance") as any).output_modalities, ["image"]);
 });
 
 test("v1 models catalog tolerates custom model lookup failures and keeps builtin models available", async () => {

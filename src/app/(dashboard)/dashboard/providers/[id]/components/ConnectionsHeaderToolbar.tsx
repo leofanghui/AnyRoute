@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, DistributeProxiesButton, Toggle } from "@/shared/components";
+import { Button, Toggle } from "@/shared/components";
 import { providerText, type ProviderMessageTranslator } from "../providerPageHelpers";
 import type { CodexGlobalServiceMode } from "@/lib/providers/codexFastTier";
 
@@ -15,7 +15,6 @@ type ConnectionsHeaderToolbarProps = {
   batchTesting: boolean;
   batchRetesting: boolean;
   retestingId: string | null;
-  proxyConfig: any;
   // from useProviderSettings
   preferClaudeCodeForUnprefixedClaudeModels: boolean;
   claudeRoutingSettingsLoaded: boolean;
@@ -31,8 +30,6 @@ type ConnectionsHeaderToolbarProps = {
   handleChangeCodexGlobalServiceMode: (mode: any) => void;
   loadCodexSettings: () => Promise<void>;
   // Modal triggers
-  onSetProxyTarget: (target: { level: string; id: string; label: string }) => void;
-  handleDistributeProxies: () => void;
   handleBatchTestAll: () => void;
   gateConnectionFlow: (callback: () => void) => void;
   openApiKeyAddFlow: () => void;
@@ -59,7 +56,6 @@ export default function ConnectionsHeaderToolbar({
   batchTesting,
   batchRetesting,
   retestingId,
-  proxyConfig,
   preferClaudeCodeForUnprefixedClaudeModels,
   claudeRoutingSettingsLoaded,
   claudeRoutingSettingsLoadError,
@@ -73,8 +69,6 @@ export default function ConnectionsHeaderToolbar({
   savingCodexGlobalServiceMode,
   handleChangeCodexGlobalServiceMode,
   loadCodexSettings,
-  onSetProxyTarget,
-  handleDistributeProxies,
   handleBatchTestAll,
   gateConnectionFlow,
   openApiKeyAddFlow,
@@ -188,43 +182,8 @@ export default function ConnectionsHeaderToolbar({
             ) : null}
           </div>
         )}
-        {/* Provider-level proxy indicator/button */}
-        <button
-          onClick={() =>
-            onSetProxyTarget({
-              level: "provider",
-              id: providerId,
-              label: providerInfo?.name || providerId,
-            })
-          }
-          className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
-            proxyConfig?.providers?.[providerId]
-              ? "bg-amber-500/15 text-amber-500 hover:bg-amber-500/25"
-              : "bg-black/[0.03] dark:bg-white/[0.03] text-text-muted/50 hover:text-text-muted hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
-          }`}
-          title={
-            proxyConfig?.providers?.[providerId]
-              ? t("providerProxyTitleConfigured", {
-                  host: proxyConfig.providers[providerId].host || t("configured"),
-                })
-              : t("providerProxyConfigureHint")
-          }
-        >
-          <span className="material-symbols-outlined text-[14px]">vpn_lock</span>
-          {proxyConfig?.providers?.[providerId]
-            ? proxyConfig.providers[providerId].host || t("providerProxy")
-            : t("providerProxy")}
-        </button>
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-        {connections.length > 0 && (
-          <DistributeProxiesButton
-            onDistribute={async () => {
-              await handleDistributeProxies();
-            }}
-            disabled={batchTesting || !!retestingId}
-          />
-        )}
         {connections.length > 1 && (
           <button
             onClick={handleBatchTestAll}

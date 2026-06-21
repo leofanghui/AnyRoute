@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { KiroService } from "@/lib/oauth/services/kiro";
-import { createProviderConnection, isCloudEnabled } from "@/models";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
+import { createProviderConnection } from "@/models";
 import { isAuthRequired, isAuthenticated } from "@/shared/utils/apiAuth";
 import { validateBody, isValidationFailure } from "@/shared/validation/helpers";
 import { KIRO_CONFIG } from "@/lib/oauth/constants/oauth";
@@ -95,8 +93,6 @@ export async function POST(request: Request) {
       testStatus: "active",
     });
 
-    await syncToCloudIfEnabled();
-
     return NextResponse.json({
       success: true,
       connection: {
@@ -108,16 +104,5 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Kiro social exchange error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-async function syncToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.log("Error syncing to cloud after Kiro OAuth:", error);
   }
 }

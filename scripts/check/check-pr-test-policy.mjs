@@ -4,16 +4,9 @@ import path from "node:path";
 
 const SOURCE_ROOTS = ["src/", "open-sse/", "electron/", "bin/"];
 const TEST_PATTERNS = [/^tests\//, /(?:^|\/)__tests__\//, /\.(?:test|spec)\.[cm]?[jt]sx?$/];
-// Test files for specific source types (e.g., Python validation scripts for i18n)
-const TEST_FILE_PATTERNS = {
-  "src/i18n/messages/": [
-    /\/scripts\/validate_translation\.py$/,
-    /\/scripts\/check_translations\.py$/,
-  ],
-};
-// Exclude directories that don't require tests (i18n has Python validation, docs, config)
+// Exclude directories and file types that don't require direct test companions.
 const EXCLUDED_PATTERNS = [
-  /\/i18n\/messages\//, // i18n files have their own Python test scripts
+  /\/i18n\/messages\//,
   /\.md$/, // Documentation
   /\.yaml$/, // Config files
   /\.yml$/, // Config files
@@ -41,17 +34,7 @@ function isSourceFile(filePath) {
 }
 
 function isTestFile(filePath) {
-  // Check standard test patterns
-  if (TEST_PATTERNS.some((pattern) => pattern.test(filePath))) {
-    return true;
-  }
-  // Check custom test file patterns for specific directories
-  for (const [dir, patterns] of Object.entries(TEST_FILE_PATTERNS)) {
-    if (filePath.startsWith(dir) && patterns.some((pattern) => pattern.test(filePath))) {
-      return true;
-    }
-  }
-  return false;
+  return TEST_PATTERNS.some((pattern) => pattern.test(filePath));
 }
 
 function buildReport(lines) {

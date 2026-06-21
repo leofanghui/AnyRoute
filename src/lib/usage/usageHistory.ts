@@ -563,7 +563,7 @@ export function clearPendingRequests() {
 const MAX_ROWS = 10000;
 
 /**
- * Returns an object compatible with the old LowDB interface.
+ * Returns an object compatible with the legacy usage analytics interface.
  * Only `api/usage/analytics/route.js` uses this — it reads `db.data.history`.
  *
  * @param sinceIso - ISO timestamp to filter from (inclusive)

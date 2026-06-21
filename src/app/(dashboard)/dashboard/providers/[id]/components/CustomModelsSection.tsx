@@ -305,11 +305,6 @@ export default function CustomModelsSection({
             >
               <option value="chat-completions">{t("chatCompletions")}</option>
               <option value="responses">{t("responsesApi")}</option>
-              <option value="embeddings">{t("embeddings")}</option>
-              <option value="rerank">Rerank</option>
-              <option value="audio-transcriptions">{t("audioTranscriptions")}</option>
-              <option value="audio-speech">{t("audioSpeech")}</option>
-              <option value="images-generations">{t("imagesGenerations")}</option>
             </select>
           </div>
           <div className="flex-1">
@@ -317,7 +312,7 @@ export default function CustomModelsSection({
               {t("supportedEndpointsLabel")}
             </span>
             <div className="flex items-center gap-3">
-              {["chat", "embeddings", "rerank", "images", "audio"].map((ep) => (
+              {["chat", "responses"].map((ep) => (
                 <label
                   key={ep}
                   className="flex items-center gap-1.5 text-xs text-text-main cursor-pointer"
@@ -334,15 +329,7 @@ export default function CustomModelsSection({
                     }}
                     className="rounded border-border"
                   />
-                  {ep === "chat"
-                    ? `💬 ${t("supportedEndpointChat")}`
-                    : ep === "embeddings"
-                      ? `📐 ${t("supportedEndpointEmbeddings")}`
-                      : ep === "rerank"
-                        ? "Rerank"
-                        : ep === "images"
-                          ? `🖼️ ${t("supportedEndpointImages")}`
-                          : `🔊 ${t("supportedEndpointAudio")}`}
+                  {ep === "chat" ? t("supportedEndpointChat") : t("responsesApi")}
                 </label>
               ))}
             </div>
@@ -388,19 +375,9 @@ export default function CustomModelsSection({
                         {t("responses")}
                       </span>
                     )}
-                    {model.supportedEndpoints?.includes("embeddings") && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 font-medium">
-                        {`📐 ${t("supportedEndpointEmbeddings")}`}
-                      </span>
-                    )}
-                    {model.supportedEndpoints?.includes("images") && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium">
-                        {`🖼️ ${t("imagesShortLabel")}`}
-                      </span>
-                    )}
-                    {model.supportedEndpoints?.includes("audio") && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-green-500/15 text-green-400 font-medium">
-                        {`🔊 ${t("audioShortLabel")}`}
+                    {model.supportedEndpoints?.includes("responses") && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 font-medium">
+                        {t("responsesApi")}
                       </span>
                     )}
                     {anyNormalizeCompatBadge(model.id!, customMap, overrideMap) && (
@@ -443,13 +420,6 @@ export default function CustomModelsSection({
                           >
                             <option value="chat-completions">{t("chatCompletions")}</option>
                             <option value="responses">{t("responsesApi")}</option>
-                            <option value="embeddings">{t("embeddings")}</option>
-                            <option value="rerank">Rerank</option>
-                            <option value="audio-transcriptions">
-                              {t("audioTranscriptions")}
-                            </option>
-                            <option value="audio-speech">{t("audioSpeech")}</option>
-                            <option value="images-generations">{t("imagesGenerations")}</option>
                           </select>
                         </div>
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 overflow-x-auto overflow-y-visible [scrollbar-width:thin]">
@@ -457,7 +427,7 @@ export default function CustomModelsSection({
                             {t("supportedEndpointsLabel")}
                           </span>
                           <div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 min-w-0">
-                            {["chat", "embeddings", "rerank", "images", "audio"].map((ep) => (
+                            {["chat", "responses"].map((ep) => (
                               <label
                                 key={ep}
                                 className="flex items-center gap-1.5 text-xs text-text-main cursor-pointer whitespace-nowrap"
@@ -476,15 +446,7 @@ export default function CustomModelsSection({
                                   }}
                                   className="rounded border-border"
                                 />
-                                {ep === "chat"
-                                  ? `💬 ${t("supportedEndpointChat")}`
-                                  : ep === "embeddings"
-                                    ? `📐 ${t("supportedEndpointEmbeddings")}`
-                                    : ep === "rerank"
-                                      ? "Rerank"
-                                      : ep === "images"
-                                        ? `🖼️ ${t("supportedEndpointImages")}`
-                                        : `🔊 ${t("supportedEndpointAudio")}`}
+                                {ep === "chat" ? t("supportedEndpointChat") : t("responsesApi")}
                               </label>
                             ))}
                           </div>

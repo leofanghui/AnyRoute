@@ -9,7 +9,6 @@
  * - Rate limit status
  * - Active lockouts
  * - Signature cache stats
- * - Latency telemetry & prompt cache
  */
 
 import { useState, useEffect, useCallback } from "react";
@@ -18,9 +17,6 @@ import { AI_PROVIDERS } from "@/shared/constants/providers";
 import { getProviderDisplayName } from "@/lib/display/names";
 import { compareTr } from "@/shared/utils/turkishText";
 import { useTranslations } from "next-intl";
-import TelemetryCard from "./TelemetryCard";
-import ProviderHealthAutopilotCard from "./ProviderHealthAutopilotCard";
-import ProviderHealthMatrixCard from "./ProviderHealthMatrixCard";
 
 function formatUptime(seconds) {
   const d = Math.floor(seconds / 86400);
@@ -64,10 +60,6 @@ export default function HealthPage() {
   const [dbHealthError, setDbHealthError] = useState(null);
   const [error, setError] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
-  const [cache, setCache] = useState(null);
-  const [signatureCache, setSignatureCache] = useState(null);
-  const [degradation, setDegradation] = useState(null);
-  const [resetting, setResetting] = useState(false);
   const [repairingDb, setRepairingDb] = useState(false);
 
   const fetchHealth = useCallback(async () => {
@@ -95,47 +87,15 @@ export default function HealthPage() {
     }
   }, []);
 
-  // Fetch cache, signature cache, and degradation stats.
-  const fetchExtras = useCallback(async () => {
-    const results = await Promise.allSettled([
-      fetch("/api/cache/stats").then((r) => r.json()),
-      fetch("/api/rate-limits").then((r) => r.json()),
-      fetch("/api/health/degradation").then((r) => r.json()),
-    ]);
-    if (results[0].status === "fulfilled") setCache(results[0].value);
-    if (results[1].status === "fulfilled" && results[1].value.cacheStats) {
-      setSignatureCache(results[1].value.cacheStats);
-    }
-    if (results[2].status === "fulfilled") setDegradation(results[2].value);
-  }, []);
-
   useEffect(() => {
     fetchHealth();
-    fetchExtras();
     fetchDbHealth();
     const interval = setInterval(() => {
       fetchHealth();
-      fetchExtras();
       fetchDbHealth();
     }, 15000);
     return () => clearInterval(interval);
-  }, [fetchHealth, fetchExtras, fetchDbHealth]);
-
-  const handleResetHealth = async () => {
-    if (!confirm(t("resetConfirm"))) return;
-    setResetting(true);
-    try {
-      const res = await fetch("/api/monitoring/health", { method: "DELETE" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      // Refresh health data immediately
-      await fetchHealth();
-      await fetchExtras();
-    } catch (err) {
-      console.error("Failed to reset health:", err);
-    } finally {
-      setResetting(false);
-    }
-  };
+  }, [fetchHealth, fetchDbHealth]);
 
   const handleRepairDb = async () => {
     setRepairingDb(true);
@@ -146,7 +106,6 @@ export default function HealthPage() {
       setDbHealth(json);
       setDbHealthError(null);
       await fetchHealth();
-      await fetchExtras();
     } catch (err) {
       console.error("Failed to repair database health:", err);
       setDbHealthError(err.message);
@@ -210,7 +169,6 @@ export default function HealthPage() {
         <button
           onClick={() => {
             fetchHealth();
-            fetchExtras();
             fetchDbHealth();
           }}
           className="p-2 rounded-lg bg-surface hover:bg-surface/80 text-text-muted hover:text-text-main transition-colors"
@@ -241,12 +199,6 @@ export default function HealthPage() {
           {data.status === "healthy" ? t("allOperational") : t("issuesDetected")}
         </span>
       </div>
-
-      <TelemetryCard />
-
-      <ProviderHealthAutopilotCard />
-
-      <ProviderHealthMatrixCard />
 
       <Card className="p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -544,157 +496,6 @@ export default function HealthPage() {
         </Card>
       </div>
 
-      {/* Graceful Degradation Status */}
-      {degradation && degradation.features && degradation.features.length > 0 && (
-        <Card className="p-5" role="region" aria-label={t("gracefulDegradationStatus")}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-text-main flex items-center gap-2">
-              <span className="material-symbols-outlined text-[20px] text-primary">healing</span>
-              Graceful Degradation Status
-            </h2>
-            <div className="flex items-center gap-3 text-xs text-text-muted font-medium">
-              <span className="px-2 py-0.5 rounded bg-green-500/10 text-green-400">
-                Full: {degradation.summary.full}
-              </span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">
-                Reduced: {degradation.summary.reduced}
-              </span>
-              <span className="px-2 py-0.5 rounded bg-orange-500/10 text-orange-500">
-                Minimal: {degradation.summary.minimal}
-              </span>
-              <span className="px-2 py-0.5 rounded bg-red-500/10 text-red-500">
-                Default: {degradation.summary.default}
-              </span>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {degradation.features.map((feat: any) => {
-              const bg =
-                feat.level === "full"
-                  ? "bg-green-500/5 border-green-500/10"
-                  : feat.level === "reduced"
-                    ? "bg-amber-500/5 border-amber-500/20"
-                    : feat.level === "minimal"
-                      ? "bg-orange-500/5 border-orange-500/20"
-                      : "bg-red-500/5 border-red-500/20";
-              const dot =
-                feat.level === "full"
-                  ? "bg-green-500"
-                  : feat.level === "reduced"
-                    ? "bg-amber-500"
-                    : feat.level === "minimal"
-                      ? "bg-orange-500"
-                      : "bg-red-500";
-              return (
-                <div
-                  key={feat.feature}
-                  className={`rounded-lg p-3 border \${bg} flex flex-col gap-2`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold capitalize flex items-center gap-2 text-(--text-primary,#fff)">
-                      <span className={`w-2 h-2 rounded-full \${dot}`}></span>
-                      {feat.feature}
-                    </span>
-                    <span className="text-xs uppercase tracking-wider font-bold opacity-70">
-                      {feat.level}
-                    </span>
-                  </div>
-                  <div className="text-xs text-(--text-secondary,#aaa)">{feat.capability}</div>
-                  {feat.reason && (
-                    <div
-                      className="text-[10px] text-red-300 mt-1 bg-red-900/20 p-1.5 rounded"
-                      title={feat.reason}
-                    >
-                      {feat.reason.length > 80 ? feat.reason.substring(0, 80) + "..." : feat.reason}
-                    </div>
-                  )}
-                  <div className="text-[10px] text-(--text-muted,#666) text-right mt-1">
-                    Since {new Date(feat.since).toLocaleTimeString()}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
-      )}
-
-      {/* Cache Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Prompt Cache Card */}
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-text-muted mb-3 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">cached</span>
-            {t("promptCache")}
-          </h3>
-          {cache ? (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-text-muted">{t("entries")}</span>
-                <span className="font-mono">
-                  {cache.size}/{cache.maxSize}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">{t("hitRate")}</span>
-                <span className="font-mono">{cache.hitRate?.toFixed(1) ?? 0}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-text-muted">{t("hitsMisses")}</span>
-                <span className="font-mono">
-                  {cache.hits ?? 0} / {cache.misses ?? 0}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-text-muted">{t("noDataYet")}</p>
-          )}
-        </Card>
-
-        {/* Signature Cache Card */}
-        <Card className="p-4">
-          <h3 className="text-sm font-semibold text-text-muted mb-3 flex items-center gap-2">
-            <span className="material-symbols-outlined text-[18px]">database</span>
-            {t("signatureCache")}
-          </h3>
-          {signatureCache ? (
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                {
-                  label: t("signatureDefaults"),
-                  value: signatureCache.defaultCount,
-                  color: "text-text-muted",
-                },
-                {
-                  label: t("signatureTool"),
-                  value: `${signatureCache.tool.entries}/${signatureCache.tool.patterns}`,
-                  color: "text-blue-400",
-                },
-                {
-                  label: t("signatureFamily"),
-                  value: `${signatureCache.family.entries}/${signatureCache.family.patterns}`,
-                  color: "text-purple-400",
-                },
-                {
-                  label: t("signatureSession"),
-                  value: `${signatureCache.session.entries}/${signatureCache.session.patterns}`,
-                  color: "text-cyan-400",
-                },
-              ].map(({ label, value, color }) => (
-                <div
-                  key={label}
-                  className="text-center p-2 rounded-lg bg-surface/30 border border-border/30"
-                >
-                  <p className={`text-lg font-bold tabular-nums ${color}`}>{value}</p>
-                  <p className="text-xs text-text-muted mt-0.5">{label}</p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-text-muted">{t("noDataYet")}</p>
-          )}
-        </Card>
-      </div>
-
       {/* Provider Health */}
       <Card className="p-5" role="region" aria-label={t("providerHealthStatusAria")}>
         <div className="flex items-center justify-between mb-4">
@@ -705,32 +506,6 @@ export default function HealthPage() {
             {t("providerHealth")}
           </h2>
           <div className="flex items-center gap-3">
-            {cbEntries.some(([, cb]: [string, any]) => cb.state !== "CLOSED") && (
-              <button
-                onClick={handleResetHealth}
-                disabled={resetting}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  resetting
-                    ? "bg-surface/50 text-text-muted cursor-wait"
-                    : "bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 border border-red-500/20"
-                }`}
-                title={t("resetAllTitle")}
-              >
-                {resetting ? (
-                  <>
-                    <span className="material-symbols-outlined text-[14px] animate-spin">
-                      progress_activity
-                    </span>
-                    {t("resetting")}
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined text-[14px]">restart_alt</span>
-                    {t("resetAll")}
-                  </>
-                )}
-              </button>
-            )}
             {cbEntries.length > 0 && (
               <div className="flex items-center gap-3 text-xs text-text-muted">
                 <span className="flex items-center gap-1">

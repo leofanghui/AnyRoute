@@ -126,15 +126,12 @@ describe("useProviderConnections — initial state", () => {
 
     const expected = [
       "fetchConnections",
-      "fetchProxyConfig",
       "handleDelete",
       "handleUpdateConnectionStatus",
       "handleToggleRateLimit",
       "handleToggleClaudeExtraUsage",
       "handleToggleCodexLimit",
       "handleToggleCliproxyapiMode",
-      "handleToggleProxyEnabled",
-      "handleTogglePerKeyProxyEnabled",
       "handleRetestConnection",
       "handleRefreshToken",
       "handleSwapPriority",
@@ -145,7 +142,6 @@ describe("useProviderConnections — initial state", () => {
       "handleBatchTestAll",
       "handleToggleSelectOne",
       "handleToggleSelectAll",
-      "handleDistributeProxies",
       "parseApiErrorMessage",
       "getAttachmentFilename",
     ] as const;
@@ -335,10 +331,7 @@ describe("useProviderModels — initial state", () => {
 // Resolve the hooks dir from the repo root (vitest runs from cwd). Was a
 // hardcoded absolute worktree path that broke the test outside that worktree
 // (#3501 Phase 1g-1j).
-const HOOKS_DIR = path.join(
-  process.cwd(),
-  "src/app/(dashboard)/dashboard/providers/[id]/hooks"
-);
+const HOOKS_DIR = path.join(process.cwd(), "src/app/(dashboard)/dashboard/providers/[id]/hooks");
 
 describe("Cycle-safety — hooks do not import ProviderDetailPageClient", () => {
   // We allow the name in JSDoc comments; what we forbid is an actual ES import statement.

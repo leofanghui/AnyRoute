@@ -1,6 +1,6 @@
 /**
  * Shared formatting utilities — DRY extraction from duplicated functions
- * across RequestLoggerV2.js, UsageAnalytics.js, ProxyLogger.js
+ * across request logs and usage analytics views.
  *
  * Prevents copy-paste duplication and provides a single source of truth.
  */
@@ -39,7 +39,7 @@ export function formatDuration(ms: number | null | undefined) {
 }
 
 /**
- * Format an ISO date to a full date+time string (pt-BR locale).
+ * Format an ISO date to a full date+time string.
  * @param {string} iso - ISO 8601 date string
  * @returns {string}
  */
@@ -47,7 +47,7 @@ export function formatDateTime(iso: string | null | undefined) {
   try {
     if (!iso) return "-";
     const d = new Date(iso);
-    return d.toLocaleDateString("pt-BR") + ", " + d.toLocaleTimeString("en-US", { hour12: false });
+    return d.toLocaleDateString("en-US") + ", " + d.toLocaleTimeString("en-US", { hour12: false });
   } catch {
     return iso;
   }

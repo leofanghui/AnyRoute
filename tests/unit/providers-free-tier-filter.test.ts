@@ -12,11 +12,8 @@ const CATALOG_CATEGORIES = [
   "oauth",
   "web-cookie",
   "local",
-  "search",
-  "audio",
   "upstream-proxy",
   "apikey",
-  "cloud-agent",
 ] as const satisfies readonly StaticProviderCatalogCategory[];
 
 type CategoryFilter = "all" | "free" | StaticProviderCatalogCategory;
@@ -80,12 +77,9 @@ function countByCategory(entries: ProviderFilterEntry[]) {
     oauth: filterByCategory(entries, "oauth").length,
     apikey: filterByCategory(entries, "apikey").length,
     webcookie: filterByCategory(entries, "web-cookie").length,
-    search: filterByCategory(entries, "search").length,
-    audio: filterByCategory(entries, "audio").length,
     local: filterByCategory(entries, "local").length,
     noauth: filterByCategory(entries, "no-auth").length,
     upstreamProxy: filterByCategory(entries, "upstream-proxy").length,
-    cloudAgent: filterByCategory(entries, "cloud-agent").length,
   };
 }
 
@@ -97,7 +91,7 @@ test('filterByCategory("free") returns every hasFree provider across native cate
   const actualIds = filterByCategory(entries, "free").map((entry) => entry.providerId);
 
   assert.deepEqual(actualIds.sort(), expectedIds.sort());
-  assert.ok(actualIds.length >= 60);
+  assert.ok(actualIds.length > 0);
 });
 
 test('filterByCategory("apikey") keeps OpenRouter in API Key and Free', () => {
@@ -124,14 +118,11 @@ test("summaryStats.free counts the aggregate overlap without subtracting native 
     summaryStats.oauth +
     summaryStats.apikey +
     summaryStats.webcookie +
-    summaryStats.search +
-    summaryStats.audio +
     summaryStats.local +
     summaryStats.noauth +
-    summaryStats.upstreamProxy +
-    summaryStats.cloudAgent;
+    summaryStats.upstreamProxy;
 
-  assert.ok(summaryStats.free >= 60);
+  assert.ok(summaryStats.free > 0);
   assert.ok(nativeCategoryTotal + summaryStats.free > summaryStats.all);
 
   for (const category of CATALOG_CATEGORIES) {

@@ -5,9 +5,7 @@ import { byteplusProvider } from "./registry/byteplus/index.ts";
 import { mimocodeProvider } from "./registry/mimocode/index.ts";
 import { ollama_cloudProvider } from "./registry/ollama-cloud/index.ts";
 import { syntheticProvider } from "./registry/synthetic/index.ts";
-import { ideogramProvider } from "./registry/ideogram/index.ts";
 import { friendliaiProvider } from "./registry/friendliai/index.ts";
-import { sunoProvider } from "./registry/suno/index.ts";
 import { adapta_webProvider } from "./registry/adapta-web/index.ts";
 import { anthropicProvider } from "./registry/anthropic/index.ts";
 import { sambanovaProvider } from "./registry/sambanova/index.ts";
@@ -73,7 +71,6 @@ import { qwenProvider } from "./registry/qwen/index.ts";
 import { qwen_webProvider } from "./registry/qwen/web/index.ts";
 import { modalProvider } from "./registry/modal/index.ts";
 import { zenmuxProvider } from "./registry/zenmux/index.ts";
-import { leonardoProvider } from "./registry/leonardo/index.ts";
 import { grok_webProvider } from "./registry/grok-web/index.ts";
 import { kieProvider } from "./registry/kie/index.ts";
 import { monsterapiProvider } from "./registry/monsterapi/index.ts";
@@ -91,7 +88,6 @@ import { perplexityProvider } from "./registry/perplexity/index.ts";
 import { perplexity_webProvider } from "./registry/perplexity/web/index.ts";
 import { minimaxProvider } from "./registry/minimax/index.ts";
 import { minimax_cnProvider } from "./registry/minimax/cn/index.ts";
-import { haiperProvider } from "./registry/haiper/index.ts";
 import { bytezProvider } from "./registry/bytez/index.ts";
 import { blackboxProvider } from "./registry/blackbox/index.ts";
 import { blackbox_webProvider } from "./registry/blackbox/web/index.ts";
@@ -109,7 +105,6 @@ import { gitlawbProvider } from "./registry/gitlawb/index.ts";
 import { liquidProvider } from "./registry/liquid/index.ts";
 import { deepinfraProvider } from "./registry/deepinfra/index.ts";
 import { agyProvider } from "./registry/agy/index.ts";
-import { udioProvider } from "./registry/udio/index.ts";
 import { longcatProvider } from "./registry/longcat/index.ts";
 import { vertex_partnerProvider } from "./registry/vertex/partner/index.ts";
 import { vertexProvider } from "./registry/vertex/index.ts";
@@ -159,7 +154,6 @@ import { bluesmindsProvider } from "./registry/bluesminds/index.ts";
 import { theoldllmProvider } from "./registry/theoldllm/index.ts";
 import { baiduProvider } from "./registry/baidu/index.ts";
 import { pollinationsProvider } from "./registry/pollinations/index.ts";
-import { veoaifree_webProvider } from "./registry/veoaifree-web/index.ts";
 import { codexProvider } from "./registry/codex/index.ts";
 import { veniceProvider } from "./registry/venice/index.ts";
 import { kiroProvider } from "./registry/kiro/index.ts";
@@ -168,9 +162,7 @@ export const REGISTRY: Record<string, RegistryEntry> = {
   aimlapi: aimlapiProvider,
   "ollama-cloud": ollama_cloudProvider,
   synthetic: syntheticProvider,
-  ideogram: ideogramProvider,
   friendliai: friendliaiProvider,
-  suno: sunoProvider,
   "adapta-web": adapta_webProvider,
   anthropic: anthropicProvider,
   sambanova: sambanovaProvider,
@@ -236,7 +228,6 @@ export const REGISTRY: Record<string, RegistryEntry> = {
   "qwen-web": qwen_webProvider,
   modal: modalProvider,
   zenmux: zenmuxProvider,
-  leonardo: leonardoProvider,
   "grok-web": grok_webProvider,
   kie: kieProvider,
   monsterapi: monsterapiProvider,
@@ -254,7 +245,6 @@ export const REGISTRY: Record<string, RegistryEntry> = {
   "perplexity-web": perplexity_webProvider,
   minimax: minimaxProvider,
   "minimax-cn": minimax_cnProvider,
-  haiper: haiperProvider,
   bytez: bytezProvider,
   blackbox: blackboxProvider,
   "blackbox-web": blackbox_webProvider,
@@ -272,7 +262,6 @@ export const REGISTRY: Record<string, RegistryEntry> = {
   liquid: liquidProvider,
   deepinfra: deepinfraProvider,
   agy: agyProvider,
-  udio: udioProvider,
   longcat: longcatProvider,
   "vertex-partner": vertex_partnerProvider,
   vertex: vertexProvider,
@@ -321,7 +310,6 @@ export const REGISTRY: Record<string, RegistryEntry> = {
   theoldllm: theoldllmProvider,
   baidu: baiduProvider,
   pollinations: pollinationsProvider,
-  "veoaifree-web": veoaifree_webProvider,
   codex: codexProvider,
   venice: veniceProvider,
   kiro: kiroProvider,

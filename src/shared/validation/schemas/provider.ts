@@ -1,24 +1,18 @@
 import { z } from "zod";
-import {
-  ACCOUNT_FALLBACK_STRATEGY_VALUES,
-  ROUTING_STRATEGY_VALUES,
-} from "@/shared/constants/routingStrategies";
-import { SUPPORTED_BATCH_ENDPOINTS } from "@/shared/constants/batchEndpoints";
-import { MAX_REQUEST_BODY_LIMIT_MB, MIN_REQUEST_BODY_LIMIT_MB } from "@/shared/constants/bodySize";
-import { COMBO_CONFIG_MODES } from "@/shared/constants/comboConfigMode";
 import { providerAllowsOptionalApiKey } from "@/shared/constants/providers";
 import {
   OPENROUTER_PRESET_MAX_LENGTH,
   isOpenRouterPresetValue,
 } from "@/shared/constants/openRouterPreset";
-import { HIDEABLE_SIDEBAR_ITEM_IDS } from "@/shared/constants/sidebarVisibility";
-import {
-  isForbiddenUpstreamHeaderName,
-  isForbiddenCustomHeaderName,
-} from "@/shared/constants/upstreamHeaders";
-import { MAX_TIMER_TIMEOUT_MS } from "@/shared/utils/runtimeTimeouts";
 
-import { isHttpUrl, CODEX_REASONING_EFFORT_VALUES, REQUEST_DEFAULT_SERVICE_TIER_VALUES, upstreamHeadersRecordSchema, modelCompatPerProtocolSchema, customHeadersSchema } from "./misc.ts";
+import {
+  isHttpUrl,
+  CODEX_REASONING_EFFORT_VALUES,
+  REQUEST_DEFAULT_SERVICE_TIER_VALUES,
+  upstreamHeadersRecordSchema,
+  modelCompatPerProtocolSchema,
+  customHeadersSchema,
+} from "./misc.ts";
 
 export function validateProviderSpecificData(
   data: Record<string, unknown> | undefined,
@@ -45,15 +39,6 @@ export function validateProviderSpecificData(
       code: z.ZodIssueCode.custom,
       message: "providerSpecificData.customUserAgent must be a string up to 500 chars",
       path: ["customUserAgent"],
-    });
-  }
-
-  const cx = data.cx;
-  if (cx !== undefined && cx !== null && (typeof cx !== "string" || cx.length > 500)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "providerSpecificData.cx must be a string up to 500 chars",
-      path: ["cx"],
     });
   }
 
@@ -298,60 +283,29 @@ export const createProviderSchema = z
         path: ["apiKey"],
       });
     }
-
-    const cx =
-      data.providerSpecificData && typeof data.providerSpecificData === "object"
-        ? (data.providerSpecificData as Record<string, unknown>).cx
-        : undefined;
-    if (
-      data.provider === "google-pse-search" &&
-      (typeof cx !== "string" || cx.trim().length === 0)
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Programmable Search Engine ID (cx) is required",
-        path: ["providerSpecificData", "cx"],
-      });
-    }
   });
 
-export const bulkCreateProviderSchema = z
-  .object({
-    provider: z.string().min(1).max(100),
-    entries: z
-      .array(
-        z.object({
-          name: z.string().min(1).max(200),
-          apiKey: z.string().min(1).max(10000),
-        })
-      )
-      .min(1, "entries must contain at least 1 item")
-      .max(200, "entries must contain at most 200 items"),
-    priority: z.number().int().min(1).max(100).optional(),
-    globalPriority: z.number().int().min(1).max(100).nullable().optional(),
-    providerSpecificData: z
-      .record(z.string(), z.unknown())
-      .optional()
-      .superRefine((data, ctx) => {
-        validateProviderSpecificData(data, ctx);
-      }),
-    validateKeys: z.boolean().optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.provider === "google-pse-search") {
-      const cx =
-        data.providerSpecificData && typeof data.providerSpecificData === "object"
-          ? (data.providerSpecificData as Record<string, unknown>).cx
-          : undefined;
-      if (typeof cx !== "string" || cx.trim().length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Programmable Search Engine ID (cx) is required",
-          path: ["providerSpecificData", "cx"],
-        });
-      }
-    }
-  });
+export const bulkCreateProviderSchema = z.object({
+  provider: z.string().min(1).max(100),
+  entries: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(200),
+        apiKey: z.string().min(1).max(10000),
+      })
+    )
+    .min(1, "entries must contain at least 1 item")
+    .max(200, "entries must contain at most 200 items"),
+  priority: z.number().int().min(1).max(100).optional(),
+  globalPriority: z.number().int().min(1).max(100).nullable().optional(),
+  providerSpecificData: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .superRefine((data, ctx) => {
+      validateProviderSpecificData(data, ctx);
+    }),
+  validateKeys: z.boolean().optional(),
+});
 
 // ──── Bulk Web-Session Import Schema ────
 
@@ -361,7 +315,10 @@ export const bulkWebSessionImportSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1).max(200),
-        credential: z.string().min(1).max(64 * 1024, "Credential must be under 64 KB"),
+        credential: z
+          .string()
+          .min(1)
+          .max(64 * 1024, "Credential must be under 64 KB"),
       })
     )
     .min(1, "entries must contain at least 1 item")
@@ -375,31 +332,8 @@ export const providerModelMutationSchema = z.object({
   modelId: z.string().trim().min(1, "modelId is required").max(240),
   modelName: z.string().trim().max(240).optional(),
   source: z.string().trim().max(80).optional(),
-  apiFormat: z
-    .enum([
-      "chat-completions",
-      "responses",
-      "embeddings",
-      "rerank",
-      "audio-transcriptions",
-      "audio-speech",
-      "images-generations",
-    ])
-    .default("chat-completions"),
-  supportedEndpoints: z
-    .array(
-      z.enum([
-        "chat",
-        "embeddings",
-        "rerank",
-        "images",
-        "audio",
-        "audio-transcriptions",
-        "audio-speech",
-        "images-generations",
-      ])
-    )
-    .default(["chat"]),
+  apiFormat: z.enum(["chat-completions", "responses"]).default("chat-completions"),
+  supportedEndpoints: z.array(z.enum(["chat", "responses"])).default(["chat"]),
   // #2905: optional per-model wire format override for custom models (e.g. a
   // custom opencode-go model that must use the Anthropic Messages shape).
   targetFormat: z
@@ -431,16 +365,7 @@ export const createProviderNodeSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required"),
     prefix: z.string().trim().min(1, "Prefix is required"),
-    apiType: z
-      .enum([
-        "chat",
-        "responses",
-        "embeddings",
-        "audio-transcriptions",
-        "audio-speech",
-        "images-generations",
-      ])
-      .optional(),
+    apiType: z.enum(["chat", "responses"]).optional(),
     baseUrl: z.string().trim().min(1).optional(),
     type: z.enum(["openai-compatible", "anthropic-compatible"]).optional(),
     compatMode: z.enum(["cc"]).optional(),
@@ -462,16 +387,7 @@ export const createProviderNodeSchema = z
 export const updateProviderNodeSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   prefix: z.string().trim().min(1, "Prefix is required"),
-  apiType: z
-    .enum([
-      "chat",
-      "responses",
-      "embeddings",
-      "audio-transcriptions",
-      "audio-speech",
-      "images-generations",
-    ])
-    .optional(),
+  apiType: z.enum(["chat", "responses"]).optional(),
   baseUrl: z.string().trim().min(1, "Base URL is required"),
   chatPath: z.string().trim().startsWith("/").max(500).optional().or(z.literal("")),
   modelsPath: z.string().trim().startsWith("/").max(500).optional().or(z.literal("")),
@@ -569,11 +485,8 @@ export const providersBatchTestSchema = z
       "compatible",
       "all",
       "web-cookie",
-      "search",
-      "audio",
       "local",
       "upstream-proxy",
-      "cloud-agent",
       "ide",
       "selected",
     ]),
@@ -608,22 +521,11 @@ export const batchUpdateProviderConnectionsSchema = z.object({
   isActive: z.boolean(),
 });
 
-export const validateProviderApiKeySchema = z
-  .object({
-    provider: z.string().trim().min(1, "Provider and API key required"),
-    apiKey: z.string().trim().optional(),
-    validationModelId: z.string().trim().optional(),
-    customUserAgent: z.string().trim().max(500).optional(),
-    baseUrl: z.string().trim().url().optional(),
-    region: z.string().trim().max(64).optional(),
-    cx: z.string().trim().max(500).optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (data.provider === "google-pse-search" && !data.cx) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Programmable Search Engine ID (cx) is required",
-        path: ["cx"],
-      });
-    }
-  });
+export const validateProviderApiKeySchema = z.object({
+  provider: z.string().trim().min(1, "Provider and API key required"),
+  apiKey: z.string().trim().optional(),
+  validationModelId: z.string().trim().optional(),
+  customUserAgent: z.string().trim().max(500).optional(),
+  baseUrl: z.string().trim().url().optional(),
+  region: z.string().trim().max(64).optional(),
+});

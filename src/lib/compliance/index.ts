@@ -423,9 +423,9 @@ export function countAuditLog(filter: AuditLogFilter = {}) {
 }
 
 // ─── No-Log Opt-Out ────────────────
-// Moved to ./noLog.ts to break the callLogs → compliance → callLogs ESM cycle
-// that deadlocks the bundled MCP server under Node.js 24 (#2650). Re-exported
-// here so downstream callers that import from "../compliance" keep working.
+// Moved to ./noLog.ts to break the callLogs -> compliance -> callLogs ESM cycle
+// under Node.js 24's stricter ESM evaluation. Re-exported here so downstream
+// callers that import from "../compliance" keep working.
 export { isNoLog, setNoLog } from "./noLog";
 
 // ─── Log Retention / Cleanup ────────────────
@@ -450,7 +450,6 @@ export function getRetentionDays() {
  *   deletedProxyLogs: number,
  *   deletedRequestDetailLogs: number,
  *   deletedAuditLogs: number,
- *   deletedMcpAuditLogs: number,
  *   trimmedCallLogs: number,
  *   trimmedProxyLogs: number,
  *   appRetentionDays: number,
@@ -473,7 +472,6 @@ export async function cleanupExpiredLogs() {
       deletedProxyLogs: 0,
       deletedRequestDetailLogs: 0,
       deletedAuditLogs: 0,
-      deletedMcpAuditLogs: 0,
       trimmedCallLogs: 0,
       trimmedProxyLogs: 0,
       appRetentionDays,
@@ -491,7 +489,6 @@ export async function cleanupExpiredLogs() {
   let deletedProxyLogs = 0;
   let deletedRequestDetailLogs = 0;
   let deletedAuditLogs = 0;
-  let deletedMcpAuditLogs = 0;
   let trimmedCallLogs = 0;
   let trimmedProxyLogs = 0;
 
@@ -527,13 +524,6 @@ export async function cleanupExpiredLogs() {
   try {
     const r5 = db.prepare("DELETE FROM audit_log WHERE timestamp < ?").run(appCutoff);
     deletedAuditLogs = r5.changes;
-  } catch {
-    /* table may not exist */
-  }
-
-  try {
-    const r6 = db.prepare("DELETE FROM mcp_tool_audit WHERE created_at < ?").run(appCutoff);
-    deletedMcpAuditLogs = r6.changes;
   } catch {
     /* table may not exist */
   }
@@ -585,7 +575,6 @@ export async function cleanupExpiredLogs() {
       deletedProxyLogs,
       deletedRequestDetailLogs,
       deletedAuditLogs,
-      deletedMcpAuditLogs,
       trimmedCallLogs,
       trimmedProxyLogs,
       appRetentionDays,
@@ -601,7 +590,6 @@ export async function cleanupExpiredLogs() {
     deletedProxyLogs,
     deletedRequestDetailLogs,
     deletedAuditLogs,
-    deletedMcpAuditLogs,
     trimmedCallLogs,
     trimmedProxyLogs,
     appRetentionDays,

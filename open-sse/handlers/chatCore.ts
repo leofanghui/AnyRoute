@@ -1,4 +1,3 @@
-import { injectMemoryAndSkills } from "./chatCore/memorySkillsInjection.ts";
 import { checkIdempotencyCache } from "./chatCore/idempotency.ts";
 import { checkSemanticCache } from "./chatCore/semanticCache.ts";
 import { sanitizeChatRequestBody } from "./chatCore/sanitization.ts";
@@ -21,10 +20,7 @@ import {
   materializeDeduplicatedExecutionResult,
   stripStaleForwardingHeaders,
 } from "./chatCore/responseHeaders.ts";
-import {
-  forwardDashboardEventToLiveWs,
-  maybeSyncClaudeExtraUsageState,
-} from "./chatCore/telemetryHelpers.ts";
+import { maybeSyncClaudeExtraUsageState } from "./chatCore/telemetryHelpers.ts";
 // Re-export the previously inline-defined helpers so existing importers of these
 // symbols from chatCore.ts (tests, sibling modules) keep resolving after the split.
 export {
@@ -34,11 +30,6 @@ export {
   buildStreamingResponseHeaders,
   stripStaleForwardingHeaders,
 };
-import {
-  extractMemoryTextFromResponse,
-  extractMemoryTextFromRequestBody,
-  resolveMemoryOwnerId,
-} from "./chatCore/memoryExtraction.ts";
 import { CORS_HEADERS } from "../utils/cors.ts";
 import { HEAP_PRESSURE_THRESHOLD_MB } from "../utils/heapPressure.ts";
 import { normalizeHeaders } from "../utils/headers.ts";
@@ -130,10 +121,7 @@ import {
   getCallLogPipelineMaxSizeBytes,
 } from "@/lib/logEnv";
 import { logAuditEvent } from "@/lib/compliance";
-import { emit } from "@/lib/events/eventBus";
 import { extractProviderWarnings } from "@/lib/compliance/providerAudit";
-import { adaptBodyForCompression } from "../services/compression/bodyAdapter.ts";
-import { ensureEngineBreakdown } from "../services/compression/engineBreakdown.ts";
 import { handleBypassRequest } from "../utils/bypassHandler.ts";
 import {
   saveRequestUsage,
@@ -245,17 +233,10 @@ import {
 } from "../services/modelFamilyFallback.ts";
 import { computeRequestHash, deduplicate, shouldDeduplicate } from "../services/requestDedup.ts";
 import {
-  compressContext,
-  estimateTokens,
-  getTokenLimit,
-  resolveComboContextLimit,
-} from "../services/contextManager.ts";
-import {
   getBackgroundTaskReason,
   getDegradedModel,
   getBackgroundDegradationConfig,
 } from "../services/backgroundTaskDetector.ts";
-import type { CompressionConfig } from "../services/compression/types.ts";
 import { prepareWebSearchFallbackBody } from "../services/webSearchFallback.ts";
 import {
   resolveExplicitStreamAlias,
@@ -264,8 +245,6 @@ import {
 } from "../utils/aiSdkCompat.ts";
 import { generateRequestId } from "@/shared/utils/requestId";
 import { normalizePayloadForLog } from "@/lib/logPayloads";
-import { extractFacts } from "@/lib/memory/extraction";
-import { handleToolCallExecution } from "@/lib/skills/interception";
 import { OMNIROUTE_RESPONSE_HEADERS } from "@/shared/constants/headers";
 import {
   buildClaudeCodeCompatibleRequest,
@@ -290,28 +269,6 @@ import { incrementRequestCount } from "../services/geminiRateLimitTracker.ts";
 // 200MB that sat below the app's own ~260MB baseline and rejected every request.
 
 import { isSmallEnoughForSemanticCache } from "../utils/estimateSize.ts";
-
-function getSkillsProviderForFormat(format: string): "openai" | "anthropic" | "google" | "other" {
-  switch (format) {
-    case FORMATS.CLAUDE:
-      return "anthropic";
-    case FORMATS.GEMINI:
-      return "google";
-    default:
-      return "openai";
-  }
-}
-
-function getSkillsModelIdForFormat(format: string): string {
-  switch (format) {
-    case FORMATS.CLAUDE:
-      return "claude";
-    case FORMATS.GEMINI:
-      return "gemini";
-    default:
-      return "openai";
-  }
-}
 
 async function readNonStreamingResponseBody(
   response: Response,
@@ -694,16 +651,6 @@ export async function handleChatCore({
   // a hung request was sitting on in `[STAGE_TRACE]` log lines.
   const traceId = Math.random().toString(36).slice(2, 8);
 
-  // Emit request.started event for real-time dashboard
-  setImmediate(() => {
-    emit("request.started", {
-      id: traceId,
-      model: model || "unknown",
-      provider: provider || "unknown",
-      timestamp: startTime,
-      comboName: comboName || undefined,
-    });
-  });
   const traceEnabled = process.env.OMNIROUTE_TRACE === "true" || process.env.DEBUG === "true";
   const trace = (label: string, extra?: Record<string, unknown>) => {
     if (!traceEnabled) return;
@@ -720,53 +667,6 @@ export async function handleChatCore({
   };
   let tokensCompressed: number | null = null;
   body = injectSystemPrompt(body);
-  // ── Plugin onRequest hook ──
-  // Dynamic import cached by Node.js after first call — minimal overhead
-  try {
-    const { runOnRequest } = await import("@/lib/plugins/hooks");
-    const pluginCtx = {
-      requestId: traceId,
-      body,
-      model,
-      provider,
-      apiKeyInfo,
-      metadata: {},
-    };
-    const pluginResult = await runOnRequest(pluginCtx);
-    if (pluginResult?.blocked) {
-      log?.info?.("PLUGIN", `Request blocked by plugin`);
-      return {
-        success: false,
-        status: 403,
-        error: "Request blocked by plugin",
-        response: pluginResult.response
-          ? new Response(JSON.stringify(pluginResult.response), {
-              status: 403,
-              headers: { "Content-Type": "application/json" },
-            })
-          : new Response(
-              JSON.stringify({
-                error: { message: "Request blocked by plugin", type: "plugin_block" },
-              }),
-              {
-                status: 403,
-                headers: { "Content-Type": "application/json" },
-              }
-            ),
-      };
-    }
-    if (pluginResult?.body) {
-      body = pluginResult.body;
-    }
-    if (pluginResult?.metadata) {
-      Object.assign(pluginCtx.metadata, pluginResult.metadata);
-    }
-  } catch (pluginErr) {
-    log?.debug?.(
-      "PLUGIN",
-      `onRequest hook error (non-fatal): ${pluginErr instanceof Error ? pluginErr.message : String(pluginErr)}`
-    );
-  }
 
   type EffectiveServiceTier = "standard" | CodexServiceTier;
   let effectiveServiceTier: EffectiveServiceTier = "standard";
@@ -1137,23 +1037,6 @@ export async function handleChatCore({
   const capturePipelineStreamChunks =
     detailedLoggingEnabled && getCallLogPipelineCaptureStreamChunks();
   const skillRequestId = generateRequestId();
-  let compressionAnalyticsWritePromise: Promise<void> | null = null;
-  const attachCompressionUsageReceiptAfterAnalytics = (
-    usage: Record<string, unknown>,
-    source: "provider" | "estimated" | "stream"
-  ) => {
-    const pendingWrite = compressionAnalyticsWritePromise;
-    void (async () => {
-      try {
-        if (pendingWrite) await pendingWrite;
-        const { attachCompressionUsageReceipt } =
-          await import("../../src/lib/db/compressionAnalytics.ts");
-        attachCompressionUsageReceipt(skillRequestId, usage, source);
-      } catch {
-        // Compression analytics are best-effort and must never affect responses.
-      }
-    })();
-  };
   const pipelineSessionId =
     (clientRawRequest?.headers && typeof clientRawRequest.headers.get === "function"
       ? clientRawRequest.headers.get("x-omniroute-session-id")
@@ -1421,642 +1304,9 @@ export async function handleChatCore({
   }
 
   body = sanitizeChatRequestBody(body, sourceFormat, targetFormat);
-  const memoryOwnerId = resolveMemoryOwnerId(apiKeyInfo as Record<string, unknown> | null);
-  const injectionResult = await injectMemoryAndSkills({
-    body,
-    memoryOwnerId,
-    provider,
-    effectiveModel,
-    sourceFormat,
-    targetFormat,
-    backgroundReason,
-    log,
-  });
-  body = injectionResult.body;
-  const memorySettings = injectionResult.memorySettings;
 
-  // Translate request (pass reqLogger for intermediate logging)
-  // ── Proactive Context Compression (Phase 4) ──
-  // Check if context exceeds 70% of limit and compress proactively before sending to provider.
-  // This prevents "prompt too long" errors for large-but-not-full contexts.
-  const compressionBody = body
-    ? adaptBodyForCompression(body as Record<string, unknown>).body
-    : null;
-  const allMessages = compressionBody?.messages || body?.contents || body?.request?.contents || [];
-  let cavemanOutputModeApplied = false;
-  let cavemanOutputModeIntensity: string | null = null;
-  let preCompressionBody: typeof body | null = null;
-  // Delegated Context Editing (Claude only): captured at the canonical compression
-  // settings read below, then threaded to executor.execute() further down. Lives at
-  // function scope because the read happens inside the per-message compression block.
-  let contextEditingEnabled = false;
-  if (body && Array.isArray(allMessages) && allMessages.length > 0) {
-    let estimatedTokens = estimateTokens(allMessages);
-    let promptCompressionEnabled = false;
-    let compressionSettings: CompressionConfig | null = null;
-
-    try {
-      const { getCompressionSettings } = await import("../../src/lib/db/compression.ts");
-      compressionSettings = await getCompressionSettings();
-      promptCompressionEnabled = compressionSettings.enabled;
-      contextEditingEnabled = compressionSettings.contextEditing?.enabled === true;
-    } catch (err) {
-      log?.warn?.(
-        "COMPRESSION",
-        "Compression settings lookup skipped: " + (err instanceof Error ? err.message : String(err))
-      );
-    }
-
-    // --- Modular Compression Pipeline (Phase 1 Lite + Phase 2 Standard/Caveman + Phase 3 Aggressive) ---
-    // Runs BEFORE the existing reactive compressContext() to proactively reduce tokens.
-    try {
-      const { selectCompressionStrategy, applyCompressionAsync, resolveCacheAwareConfig } =
-        await import("../services/compression/strategySelector.ts");
-      const { trackCompressionStats } = await import("../services/compression/stats.ts");
-      let config: CompressionConfig = compressionSettings ?? {
-        enabled: false,
-        defaultMode: "off",
-        autoTriggerTokens: 0,
-        cacheMinutes: 5,
-        preserveSystemPrompt: true,
-        comboOverrides: {},
-      };
-      if (!promptCompressionEnabled || !compressionSettings) {
-        log?.debug?.("COMPRESSION", "Prompt compression disabled or unavailable");
-      }
-      let compressionComboKey = comboName ?? null;
-      let compressionComboApplied = false;
-      type RuntimeCompressionCombo = {
-        id: string;
-        pipeline: NonNullable<CompressionConfig["stackedPipeline"]>;
-        languagePacks: string[];
-        outputMode: boolean;
-        outputModeIntensity: string;
-      };
-      const isBuiltinStackedPipeline = (
-        pipeline: CompressionConfig["stackedPipeline"] | undefined
-      ): boolean => {
-        if (!Array.isArray(pipeline) || pipeline.length !== 2) return false;
-        const [first, second] = pipeline;
-        return (
-          first?.engine === "rtk" &&
-          (first.intensity === undefined || first.intensity === "standard") &&
-          !first.config &&
-          second?.engine === "caveman" &&
-          (second.intensity === undefined || second.intensity === "full") &&
-          !second.config
-        );
-      };
-      const applyCompressionComboConfig = (
-        compressionCombo: RuntimeCompressionCombo | null,
-        routingOverrideIds: string[] = []
-      ): boolean => {
-        if (!compressionCombo || compressionCombo.pipeline.length === 0) return false;
-        const comboLanguagePacks = [
-          ...new Set(
-            compressionCombo.languagePacks
-              .map((pack) => pack.trim())
-              .filter((pack) => pack.length > 0)
-          ),
-        ];
-        const comboOutputIntensity = (
-          ["lite", "full", "ultra"].includes(compressionCombo.outputModeIntensity)
-            ? compressionCombo.outputModeIntensity
-            : (config.cavemanOutputMode?.intensity ?? "full")
-        ) as "lite" | "full" | "ultra";
-        const comboDefaultLanguage =
-          comboLanguagePacks.find((pack) => pack === config.languageConfig?.defaultLanguage) ??
-          comboLanguagePacks[0] ??
-          config.languageConfig?.defaultLanguage ??
-          "en";
-        const comboOverrides = { ...(config.comboOverrides ?? {}) };
-        for (const id of routingOverrideIds) {
-          if (id) comboOverrides[id] = "stacked";
-        }
-        config = {
-          ...config,
-          compressionComboId: compressionCombo.id,
-          stackedPipeline: compressionCombo.pipeline,
-          languageConfig: {
-            ...(config.languageConfig ?? {
-              enabled: false,
-              defaultLanguage: "en",
-              autoDetect: true,
-              enabledPacks: ["en"],
-            }),
-            enabled: true,
-            defaultLanguage: comboDefaultLanguage,
-            enabledPacks:
-              comboLanguagePacks.length > 0
-                ? comboLanguagePacks
-                : (config.languageConfig?.enabledPacks ?? ["en"]),
-          },
-          cavemanOutputMode: {
-            ...(config.cavemanOutputMode ?? {
-              enabled: false,
-              intensity: "full",
-              autoClarity: true,
-            }),
-            enabled: compressionCombo.outputMode,
-            intensity: comboOutputIntensity,
-          },
-          comboOverrides,
-        };
-        compressionComboApplied = true;
-        return true;
-      };
-      const isStackedCompressionCombo = (
-        compressionCombo: RuntimeCompressionCombo | null
-      ): compressionCombo is RuntimeCompressionCombo => {
-        // >= 1: a single-engine default combo (user enabled exactly one layer via the
-        // per-engine config page) must still apply. applyCompressionComboConfig already
-        // guards length === 0.
-        return Boolean(compressionCombo && compressionCombo.pipeline.length >= 1);
-      };
-      if (isCombo && comboName) {
-        try {
-          const { getComboByName } = await import("../../src/lib/localDb");
-          let comboConfig = await getComboByName(comboName);
-          if (!comboConfig && comboName.startsWith("combo/")) {
-            comboConfig = await getComboByName(comboName.substring(6));
-          }
-          const comboRuntimeConfig =
-            comboConfig?.config && typeof comboConfig.config === "object"
-              ? (comboConfig.config as Record<string, unknown>)
-              : {};
-          const comboMode =
-            typeof comboRuntimeConfig.compressionMode === "string"
-              ? comboRuntimeConfig.compressionMode
-              : typeof comboConfig?.compressionOverride === "string"
-                ? comboConfig.compressionOverride
-                : null;
-          if (
-            comboMode === "off" ||
-            comboMode === "lite" ||
-            comboMode === "standard" ||
-            comboMode === "aggressive" ||
-            comboMode === "ultra" ||
-            comboMode === "rtk" ||
-            comboMode === "stacked"
-          ) {
-            config = {
-              ...config,
-              comboOverrides: {
-                ...(config.comboOverrides ?? {}),
-                ...(comboName ? { [comboName]: comboMode } : {}),
-                ...(comboConfig?.id ? { [String(comboConfig.id)]: comboMode } : {}),
-              },
-            };
-            compressionComboKey = comboName;
-          }
-          const routingComboIds = [
-            comboConfig?.id,
-            comboName,
-            comboName.startsWith("combo/") ? comboName.substring(6) : null,
-          ].filter((id): id is string => typeof id === "string" && id.length > 0);
-          if (routingComboIds.length > 0) {
-            const { getCompressionComboForRoutingCombo } =
-              await import("../../src/lib/db/compressionCombos.ts");
-            const assignedCompressionCombo =
-              routingComboIds
-                .map((id) => getCompressionComboForRoutingCombo(id))
-                .find((combo) => combo !== null) ?? null;
-            if (
-              applyCompressionComboConfig(
-                assignedCompressionCombo as RuntimeCompressionCombo | null,
-                routingComboIds
-              )
-            ) {
-              compressionComboKey = comboName;
-            }
-          }
-        } catch (err) {
-          log?.debug?.(
-            "COMPRESSION",
-            "Combo compression override lookup skipped: " +
-              (err instanceof Error ? err.message : String(err))
-          );
-        }
-      }
-      const modeBeforeOutputTransform = selectCompressionStrategy(
-        config,
-        compressionComboKey,
-        estimatedTokens,
-        body as Record<string, unknown>,
-        { provider, targetFormat, model: effectiveModel }
-      );
-      if (
-        modeBeforeOutputTransform === "stacked" &&
-        !compressionComboApplied &&
-        !config.compressionComboId &&
-        isBuiltinStackedPipeline(config.stackedPipeline)
-      ) {
-        try {
-          const { getDefaultCompressionCombo } =
-            await import("../../src/lib/db/compressionCombos.ts");
-          const defaultCompressionCombo = getDefaultCompressionCombo();
-          if (
-            isStackedCompressionCombo(defaultCompressionCombo as RuntimeCompressionCombo | null) &&
-            applyCompressionComboConfig(defaultCompressionCombo as RuntimeCompressionCombo | null)
-          ) {
-            log?.debug?.(
-              "COMPRESSION",
-              `Default compression combo applied: ${defaultCompressionCombo?.id}`
-            );
-          }
-        } catch (err) {
-          log?.debug?.(
-            "COMPRESSION",
-            "Default compression combo lookup skipped: " +
-              (err instanceof Error ? err.message : String(err))
-          );
-        }
-      }
-      if (config.enabled && config.cavemanOutputMode?.enabled) {
-        try {
-          const { applyCavemanOutputMode } = await import("../services/compression/outputMode.ts");
-          const outputModeLanguage =
-            config.languageConfig?.enabled === true ? config.languageConfig.defaultLanguage : "en";
-          const outputMode = applyCavemanOutputMode(
-            body as Parameters<typeof applyCavemanOutputMode>[0],
-            config.cavemanOutputMode,
-            outputModeLanguage
-          );
-          if (outputMode.applied) {
-            body = outputMode.body as typeof body;
-            cavemanOutputModeApplied = true;
-            cavemanOutputModeIntensity = config.cavemanOutputMode.intensity;
-            estimatedTokens = estimateTokens(body?.messages ?? body?.input ?? []);
-            log?.debug?.("COMPRESSION", "Caveman output mode instruction applied");
-          } else if (outputMode.skippedReason && outputMode.skippedReason !== "disabled") {
-            log?.debug?.("COMPRESSION", `Caveman output mode skipped: ${outputMode.skippedReason}`);
-          }
-        } catch (err) {
-          log?.debug?.(
-            "COMPRESSION",
-            "Caveman output mode skipped: " + (err instanceof Error ? err.message : String(err))
-          );
-        }
-      }
-      const compressionInputBody = body as Record<string, unknown>;
-      const mode = selectCompressionStrategy(
-        config,
-        compressionComboKey,
-        estimatedTokens,
-        compressionInputBody,
-        { provider, targetFormat, model: effectiveModel }
-      );
-      let compressionAnalyticsRecorded = false;
-      if (mode !== "off") {
-        // #3890: in a caching context, never compress the system prompt (cacheable prefix)
-        // even if the operator disabled preserveSystemPrompt — honors the cache-aware flag
-        // that selectCompressionStrategy can only partially apply via the mode string.
-        const compressionConfig = resolveCacheAwareConfig(config, compressionInputBody, {
-          provider,
-          targetFormat,
-          model: effectiveModel,
-        });
-        const result = await applyCompressionAsync(compressionInputBody, mode, {
-          model: effectiveModel,
-          config: compressionConfig,
-          principalId: apiKeyInfo?.id ? String(apiKeyInfo.id) : undefined,
-          // F3.3: stream per-engine progress live (best-effort) before compression.completed.
-          onEngineStep: (s) => {
-            try {
-              const stepPayload = {
-                requestId: traceId,
-                comboId: null,
-                mode,
-                stepIndex: s.stepIndex,
-                totalSteps: s.totalSteps,
-                engine: s.engine,
-                state: s.state,
-                originalTokens: s.originalTokens,
-                compressedTokens: s.compressedTokens,
-                savingsPercent: s.savingsPercent,
-                ...(s.durationMs !== undefined ? { durationMs: s.durationMs } : {}),
-                timestamp: Date.now(),
-              };
-              emit("compression.step", stepPayload);
-              void forwardDashboardEventToLiveWs("compression.step", stepPayload);
-            } catch (_stepErr) {
-              // best-effort live event — never fail the request
-            }
-          },
-        });
-        if (result.stats) {
-          if (result.compressed) {
-            body = result.body as typeof body;
-            estimatedTokens = result.stats.compressedTokens;
-            tokensCompressed = Math.max(
-              0,
-              result.stats.originalTokens - result.stats.compressedTokens
-            );
-          }
-
-          // Fire-and-forget: emit live compression event for dashboard (U5).
-          // Guard: only emit when compression actually ran and produced stats.
-          if (result.compressed && result.stats) {
-            try {
-              const compressionCompletedPayload = {
-                requestId: traceId,
-                comboId: result.stats.compressionComboId ?? null,
-                mode,
-                originalTokens: result.stats.originalTokens,
-                compressedTokens: result.stats.compressedTokens,
-                savingsPercent: result.stats.savingsPercent,
-                // Single-engine modes leave engineBreakdown empty; synthesize a 1-entry
-                // breakdown so the studio shows a real engine node instead of an empty pipeline.
-                engineBreakdown: ensureEngineBreakdown(result.stats),
-                validationWarnings: result.stats.validationWarnings,
-                fallbackApplied: result.stats.fallbackApplied,
-                timestamp: Date.now(),
-              };
-              emit("compression.completed", compressionCompletedPayload);
-              void forwardDashboardEventToLiveWs(
-                "compression.completed",
-                compressionCompletedPayload
-              );
-            } catch (_emitErr) {
-              // never propagate into the hot path — but log like the sibling
-              // fire-and-forget blocks so a throwing event bus isn't fully silent.
-              log?.debug?.(
-                "COMPRESSION",
-                "compression.completed emit skipped: " +
-                  (_emitErr instanceof Error ? _emitErr.message : String(_emitErr))
-              );
-            }
-          }
-
-          if (result.compressed || result.stats.fallbackApplied || cavemanOutputModeApplied) {
-            trackCompressionStats(result.stats);
-            compressionAnalyticsRecorded = true;
-            compressionAnalyticsWritePromise = (async () => {
-              try {
-                const { insertCompressionAnalyticsRow, insertCompressionEngineBreakdown } =
-                  await import("../../src/lib/db/compressionAnalytics.ts");
-                const { calculateCost } = await import("../../src/lib/usage/costCalculator.ts");
-                const tokensSaved = Math.max(
-                  0,
-                  result.stats.originalTokens - result.stats.compressedTokens
-                );
-                const rtkPointers = result.stats.rtkRawOutputPointers ?? [];
-                const estimatedUsdSaved = await calculateCost(
-                  provider ?? "",
-                  effectiveModel ?? "",
-                  {
-                    input: tokensSaved,
-                  },
-                  { serviceTier: effectiveServiceTier }
-                );
-                insertCompressionAnalyticsRow({
-                  timestamp: new Date().toISOString(),
-                  combo_id: comboName ?? null,
-                  provider: provider ?? null,
-                  mode,
-                  engine: result.stats.engine ?? mode,
-                  compression_combo_id:
-                    result.stats.compressionComboId ?? config.compressionComboId ?? null,
-                  original_tokens: result.stats.originalTokens,
-                  compressed_tokens: result.stats.compressedTokens,
-                  tokens_saved: tokensSaved,
-                  duration_ms: result.stats.durationMs ?? null,
-                  request_id: skillRequestId,
-                  estimated_usd_saved: estimatedUsdSaved || null,
-                  validation_fallback: result.stats.fallbackApplied ? 1 : 0,
-                  output_mode: cavemanOutputModeApplied ? cavemanOutputModeIntensity : null,
-                  rtk_raw_output_pointer: rtkPointers[0]?.id ?? null,
-                  rtk_raw_output_bytes: rtkPointers[0]?.bytes ?? null,
-                  rtk_raw_output_pointers: rtkPointers.length
-                    ? JSON.stringify(rtkPointers.map((pointer) => pointer.id))
-                    : null,
-                  rtk_raw_output_total_bytes: rtkPointers.length
-                    ? rtkPointers.reduce((total, pointer) => total + pointer.bytes, 0)
-                    : null,
-                });
-                // Persist the per-engine breakdown of a stacked run so per-engine
-                // analytics (getPerEngineAnalytics) is accurate historically, not just
-                // in the live `compression.completed` event.
-                const engineBreakdown = result.stats.engineBreakdown ?? [];
-                if (engineBreakdown.length > 0) {
-                  insertCompressionEngineBreakdown(
-                    engineBreakdown.map((b) => ({
-                      timestamp: new Date().toISOString(),
-                      request_id: skillRequestId,
-                      engine: b.engine,
-                      original_tokens: b.originalTokens,
-                      compressed_tokens: b.compressedTokens,
-                      tokens_saved: Math.max(0, b.originalTokens - b.compressedTokens),
-                      duration_ms: b.durationMs ?? null,
-                    }))
-                  );
-                }
-              } catch (err) {
-                log?.debug?.(
-                  "COMPRESSION",
-                  "Compression analytics write skipped: " +
-                    (err instanceof Error ? err.message : String(err))
-                );
-              }
-            })();
-          }
-
-          if (result.compressed) {
-            void (async () => {
-              try {
-                const { detectCachingContext } =
-                  await import("../services/compression/cachingAware.ts");
-                const { recordCacheStats } =
-                  await import("../../src/lib/db/compressionCacheStats.ts");
-                const cacheContext = detectCachingContext(compressionInputBody, {
-                  provider,
-                  targetFormat,
-                  model: effectiveModel,
-                });
-                const tokensSavedCompression = Math.max(
-                  0,
-                  result.stats.originalTokens - result.stats.compressedTokens
-                );
-                recordCacheStats({
-                  provider: cacheContext.provider ?? provider ?? "unknown",
-                  model: effectiveModel ?? "",
-                  compressionMode: mode,
-                  cacheControlPresent: cacheContext.hasCacheControl,
-                  estimatedCacheHit: cacheContext.hasCacheControl && cacheContext.isCachingProvider,
-                  tokensSavedCompression,
-                  tokensSavedCaching: 0,
-                  netSavings: tokensSavedCompression,
-                });
-              } catch (err) {
-                log?.debug?.(
-                  "COMPRESSION",
-                  "Compression cache stats write skipped: " +
-                    (err instanceof Error ? err.message : String(err))
-                );
-              }
-            })();
-            log?.info?.(
-              "COMPRESSION",
-              `Prompt compressed (${mode}): ${result.stats.originalTokens} -> ${result.stats.compressedTokens} tokens (${result.stats.savingsPercent}% saved, techniques: ${result.stats.techniquesUsed.join(",")})`
-            );
-          }
-        }
-      }
-      if (cavemanOutputModeApplied && !compressionAnalyticsRecorded) {
-        compressionAnalyticsWritePromise = (async () => {
-          try {
-            const { insertCompressionAnalyticsRow } =
-              await import("../../src/lib/db/compressionAnalytics.ts");
-            insertCompressionAnalyticsRow({
-              timestamp: new Date().toISOString(),
-              combo_id: comboName ?? null,
-              provider: provider ?? null,
-              mode: "output-caveman",
-              engine: "caveman-output",
-              compression_combo_id: config.compressionComboId ?? null,
-              original_tokens: estimatedTokens,
-              compressed_tokens: estimatedTokens,
-              tokens_saved: 0,
-              request_id: skillRequestId,
-              output_mode: cavemanOutputModeIntensity,
-            });
-          } catch (err) {
-            log?.debug?.(
-              "COMPRESSION",
-              "Caveman output analytics write skipped: " +
-                (err instanceof Error ? err.message : String(err))
-            );
-          }
-        })();
-      }
-    } catch (err) {
-      log?.warn?.(
-        "COMPRESSION",
-        "Compression pipeline error (non-fatal): " +
-          (err instanceof Error ? err.message : String(err))
-      );
-    }
-    // --- End Modular Compression Pipeline ---
-
-    if (!promptCompressionEnabled) {
-      log?.debug?.(
-        "CONTEXT",
-        "Skipping proactive context compression: Prompt Compression disabled"
-      );
-    }
-    let contextLimit = getTokenLimit(provider, effectiveModel);
-
-    if (isCombo && comboName) {
-      log?.info?.("CONTEXT", `Attempting to resolve combo limits for comboName=${comboName}`);
-      try {
-        const { getComboByName } = await import("../../src/lib/localDb");
-        const { parseModel } = await import("../services/model.ts");
-        const { resolveComboTargets } = await import("../services/combo.ts");
-        let comboConfig = await getComboByName(comboName);
-        if (!comboConfig && comboName.startsWith("combo/")) {
-          comboConfig = await getComboByName(comboName.substring(6));
-        }
-        let comboTargetLimits: number[] = [];
-        if (comboConfig) {
-          const allCombosData = await getCombosCached();
-          const targets = resolveComboTargets(
-            comboConfig as unknown as { name: string; models: unknown[] },
-            allCombosData as unknown as { name: string; models: unknown[] }[]
-          );
-          comboTargetLimits = targets.map((t: { modelStr?: string }) => {
-            const parsed = parseModel(t.modelStr);
-            return getTokenLimit(parsed.provider, parsed.model);
-          });
-        }
-        // chatCore executes per concrete target (handleSingleModel resolves
-        // provider/effectiveModel before delegating). Compress against THIS
-        // target's window; min(...allTargets) is only a defensive fallback —
-        // the old unconditional min compressed a 1M-target request at the
-        // smallest sibling's window ("agent keeps forgetting things").
-        const resolved = resolveComboContextLimit({
-          provider,
-          model: effectiveModel,
-          comboTargetLimits,
-        });
-        contextLimit = resolved.limit;
-        log?.info?.(
-          "CONTEXT",
-          `Combo context limit: ${resolved.limit} (source=${resolved.source})`
-        );
-      } catch (err) {
-        log?.warn?.("CONTEXT", "Failed to resolve combo limits for compression: " + err);
-      }
-    }
-
-    const COMPRESSION_THRESHOLD = 0.7;
-    let reservedTokens = 0;
-    if (Array.isArray(body.tools)) {
-      reservedTokens = estimateTokens(body.tools);
-    }
-    const threshold = Math.max(
-      1,
-      Math.floor((Math.max(1, contextLimit) - reservedTokens) * COMPRESSION_THRESHOLD)
-    );
-
-    log?.debug?.(
-      "CONTEXT",
-      `Checking compression: ${estimatedTokens} tokens vs ${threshold} threshold (${contextLimit} limit, ${reservedTokens} reserved)`
-    );
-
-    // Capture pre-compression body so translators can access original message
-    // content even after compression alters it (e.g. stable Kiro conversationId).
-    preCompressionBody = body;
-
-    if (promptCompressionEnabled && estimatedTokens > threshold) {
-      log?.info?.(
-        "CONTEXT",
-        `Proactive compression triggered: ${estimatedTokens} tokens > ${threshold} threshold (${contextLimit} limit)`
-      );
-
-      const compressionResult = compressContext(body, {
-        provider,
-        model: effectiveModel,
-        maxTokens: threshold,
-        reserveTokens: 0,
-      });
-
-      if (compressionResult.compressed) {
-        body = compressionResult.body;
-        const stats = compressionResult.stats;
-        tokensCompressed = Math.max(0, (stats?.original ?? 0) - (stats?.final ?? 0));
-        const layersInfo =
-          stats && "layers" in stats && Array.isArray(stats.layers)
-            ? ` (layers: ${stats.layers.map((l: { name: string }) => l.name).join(", ")})`
-            : "";
-
-        log?.info?.(
-          "CONTEXT",
-          `Context compressed: ${stats.original} → ${stats.final} tokens${layersInfo}`
-        );
-
-        logAuditEvent({
-          action: "context.proactive_compression",
-          actor: apiKeyInfo?.name || "system",
-          target: connectionId || provider || "chat",
-          details: {
-            provider,
-            model: effectiveModel,
-            original_tokens: stats.original,
-            final_tokens: stats.final,
-            layers: "layers" in stats ? stats.layers : undefined,
-          },
-        });
-      } else {
-        log?.debug?.("CONTEXT", `Compression not applied: context already fits within target`);
-      }
-    }
-  } else {
-    log?.debug?.(
-      "CONTEXT",
-      `Skipping compression check: body=${!!body}, hasMessages=${Array.isArray(allMessages)}`
-    );
-  }
-
+  // Minimal profile: prompt compression and delegated context editing are not included.
+  const contextEditingEnabled = false;
   let translatedBody = body;
   const isClaudePassthrough = sourceFormat === FORMATS.CLAUDE && targetFormat === FORMATS.CLAUDE;
   const isClaudeCodeCompatible = isClaudeCodeCompatibleProvider(provider);
@@ -2444,25 +1694,10 @@ export async function handleChatCore({
           preserveCacheControl,
           signatureNamespace: connectionId,
           copilotClient: copilotCompatibleReasoning,
-          ...(preCompressionBody ? { preCompressionBody } : {}),
         }
       );
     }
   } catch (error) {
-    // ── Plugin onError hook ──
-    try {
-      const { runOnError } = await import("@/lib/plugins/hooks");
-      await runOnError(
-        { requestId: traceId, body, model, provider, apiKeyInfo, metadata: {} },
-        error instanceof Error ? error : new Error(String(error))
-      );
-    } catch (pluginErr) {
-      log?.debug?.(
-        "PLUGIN",
-        `onError hook error (non-fatal): ${pluginErr instanceof Error ? pluginErr.message : String(pluginErr)}`
-      );
-    }
-
     const parsedStatus = Number(error?.statusCode);
     const statusCode =
       Number.isInteger(parsedStatus) && parsedStatus >= 400 && parsedStatus <= 599
@@ -2521,7 +1756,7 @@ export async function handleChatCore({
   // Defense-in-depth: only string-strip when effectiveModel is actually a string.
   // The API guards `model` via Zod (z.string()), but internal callers could pass a
   // non-string and a bare `.startsWith` would crash with `startsWith is not a
-  // function` (same class as #2359 / #2463). Mirrors 9router's `?.startsWith?.()`.
+  // function` (same class as #2359 / #2463). Keep optional chaining defensive here.
   if (typeof finalModelToUpstream === "string") {
     if (finalModelToUpstream.startsWith(`${provider}/`)) {
       finalModelToUpstream = finalModelToUpstream.slice(provider.length + 1);
@@ -2602,7 +1837,12 @@ export async function handleChatCore({
   // whenever a reasoning effort is active, yet accept them under reasoning_effort=none (the
   // GPT-5.1+ default). A static unsupportedParams list can't express that, so strip sampling
   // conditionally here. The codex Responses path is already covered by the executor allowlist.
-  translatedBody = stripGpt5SamplingWhenReasoning(translatedBody, provider, finalModelToUpstream, log);
+  translatedBody = stripGpt5SamplingWhenReasoning(
+    translatedBody,
+    provider,
+    finalModelToUpstream,
+    log
+  );
 
   // Rename max_tokens to max_completion_tokens if not supported (#1961)
   if (!supportsMaxTokens({ provider, model })) {
@@ -2721,71 +1961,6 @@ export async function handleChatCore({
     };
     return wrapper;
   };
-
-  // === Quota Share enforcement PRE-hook (B/F7) ===
-  // Runs after provider/model/credentials/apiKeyInfo are fully resolved,
-  // before dispatcher. Fail-open per B16: errors → allow.
-  let quotaSoftDeprioritize = false;
-  if (apiKeyInfo?.id && credentials?.connectionId) {
-    try {
-      const { enforceQuotaShare } = await import("@/lib/quota/enforce");
-      const decision = await enforceQuotaShare({
-        apiKeyId: apiKeyInfo.id,
-        connectionId: credentials.connectionId,
-        provider: provider ?? "unknown",
-        estimatedCost: {},
-      }).catch((err: unknown) => {
-        log?.warn?.(
-          "QUOTA_SHARE",
-          `enforceQuotaShare failed; fail-open: ${err instanceof Error ? err.message : String(err)}`
-        );
-        return { kind: "allow" as const };
-      });
-
-      if (decision.kind === "block") {
-        const { buildErrorBody } = await import("../utils/error.ts");
-        log?.warn?.(
-          "QUOTA_SHARE",
-          `[quotaShare] blocked apiKeyId=${apiKeyInfo.id} provider=${provider ?? "unknown"}: ${decision.reason}`
-        );
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (decision.retryAfterSeconds) {
-          headers["Retry-After"] = String(decision.retryAfterSeconds);
-        }
-        return new Response(JSON.stringify(buildErrorBody(429, decision.reason)), {
-          status: 429,
-          headers,
-        });
-      }
-
-      if (decision.kind === "allow" && decision.deprioritize) {
-        quotaSoftDeprioritize = true;
-        log?.info?.(
-          "QUOTA_SHARE",
-          `[quotaShare] soft deprioritize active for apiKeyId=${apiKeyInfo.id} provider=${provider ?? "unknown"}`
-        );
-      }
-    } catch (err) {
-      // Outer fail-open guard — should not be reached (inner .catch covers it)
-      log?.warn?.(
-        "QUOTA_SHARE",
-        `[quotaShare] enforceQuotaShare unexpected error; fail-open: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-  }
-  // G2: Propagate soft penalty to the current candidate so combo scoring can deprioritize.
-  if (quotaSoftDeprioritize && isCombo && comboStepId) {
-    try {
-      const { setCandidateQuotaSoftPenalty } = await import("../services/combo");
-      setCandidateQuotaSoftPenalty(comboExecutionKey, comboStepId, true);
-    } catch (err) {
-      log?.warn?.(
-        "QUOTA_SHARE",
-        `[quotaShare] could not set soft penalty on candidate: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-  }
-  // === /Quota Share enforcement PRE-hook ===
 
   // Get executor for this provider (with optional upstream proxy routing)
   const executor = await resolveExecutorWithProxy(provider);
@@ -3469,18 +2644,6 @@ export async function handleChatCore({
       providerResponse.status,
       model
     );
-
-    // Store rate-limit headers for quota saturation signals
-    try {
-      const { storeRateLimitHeaders } = await import("@/lib/quota/saturationSignals");
-      storeRateLimitHeaders(
-        connectionId,
-        provider,
-        providerResponse.headers as Record<string, string>
-      );
-    } catch {
-      // fail-open: saturation signal is best-effort
-    }
   } catch (error) {
     trackPendingRequest(model, provider, connectionId, false);
     if (isSemaphoreCapacityError(error)) {
@@ -4323,32 +3486,6 @@ export async function handleChatCore({
 
     // Log usage for non-streaming responses
     const usage = extractUsageFromResponse(responseBody, provider);
-    if (usage && typeof usage === "object") {
-      attachCompressionUsageReceiptAfterAnalytics(usage as Record<string, unknown>, "provider");
-    }
-
-    // Context Editing telemetry: when the delegated server-side clear actually ran,
-    // record the provider's cleared-token receipt under engine "context-editing" so
-    // it surfaces in compression analytics. Best-effort, Claude-only, non-streaming.
-    if (contextEditingEnabled && provider === "claude") {
-      void (async () => {
-        try {
-          const { extractContextEditingTelemetry } = await import("../config/contextEditing.ts");
-          const tele = extractContextEditingTelemetry(responseBody);
-          if (tele) {
-            const { recordContextEditingTelemetry } =
-              await import("../../src/lib/db/compressionAnalytics.ts");
-            recordContextEditingTelemetry(skillRequestId, tele, provider);
-            log?.debug?.(
-              "CONTEXT_EDITING",
-              `cleared ${tele.clearedInputTokens} input tokens / ${tele.clearedToolUses} tool uses (${tele.editCount} edits)`
-            );
-          }
-        } catch {
-          // Telemetry is best-effort and must never affect the response.
-        }
-      })();
-    }
     appendRequestLog({ model, provider, connectionId, tokens: usage, status: "200 OK" }).catch(
       () => {}
     );
@@ -4401,7 +3538,6 @@ export async function handleChatCore({
           responseToolNameMap
         )
       : responseBody;
-    const memoryExtractionResponse = translatedResponse;
 
     // T26: Strip markdown code blocks if provider format is Claude
     if (sourceFormat === "claude" && !stream) {
@@ -4460,37 +3596,6 @@ export async function handleChatCore({
         const estimated = estimateUsage(body, contentLength, clientResponseFormat);
         translatedResponse.usage = filterUsageForFormat(estimated, clientResponseFormat);
       }
-    }
-
-    if (memoryOwnerId && memorySettings?.enabled && memorySettings.maxTokens > 0) {
-      const requestMemoryText = extractMemoryTextFromRequestBody(body as Record<string, unknown>);
-      if (requestMemoryText) {
-        extractFacts(requestMemoryText, memoryOwnerId, pipelineSessionId);
-      }
-
-      const memoryText = extractMemoryTextFromResponse(memoryExtractionResponse);
-      if (memoryText) {
-        extractFacts(memoryText, memoryOwnerId, pipelineSessionId);
-      }
-    }
-
-    const customSkillExecutionEnabled =
-      Boolean(memoryOwnerId) && memorySettings?.skillsEnabled === true;
-    const builtinToolNames = webSearchFallbackPlan.toolName ? [webSearchFallbackPlan.toolName] : [];
-    if (customSkillExecutionEnabled || builtinToolNames.length > 0) {
-      const skillSessionId = pipelineSessionId;
-
-      translatedResponse = await handleToolCallExecution(
-        translatedResponse,
-        getSkillsModelIdForFormat(sourceFormat),
-        {
-          apiKeyId: memoryOwnerId || "local",
-          sessionId: skillSessionId,
-          requestId: skillRequestId,
-          builtinToolNames,
-          customSkillExecutionEnabled,
-        }
-      );
     }
 
     const guardrailContext = {
@@ -4600,40 +3705,6 @@ export async function handleChatCore({
     });
     if (apiKeyInfo?.id && estimatedCost > 0) {
       recordCost(apiKeyInfo.id, estimatedCost);
-    }
-
-    // === Quota Share POST-hook (B/F7) — fire-and-forget, fail-open ===
-    if (apiKeyInfo?.id && credentials?.connectionId) {
-      try {
-        const { scheduleRecordConsumption, buildConsumptionCost } =
-          await import("@/lib/quota/spendRecorder");
-        scheduleRecordConsumption(
-          {
-            apiKeyId: apiKeyInfo.id,
-            connectionId: credentials.connectionId,
-            provider: provider ?? "unknown",
-            cost: buildConsumptionCost(usage, estimatedCost),
-          },
-          log
-        );
-      } catch (_) {
-        // Outer fail-open — never throws to caller
-      }
-    }
-    // === /Quota Share POST-hook ===
-
-    // ── Gamification event (fire-and-forget) ──
-    if (apiKeyInfo?.id) {
-      try {
-        const { emitGamificationEvent } = await import("@/lib/gamification/events");
-        emitGamificationEvent({
-          apiKeyId: apiKeyInfo.id,
-          action: "request",
-          metadata: { model, provider },
-        });
-      } catch (_) {
-        /* gamification optional */
-      }
     }
 
     finalizePendingScope(pendingScope, {
@@ -4844,8 +3915,6 @@ export async function handleChatCore({
 
     // Track cache token metrics for streaming responses
     if (streamUsage && typeof streamUsage === "object") {
-      attachCompressionUsageReceiptAfterAnalytics(streamUsage as Record<string, unknown>, "stream");
-
       saveRequestUsage({
         provider: provider || "unknown",
         model: model || "unknown",
@@ -4896,54 +3965,6 @@ export async function handleChatCore({
           if (estimatedCost > 0) recordCost(apiKeyInfo.id, estimatedCost);
         })
         .catch(() => {});
-    }
-
-    // === Quota Share POST-hook streaming (B/F7) — fire-and-forget, fail-open ===
-    // Resolve the real per-request cost (calculateCost) so USD-unit pools accrue
-    // on streaming traffic too; this previously recorded usd:0 hardcoded, which
-    // meant DeepSeek-style `usd/monthly` shared pools never blocked on streams.
-    if (apiKeyInfo?.id && credentials?.connectionId && normalizedStreamStatus === 200) {
-      const quotaApiKeyId = apiKeyInfo.id;
-      const quotaConnectionId = credentials.connectionId;
-      // onStreamComplete is sync — use .then() (fire-and-forget, fail-open) instead of await
-      import("@/lib/quota/spendRecorder")
-        .then(({ recordStreamingConsumption }) =>
-          recordStreamingConsumption(
-            {
-              apiKeyId: quotaApiKeyId,
-              connectionId: quotaConnectionId,
-              provider,
-              model,
-              streamUsage,
-              streamStatus: normalizedStreamStatus,
-              serviceTier: effectiveServiceTier,
-            },
-            { calculateCost, log }
-          )
-        )
-        .catch(() => {
-          // Outer fail-open — never throws to caller
-        });
-    }
-    // === /Quota Share POST-hook streaming ===
-
-    if (
-      memoryOwnerId &&
-      memorySettings?.enabled &&
-      memorySettings.maxTokens > 0 &&
-      streamStatus === 200
-    ) {
-      const requestMemoryText = extractMemoryTextFromRequestBody(body as Record<string, unknown>);
-      if (requestMemoryText) {
-        extractFacts(requestMemoryText, memoryOwnerId, pipelineSessionId);
-      }
-
-      const streamedMemoryText = extractMemoryTextFromResponse(
-        (streamResponseBody ?? null) as Record<string, unknown> | null
-      );
-      if (streamedMemoryText) {
-        extractFacts(streamedMemoryText, memoryOwnerId, pipelineSessionId);
-      }
     }
 
     // Semantic cache: store assembled streaming response for future cache hits
@@ -5069,31 +4090,6 @@ export async function handleChatCore({
       shape: shapeForClientFormat(clientResponseFormat),
     })
   );
-
-  // ── Gamification event (fire-and-forget) ──
-  if (apiKeyInfo?.id) {
-    try {
-      const { emitGamificationEvent } = await import("@/lib/gamification/events");
-      emitGamificationEvent({
-        apiKeyId: apiKeyInfo.id,
-        action: "request",
-        metadata: { model, provider },
-      });
-    } catch (_) {
-      /* gamification optional */
-    }
-  }
-
-  // ── Plugin onResponse hook (fire-and-forget) ──
-  try {
-    const { runOnResponse } = await import("@/lib/plugins/hooks");
-    runOnResponse(
-      { requestId: traceId, body, model, provider, apiKeyInfo, metadata: {} },
-      { status: 200 }
-    ).catch(() => {});
-  } catch (_) {
-    /* plugin onResponse optional */
-  }
 
   return {
     success: true,

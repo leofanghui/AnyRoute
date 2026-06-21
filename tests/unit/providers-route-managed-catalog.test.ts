@@ -28,7 +28,7 @@ test.after(() => {
   fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
 });
 
-test("providers route accepts managed local, audio, web-cookie and search providers", async () => {
+test("providers route accepts retained managed chat, local, and web-cookie providers", async () => {
   const cases = [
     {
       provider: "glhf",
@@ -200,40 +200,6 @@ test("providers route accepts managed local, audio, web-cookie and search provid
       },
     },
     {
-      provider: "runwayml",
-      body: {
-        provider: "runwayml",
-        apiKey: "runway-key",
-        name: "Runway Primary",
-      },
-    },
-    {
-      provider: "voyage-ai",
-      body: {
-        provider: "voyage-ai",
-        apiKey: "voyage-key",
-        name: "Voyage AI Primary",
-      },
-    },
-    {
-      provider: "jina-ai",
-      body: {
-        provider: "jina-ai",
-        apiKey: "jina-key",
-        name: "Jina AI Primary",
-      },
-    },
-    {
-      provider: "sdwebui",
-      body: {
-        provider: "sdwebui",
-        name: "SD WebUI Local",
-        providerSpecificData: {
-          baseUrl: "http://localhost:7860",
-        },
-      },
-    },
-    {
       provider: "lm-studio",
       body: {
         provider: "lm-studio",
@@ -324,26 +290,6 @@ test("providers route accepts managed local, audio, web-cookie and search provid
       },
     },
     {
-      provider: "assemblyai",
-      body: {
-        provider: "assemblyai",
-        apiKey: "aa-key",
-        name: "AssemblyAI Primary",
-      },
-    },
-    {
-      provider: "aws-polly",
-      body: {
-        provider: "aws-polly",
-        apiKey: "aws-secret-key",
-        name: "AWS Polly Primary",
-        providerSpecificData: {
-          accessKeyId: "AKIA_TEST",
-          region: "us-east-1",
-        },
-      },
-    },
-    {
       provider: "grok-web",
       body: {
         provider: "grok-web",
@@ -373,43 +319,6 @@ test("providers route accepts managed local, audio, web-cookie and search provid
         provider: "muse-spark-web",
         apiKey: "abra_sess=meta-cookie",
         name: "Muse Spark Web Session",
-      },
-    },
-    {
-      provider: "google-pse-search",
-      body: {
-        provider: "google-pse-search",
-        apiKey: "google-key",
-        name: "Google PSE",
-        providerSpecificData: {
-          cx: "engine-id-123",
-        },
-      },
-    },
-    {
-      provider: "youcom-search",
-      body: {
-        provider: "youcom-search",
-        apiKey: "you-key",
-        name: "You.com Search",
-      },
-    },
-    {
-      provider: "searxng-search",
-      body: {
-        provider: "searxng-search",
-        name: "Local SearXNG",
-        providerSpecificData: {
-          baseUrl: "http://localhost:8888/search",
-        },
-      },
-    },
-    {
-      provider: "jules",
-      body: {
-        provider: "jules",
-        apiKey: "jules-test-key",
-        name: "Jules API",
       },
     },
   ];

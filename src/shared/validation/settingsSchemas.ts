@@ -9,7 +9,11 @@ import { z } from "zod";
 import { COMBO_CONFIG_MODES } from "@/shared/constants/comboConfigMode";
 import { MAX_REQUEST_BODY_LIMIT_MB, MIN_REQUEST_BODY_LIMIT_MB } from "@/shared/constants/bodySize";
 import { HIDEABLE_SIDEBAR_GROUP_IDS } from "@/shared/constants/sidebarGroupVisibility";
-import { HIDEABLE_SIDEBAR_ITEM_IDS, SIDEBAR_SECTIONS } from "@/shared/constants/sidebarVisibility";
+import {
+  ACCEPTED_SIDEBAR_PRESET_IDS,
+  HIDEABLE_SIDEBAR_ITEM_IDS,
+  SIDEBAR_SECTIONS,
+} from "@/shared/constants/sidebarVisibility";
 import { ACCOUNT_FALLBACK_STRATEGY_VALUES } from "@/shared/constants/routingStrategies";
 import { RESPONSES_PREVIOUS_RESPONSE_ID_MODES } from "@/shared/constants/responsesPreviousResponseId";
 import { SPAWN_CAPABLE_PREFIXES } from "@/server/authz/routeGuard";
@@ -29,14 +33,10 @@ export const updateSettingsSchema = z.object({
   customFaviconUrl: z.string().max(2000).optional(),
   customFaviconBase64: z.string().max(50000).optional(),
   corsOrigins: z.string().max(500).optional(),
-  cloudUrl: z.string().max(500).optional(),
   baseUrl: z.string().max(500).optional(),
   setupComplete: z.boolean().optional(),
   blockedProviders: z.array(z.string().max(100)).optional(),
   hideHealthCheckLogs: z.boolean().optional(),
-  hideEndpointCloudflaredTunnel: z.boolean().optional(),
-  hideEndpointTailscaleFunnel: z.boolean().optional(),
-  hideEndpointNgrokTunnel: z.boolean().optional(),
   preferClaudeCodeForUnprefixedClaudeModels: z.boolean().optional(),
   autoRefreshProviderQuota: z.boolean().optional(),
   autoRefreshProviderQuotaInterval: z.number().int().min(10).max(3600).optional(),
@@ -71,12 +71,15 @@ export const updateSettingsSchema = z.object({
   customBannedSignals: z.array(z.string().max(200)).optional(),
   debugMode: z.boolean().optional(),
   hiddenSidebarItems: z.array(z.enum(HIDEABLE_SIDEBAR_ITEM_IDS)).optional(),
-  hiddenSidebarGroupLabels: z.array(z.enum(HIDEABLE_SIDEBAR_GROUP_IDS)).optional(),
+  hiddenSidebarGroupLabels: z
+    .array(z.string().max(100))
+    .refine((items) => items.every((item) => HIDEABLE_SIDEBAR_GROUP_IDS.includes(item)))
+    .optional(),
   sidebarSectionOrder: z
     .array(z.enum(SIDEBAR_SECTIONS.map((s) => s.id) as [string, ...string[]]))
     .optional(),
   sidebarItemOrder: z.record(z.string(), z.array(z.string().max(100))).optional(),
-  sidebarActivePreset: z.enum(["all", "minimal", "developer", "admin"]).nullable().optional(),
+  sidebarActivePreset: z.enum(ACCEPTED_SIDEBAR_PRESET_IDS).nullable().optional(),
   comboConfigMode: z.enum(COMBO_CONFIG_MODES).optional(),
   codexServiceTier: z
     .object({
@@ -117,10 +120,6 @@ export const updateSettingsSchema = z.object({
   intentExtraCodeKeywords: z.array(z.string().max(100)).optional(),
   intentExtraReasoningKeywords: z.array(z.string().max(100)).optional(),
   intentExtraSimpleKeywords: z.array(z.string().max(100)).optional(),
-  // Protocol toggles (default: disabled)
-  mcpEnabled: z.boolean().optional(),
-  mcpTransport: z.enum(["stdio", "sse", "streamable-http"]).optional(),
-  a2aEnabled: z.boolean().optional(),
   wsAuth: z.boolean().optional(),
   // CLI Fingerprint compatibility (per-provider)
   cliCompatProviders: z.array(z.string().max(100)).optional(),
@@ -256,29 +255,9 @@ export const updateSettingsSchema = z.object({
   // Cache control preservation mode
   alwaysPreserveClientCache: z.enum(["auto", "always", "never"]).optional(),
   antigravitySignatureCacheMode: z.enum(signatureCacheModeValues).optional(),
-  // Adaptive Volume Routing
-  adaptiveVolumeRouting: z.boolean().optional(),
   // Usage token buffer — safety margin added to reported prompt/input token counts.
   // Prevents CLI tools from overrunning context windows. Set to 0 to disable.
   usageTokenBuffer: z.number().int().min(0).max(50000).optional(),
-  // Custom CLI agent definitions for ACP
-  customAgents: z
-    .array(
-      z.object({
-        id: z.string().max(50),
-        name: z.string().max(100),
-        binary: z.string().max(200),
-        versionCommand: z.string().max(300),
-        providerAlias: z.string().max(50),
-        spawnArgs: z.array(z.string().max(200)),
-        protocol: z.enum(["stdio", "http"]),
-      })
-    )
-    .optional(),
-  // SkillsMP marketplace API key
-  skillsmpApiKey: z.string().max(200).optional(),
-  // Active skills provider (single source of truth for skills page)
-  skillsProvider: z.enum(["skillsmp", "skillssh"]).optional(),
   // models.dev sync settings
   modelsDevSyncEnabled: z.boolean().optional(),
   modelsDevSyncInterval: z.number().int().min(3600000).max(604800000).optional(),
@@ -367,12 +346,8 @@ export const databaseSettingsSchema = z
     // Retention settings
     retention: z.object({
       quotaSnapshots: z.number().int().min(1).max(3650), // Max 10 years
-      compressionAnalytics: z.number().int().min(1).max(365),
-      mcpAudit: z.number().int().min(1).max(365),
-      a2aEvents: z.number().int().min(1).max(365),
       callLogs: z.number().int().min(1).max(3650),
       usageHistory: z.number().int().min(1).max(3650),
-      memoryEntries: z.number().int().min(1).max(3650),
       autoCleanupEnabled: z.boolean(),
     }),
 

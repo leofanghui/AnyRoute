@@ -25,6 +25,7 @@ import { isDashboardSessionAuthenticated } from "@/shared/utils/apiAuth";
 import { isCliTokenAuthValid } from "@/lib/middleware/cliTokenAuth";
 import { extractApiKey } from "@/sse/services/auth";
 import { getApiKeyMetadata } from "@/lib/db/apiKeys";
+import { normalizeSidebarPresetId } from "@/shared/constants/sidebarVisibility";
 
 /**
  * Settings keys whose change broadens attack surface. Spec §Security:
@@ -37,10 +38,6 @@ import { getApiKeyMetadata } from "@/lib/db/apiKeys";
  * - `newPassword`: password rotation (existing). Handled by the same gate so
  *   the password-verify only fires ONCE per PATCH.
  *
- * Note: `mcpEnabled` is NOT gated server-side — the dedicated MCP page
- * (/dashboard/mcp) toggles it via patchSetting() without a currentPassword
- * prompt. The Authz section can still prompt client-side for consistency,
- * but the server accepts the change without re-auth.
  */
 const SECURITY_IMPACTING_KEYS = [
   "localOnlyManageScopeBypassEnabled",
@@ -148,7 +145,6 @@ export async function GET(request: Request) {
     const { password, ...safeSettings } = settings;
 
     const runtimePorts = getRuntimePorts();
-    const cloudUrl = process.env.CLOUD_URL || process.env.NEXT_PUBLIC_CLOUD_URL || null;
     const machineId = await getConsistentMachineId();
 
     // Include cliproxyapi_model_mapping from upstream_proxy_config table
@@ -168,8 +164,6 @@ export async function GET(request: Request) {
       runtimePorts,
       apiPort: runtimePorts.apiPort,
       dashboardPort: runtimePorts.dashboardPort,
-      cloudConfigured: Boolean(cloudUrl),
-      cloudUrl,
       machineId,
       ...(cliproxyapiModelMapping !== null
         ? { cliproxyapi_model_mapping: cliproxyapiModelMapping }
@@ -220,6 +214,9 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
     const body: typeof validation.data & { password?: string } = { ...validation.data };
+    if ("sidebarActivePreset" in body) {
+      body.sidebarActivePreset = normalizeSidebarPresetId(body.sidebarActivePreset);
+    }
 
     // Sanitize model lockout settings: clamp values to valid bounds so that
     // stale DB values or hand-crafted requests don't bypass range validation.
@@ -320,8 +317,9 @@ export async function PATCH(request: Request) {
       // Get all distinct active provider IDs so each one gets its own
       // upstream_proxy_config row. chatCore reads per-provider config
       // (e.g. getUpstreamProxyConfig("anthropic")), not a single global row.
-      // Embedded service IDs are not real routing targets and must be skipped.
-      const EMBEDDED_SERVICE_IDS = new Set(["cliproxyapi", "9router"]);
+      // The CLIProxyAPI sentinel row stores global mapping settings; it is not
+      // a real routing target and must be skipped when syncing real providers.
+      const EMBEDDED_SERVICE_IDS = new Set(["cliproxyapi"]);
       const activeConnections = await getProviderConnections({ isActive: true });
       const activeProviderIds = [
         ...new Set(

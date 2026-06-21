@@ -12,8 +12,8 @@ export default function ServiceUnavailablePage() {
         "Check maintenance notices and system status.",
         "Use fallback providers if your workflow is latency-sensitive.",
       ]}
-      primaryAction={{ href: "/maintenance", label: "Maintenance Details" }}
-      secondaryAction={{ href: "/status", label: "System Status" }}
+      primaryAction={{ href: "/dashboard/health", label: "Open Health Dashboard" }}
+      secondaryAction={{ href: "/dashboard/logs", label: "View Logs" }}
     />
   );
 }

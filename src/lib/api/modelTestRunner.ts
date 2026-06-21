@@ -1,9 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { POST as postChatCompletion } from "@/app/api/v1/chat/completions/route";
-import { handleValidatedEmbeddingRequestBody } from "@/app/api/v1/embeddings/route";
-import { POST as postRerank } from "@/app/api/v1/rerank/route";
 import { buildComboTestRequestBody, extractComboTestResponseText } from "@/lib/combos/testHealth";
-import { getCustomModels } from "@/lib/localDb";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { withRateLimit } from "@omniroute/open-sse/services/rateLimitManager";
 
@@ -34,31 +31,6 @@ function extractProviderErrorMessage(body: unknown, fallback: string) {
   return typeof message === "string" && message.trim() ? message : fallback;
 }
 
-function stripFirstSegment(modelId: string): string | null {
-  const slashIdx = modelId.indexOf("/");
-  return slashIdx > 0 ? modelId.slice(slashIdx + 1) : null;
-}
-
-async function findCustomModelMetadata(providerId: string, modelId: string) {
-  try {
-    const customModels = await getCustomModels(providerId);
-    if (!Array.isArray(customModels)) return null;
-
-    const candidates = new Set([modelId]);
-    const stripped = stripFirstSegment(modelId);
-    if (stripped) candidates.add(stripped);
-    if (modelId.startsWith(`${providerId}/`)) candidates.add(modelId.slice(providerId.length + 1));
-
-    return (
-      customModels.find(
-        (model: any) => typeof model?.id === "string" && candidates.has(model.id)
-      ) || null
-    );
-  } catch {
-    return null;
-  }
-}
-
 function buildInternalChatRequest(testBody: Record<string, unknown>, signal: AbortSignal) {
   return new Request(`${INTERNAL_ORIGIN}/v1/chat/completions`, {
     method: "POST",
@@ -74,40 +46,10 @@ function buildInternalChatRequest(testBody: Record<string, unknown>, signal: Abo
   });
 }
 
-function buildInternalRerankRequest(testBody: Record<string, unknown>, signal: AbortSignal) {
-  return new Request(`${INTERNAL_ORIGIN}/v1/rerank`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Internal-Test": "combo-health-check",
-      "X-OmniRoute-No-Cache": "true",
-      "X-Request-Id": `model-test-${randomUUID()}`,
-    },
-    body: JSON.stringify(testBody),
-    signal,
-  });
-}
-
 export function detectTestKind(modelStr: string, customModel: any) {
-  const supportedEndpoints = Array.isArray(customModel?.supportedEndpoints)
-    ? customModel.supportedEndpoints
-    : [];
-  const apiFormat = typeof customModel?.apiFormat === "string" ? customModel.apiFormat : "";
-  const lowerModel = modelStr.toLowerCase();
-  const isRerank =
-    apiFormat === "rerank" ||
-    supportedEndpoints.includes("rerank") ||
-    lowerModel.includes("rerank");
-  const isEmbedding =
-    !isRerank &&
-    (apiFormat === "embeddings" ||
-      supportedEndpoints.includes("embeddings") ||
-      lowerModel.includes("embedding") ||
-      lowerModel.includes("bge-") ||
-      lowerModel.includes("text-embed") ||
-      lowerModel.includes("jina-clip") ||
-      lowerModel.includes("colbert"));
-  return { isRerank, isEmbedding };
+  void modelStr;
+  void customModel;
+  return { isRerank: false, isEmbedding: false };
 }
 
 /**
@@ -169,21 +111,7 @@ export async function runSingleModelTest(
   }
 
   const startTime = Date.now();
-  const customModel = await findCustomModelMetadata(providerId, fullModelStr);
-  const { isRerank, isEmbedding } = detectTestKind(fullModelStr, customModel);
-
-  const testBody = isRerank
-    ? {
-        model: fullModelStr,
-        query: "What is OmniRoute?",
-        documents: [
-          "OmniRoute routes AI requests across configured providers.",
-          "This document is unrelated to the test query.",
-        ],
-        top_n: 1,
-        return_documents: false,
-      }
-    : buildComboTestRequestBody(fullModelStr, isEmbedding);
+  const testBody = buildComboTestRequestBody(fullModelStr);
 
   // Per-model AbortController. We track whether the timeout fired so we can
   // distinguish "rate-limit queue aborted" (withRateLimit threw AbortError
@@ -196,14 +124,6 @@ export async function runSingleModelTest(
   }, timeoutMs);
 
   const runInner = async (signal: AbortSignal): Promise<Response> => {
-    if (isEmbedding) {
-      return handleValidatedEmbeddingRequestBody(
-        testBody as Record<string, unknown> & { model: string }
-      );
-    }
-    if (isRerank) {
-      return postRerank(buildInternalRerankRequest(testBody, signal));
-    }
     return postChatCompletion(buildInternalChatRequest(testBody, signal));
   };
 
@@ -289,16 +209,7 @@ export async function runSingleModelTest(
     }
 
     const responseText = extractComboTestResponseText(responseBody);
-    if (isRerank) {
-      return {
-        modelId: fullModelStr,
-        status: "ok",
-        latencyMs,
-        httpStatus: 200,
-        responseText: "[Rerank completed successfully]",
-      };
-    }
-    if (!responseText && !isEmbedding) {
+    if (!responseText) {
       return {
         modelId: fullModelStr,
         status: "error",

@@ -2,9 +2,7 @@ import { t } from "../i18n.mjs";
 import { emit } from "../output.mjs";
 import { loadContexts, saveContexts, resolveActiveContext } from "../contexts.mjs";
 
-/** Auth label for a context: prefers the scoped accessToken over the legacy apiKey. */
 function authLabel(c) {
-  if (c?.accessToken) return "token";
   if (c?.apiKey) return "key";
   return "✗";
 }
@@ -39,7 +37,6 @@ export function registerContexts(program) {
         name,
         baseUrl: c.baseUrl || "",
         auth: authLabel(c),
-        scope: c.scope || "",
         description: c.description || "",
       }));
       emit(rows, globalOpts, [
@@ -47,7 +44,6 @@ export function registerContexts(program) {
         { key: "name", header: "Name" },
         { key: "baseUrl", header: "Base URL" },
         { key: "auth", header: "Auth" },
-        { key: "scope", header: "Scope" },
         { key: "description", header: "Description" },
       ]);
     });
@@ -56,11 +52,8 @@ export function registerContexts(program) {
     .command("add <name>")
     .description("Add a new context")
     .requiredOption("--url <u>", "Base URL")
-    .option("--api-key <k>", "Legacy inference API key")
+    .option("--api-key <k>", "API key")
     .option("--api-key-stdin", "Read API key from stdin")
-    .option("--access-token <t>", "Scoped CLI access token (preferred over --api-key)")
-    .option("--access-token-stdin", "Read access token from stdin")
-    .option("--scope <s>", "Token scope hint for display (read|write|admin)")
     .option("--description <d>", "Context description")
     .action(async (name, opts) => {
       const cfg = loadContexts();
@@ -69,20 +62,15 @@ export function registerContexts(program) {
         process.exit(2);
       }
       let apiKey = opts.apiKey || null;
-      let accessToken = opts.accessToken || null;
-      if (opts.apiKeyStdin || opts.accessTokenStdin) {
+      if (opts.apiKeyStdin) {
         const chunks = [];
         for await (const c of process.stdin) chunks.push(c);
-        const value = chunks.join("").trim() || null;
-        if (opts.accessTokenStdin) accessToken = value;
-        else apiKey = value;
+        apiKey = chunks.join("").trim() || null;
       }
       cfg.contexts = cfg.contexts || {};
       cfg.contexts[name] = {
         baseUrl: opts.url,
-        accessToken: accessToken || undefined,
         apiKey,
-        scope: opts.scope || undefined,
         description: opts.description || undefined,
       };
       saveContexts(cfg);
@@ -105,7 +93,7 @@ export function registerContexts(program) {
 
   ctx
     .command("current")
-    .description("Show the active context (server, auth, scope)")
+    .description("Show the active context")
     .option("--name-only", "Print just the context name (legacy behavior)")
     .action((opts, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
@@ -121,7 +109,6 @@ export function registerContexts(program) {
           name,
           baseUrl: c.baseUrl || "",
           auth: authLabel(c),
-          scope: c.scope || "",
           description: c.description || "",
         },
         globalOpts
@@ -142,9 +129,7 @@ export function registerContexts(program) {
       const display = {
         name,
         baseUrl: c.baseUrl,
-        accessToken: maskKey(c.accessToken),
         apiKey: maskKey(c.apiKey),
-        scope: c.scope,
         description: c.description,
       };
       emit(display, globalOpts);
@@ -208,7 +193,6 @@ export function registerContexts(program) {
       if (opts.noSecrets) {
         for (const c of Object.values(out.contexts || {})) {
           c.apiKey = null;
-          delete c.accessToken;
         }
       }
       const json = JSON.stringify(out, null, 2);
@@ -246,9 +230,7 @@ export function registerContexts(program) {
         const c = raw && typeof raw === "object" ? /** @type {Record<string,unknown>} */ (raw) : {};
         cfg.contexts[name] = {
           baseUrl: typeof c.baseUrl === "string" ? c.baseUrl : "http://localhost:20128",
-          accessToken: typeof c.accessToken === "string" ? c.accessToken : undefined,
           apiKey: typeof c.apiKey === "string" ? c.apiKey : null,
-          scope: typeof c.scope === "string" ? c.scope : undefined,
           description: typeof c.description === "string" ? c.description : undefined,
         };
         count++;

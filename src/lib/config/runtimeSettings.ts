@@ -47,12 +47,11 @@ interface RuntimeSettingsSnapshot {
   customBannedSignals: string[];
 }
 
-// Default bypass policy: kill-switch on, `/api/mcp/` bypassable. Mirrors the
-// pre-T-011 compile-time constant so the route guard works identically before
-// the first `applyRuntimeSettings` call (e.g. cold-boot requests).
+// Default bypass policy: enabled with no prefixes. Minimal builds do not expose
+// loopback-only management surfaces that need a default manage-scope bypass.
 const DEFAULT_AUTHZ_BYPASS_SNAPSHOT: AuthzBypassSnapshot = {
   enabled: true,
-  prefixes: ["/api/mcp/"],
+  prefixes: [],
 };
 
 const DEFAULT_RUNTIME_SETTINGS_SNAPSHOT: RuntimeSettingsSnapshot = {
@@ -215,7 +214,7 @@ function normalizeAuthzBypass(settings: Record<string, unknown>): AuthzBypassSna
  * O(1) accessor for the current LOCAL_ONLY manage-scope bypass policy.
  *
  * Consumed by the route-guard hot path (`isLocalOnlyBypassableByManageScope`).
- * Returns the default snapshot (`{ enabled: true, prefixes: ["/api/mcp/"] }`)
+ * Returns the default snapshot (`{ enabled: true, prefixes: [] }`)
  * before the first `applyRuntimeSettings` call so cold-boot requests behave
  * identically to PR #2473. Mutated only by `applyAuthzBypassSection`.
  *
@@ -477,7 +476,9 @@ export async function applyRuntimeSettings(
 
   if (force || hasChanged(currentSnapshot.usageTokenBuffer, previousSnapshot.usageTokenBuffer)) {
     const newBuffer =
-      typeof currentSnapshot.usageTokenBuffer === "number" ? currentSnapshot.usageTokenBuffer : null;
+      typeof currentSnapshot.usageTokenBuffer === "number"
+        ? currentSnapshot.usageTokenBuffer
+        : null;
     await applyUsageTrackingSection(newBuffer);
     markChanged("usageTracking");
   }
@@ -531,7 +532,10 @@ export async function applyRuntimeSettings(
     markChanged("authzBypass");
   }
 
-  if (force || hasChanged(currentSnapshot.customBannedSignals, previousSnapshot.customBannedSignals)) {
+  if (
+    force ||
+    hasChanged(currentSnapshot.customBannedSignals, previousSnapshot.customBannedSignals)
+  ) {
     setCustomBannedSignals(currentSnapshot.customBannedSignals);
     markChanged("bannedSignals");
   }

@@ -19,15 +19,8 @@ export interface CompactProviderEntryOptions<TProvider> {
   llmProviderEntries: ProviderCategoryEntries<TProvider>;
   aggregatorProviderEntries: ProviderCategoryEntries<TProvider>;
   enterpriseProviderEntries: ProviderCategoryEntries<TProvider>;
-  embeddingRerankProviderEntries: ProviderCategoryEntries<TProvider>;
-  imageProviderEntries: ProviderCategoryEntries<TProvider>;
-  videoProviderEntries: ProviderCategoryEntries<TProvider>;
   webCookieProviderEntries: ProviderCategoryEntries<TProvider>;
-  searchProviderEntries: ProviderCategoryEntries<TProvider>;
-  webFetchEntries: ProviderCategoryEntries<TProvider>;
-  audioProviderEntries: ProviderCategoryEntries<TProvider>;
   localProviderEntries: ProviderCategoryEntries<TProvider>;
-  cloudAgentProviderEntries: ProviderCategoryEntries<TProvider>;
 }
 
 function getCompactProviderEntryGroups<TProvider>({
@@ -42,27 +35,13 @@ function getCompactProviderEntryGroups<TProvider>({
   llmProviderEntries,
   aggregatorProviderEntries,
   enterpriseProviderEntries,
-  embeddingRerankProviderEntries,
-  imageProviderEntries,
-  videoProviderEntries,
   webCookieProviderEntries,
-  searchProviderEntries,
-  webFetchEntries,
-  audioProviderEntries,
   localProviderEntries,
-  cloudAgentProviderEntries,
 }: CompactProviderEntryOptions<TProvider>): ProviderEntry<TProvider>[][] {
   const oauthEntries = oauthProviderEntries.filter(
     (entry) => !IDE_PROVIDER_IDS.has(entry.providerId)
   );
-  const apiKeyEntries = [
-    llmProviderEntries,
-    aggregatorProviderEntries,
-    enterpriseProviderEntries,
-    embeddingRerankProviderEntries,
-    imageProviderEntries,
-    videoProviderEntries,
-  ];
+  const apiKeyEntries = [llmProviderEntries, aggregatorProviderEntries, enterpriseProviderEntries];
 
   if (showFreeOnly) return [freeSectionEntries];
 
@@ -73,11 +52,7 @@ function getCompactProviderEntryGroups<TProvider>({
   if (activeCategory === "upstream-proxy") return [upstreamProxyEntries];
   if (activeCategory === "apikey") return apiKeyEntries;
   if (activeCategory === "webcookie") return [webCookieProviderEntries];
-  if (activeCategory === "search") return [searchProviderEntries];
-  if (activeCategory === "webfetch") return [webFetchEntries];
-  if (activeCategory === "audio") return [audioProviderEntries];
   if (activeCategory === "local") return [localProviderEntries];
-  if (activeCategory === "cloudagent") return [cloudAgentProviderEntries];
 
   return [
     compatibleProviderEntries,
@@ -88,13 +63,7 @@ function getCompactProviderEntryGroups<TProvider>({
     upstreamProxyEntries,
     aggregatorProviderEntries,
     enterpriseProviderEntries,
-    cloudAgentProviderEntries,
     localProviderEntries,
-    searchProviderEntries,
-    embeddingRerankProviderEntries,
-    imageProviderEntries,
-    audioProviderEntries,
-    videoProviderEntries,
     noAuthEntries,
   ];
 }
@@ -108,13 +77,10 @@ export function buildCompactProviderEntriesForPage<TProvider>(
 }
 
 const CATEGORY_AUTH_TYPES: Record<string, string> = {
-  "cloud-agent": "cloud-agent",
   "no-auth": "no-auth",
   "upstream-proxy": "upstream-proxy",
   "web-cookie": "web-cookie",
-  audio: "audio",
   local: "local",
-  search: "search",
 };
 
 export function getCompactProviderAuthType<TProvider>(

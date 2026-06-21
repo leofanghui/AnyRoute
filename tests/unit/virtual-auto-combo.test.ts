@@ -210,11 +210,6 @@ test("createVirtualAutoCombo includes all chat-capable no-auth providers without
   assert.equal(byProvider.get("theoldllm")?.model, "tllm/GPT_5_4");
   assert.equal(byProvider.get("chipotle")?.connectionId, "noauth");
   assert.equal(byProvider.get("chipotle")?.model, "pepper/pepper-1");
-  assert.equal(
-    byProvider.has("veoaifree-web"),
-    false,
-    "video-only no-auth providers must not be inserted into chat auto-combos"
-  );
 });
 
 test("createVirtualAutoCombo keeps credential-required providers out when disconnected", async () => {

@@ -11,7 +11,7 @@
  * avoid redundant round-trips.
  *
  * Based on AntigravityService.loadCodeAssist() in
- * src/lib/oauth/services/antigravity.ts and the CLIProxyAPI reference
+ * the Antigravity OAuth import routes and the CLIProxyAPI reference
  * implementation in internal/runtime/executor/antigravity_executor.go.
  */
 

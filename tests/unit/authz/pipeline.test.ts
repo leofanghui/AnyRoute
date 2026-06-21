@@ -108,7 +108,7 @@ test("runAuthzPipeline redirects unauthenticated /home/* nested paths to login (
   assert.equal(response.headers.get("x-omniroute-route-class"), "MANAGEMENT");
 });
 
-test("runAuthzPipeline allows onboarding when login is required but no password exists", async () => {
+test("runAuthzPipeline allows bootstrap settings when login is required but no password exists", async () => {
   delete process.env.INITIAL_PASSWORD;
   await settingsDb.updateSettings({
     requireLogin: true,
@@ -117,7 +117,7 @@ test("runAuthzPipeline allows onboarding when login is required but no password 
   });
 
   const response = await pipeline.runAuthzPipeline(
-    request("https://example.com/dashboard/onboarding"),
+    request("https://example.com/dashboard/settings/general"),
     { enforce: true }
   );
 

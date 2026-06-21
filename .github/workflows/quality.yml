@@ -38,7 +38,6 @@ jobs:
       - run: npm ci
       - run: npm run check:provider-consistency
       - run: npm run check:fetch-targets
-      - run: npm run check:openapi-routes
       - run: npm run check:docs-symbols
       - run: npm run check:deps
       - run: npm run check:file-size

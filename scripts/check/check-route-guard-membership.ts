@@ -41,14 +41,10 @@ function assertNoStaleEntries(
   }
 }
 
-// Spawn-capable route roots (relative to repo root). Mirrors the spawn-capable
-// prefixes documented in routeGuard.ts (SPAWN_CAPABLE_PREFIXES) and CLAUDE.md
-// Hard Rules #15/#17 for the dirs that physically exist under src/app/api/.
-export const SPAWN_CAPABLE_ROUTE_ROOTS: ReadonlyArray<string> = [
-  "src/app/api/services",
-  "src/app/api/mcp",
-  "src/app/api/cli-tools/runtime",
-];
+// Spawn-capable route roots (relative to repo root). Minimal source keeps this
+// list empty; direct child_process / worker_threads usage is still detected by
+// the source scan below.
+export const SPAWN_CAPABLE_ROUTE_ROOTS: ReadonlyArray<string> = [];
 
 // Frozen pre-existing exceptions: spawn-capable routes NOT yet classified
 // local-only. Each entry is a documented security debt — the route is reachable
@@ -62,8 +58,7 @@ export const KNOWN_UNCLASSIFIED: Record<string, string> = {};
  * serves, in the exact shape `isLocalOnlyPath()` expects (a plain `/api/...`
  * path). Dynamic `[param]` segments become a concrete `_param_` placeholder —
  * `isLocalOnlyPath` matches prefixes via `startsWith`, so any non-empty segment
- * satisfies the classification (e.g. `/api/services/_name_/logs` still starts
- * with `/api/services/`).
+ * satisfies prefix-based classifications.
  */
 export function routeFileToApiPath(routeFile: string): string {
   return routeFile
@@ -150,17 +145,10 @@ export function findSpawnCapableRoutes(repoRoot: string): string[] {
  * Adding an entry here requires a justification + follow-up issue.
  */
 export const KNOWN_UNCLASSIFIED_SOURCE_SPAWN: Record<string, string> = {
-  // RESOLVED (6A.8 P1, 2026-06-13): /api/system/version and /api/db-backups/exportAll
+  // RESOLVED (6A.8 P1, 2026-06-13): /api/system/version
   // are now classified in LOCAL_ONLY_API_PREFIXES (loopback-enforced before auth).
   // The stale-enforcement guard requires this set to stay empty until a NEW
   // unclassified spawn-capable route appears.
-  // NOTE: cli-tools/antigravity-mitm/route.ts triggers child_process INDIRECTLY via
-  // dynamic import to @/mitm/manager.runtime, but does NOT directly import child_process.
-  // The source-scan gate covers DIRECT imports/calls only; this route is NOT in the
-  // spawn-capable set by source analysis. Kept as a comment for documentation but
-  // NOT in the allowlist (stale-enforcement would flag it). The route has requireCliToolsAuth()
-  // for auth gating; the underlying spawn happens in mitm/manager.runtime.
-  // If /api/cli-tools/ is ever added to LOCAL_ONLY_API_PREFIXES, revisit this note.
 };
 
 /** Recursively collect every `route.ts` under `dir` (returns [] if dir absent). */

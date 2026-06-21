@@ -13,7 +13,7 @@
 // legítimo com integridade verificável.
 //
 // Referência: PLANO-QUALITY-GATES-FASE7.md, Task 7.7.
-// Tool: lockfile-lint v5 (node_modules/.bin/lockfile-lint).
+// Tool: lockfile-lint v5 (node_modules/lockfile-lint/bin/lockfile-lint.js).
 
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -50,17 +50,14 @@ export function getLockfileLintConfig() {
 }
 
 /**
- * Builds the argv array to pass to the lockfile-lint binary, derived from
+ * Builds the argv array to pass to the lockfile-lint entrypoint, derived from
  * the config returned by getLockfileLintConfig().
  *
  * @param {ReturnType<typeof getLockfileLintConfig>} cfg
  * @returns {string[]}
  */
 export function buildLockfileLintArgs(cfg) {
-  const args = [
-    "--path", cfg.lockfilePath,
-    "--type", cfg.type,
-  ];
+  const args = ["--path", cfg.lockfilePath, "--type", cfg.type];
   if (cfg.validateHttps) args.push("--validate-https");
   if (cfg.validateIntegrity) args.push("--validate-integrity");
   if (cfg.allowedHosts.length) {
@@ -80,10 +77,10 @@ function main() {
     process.exit(1);
   }
 
-  const bin = path.join(ROOT, "node_modules", ".bin", "lockfile-lint");
+  const bin = path.join(ROOT, "node_modules", "lockfile-lint", "bin", "lockfile-lint.js");
   if (!fs.existsSync(bin)) {
     console.error(
-      `[check-lockfile] FAIL — lockfile-lint binary not found at:\n  ${bin}\n` +
+      `[check-lockfile] FAIL — lockfile-lint entrypoint not found at:\n  ${bin}\n` +
         "  → Run `npm install` to install dev dependencies"
     );
     process.exit(1);
@@ -92,7 +89,7 @@ function main() {
   const args = buildLockfileLintArgs(cfg);
 
   try {
-    const output = execFileSync(bin, args, { encoding: "utf8" });
+    const output = execFileSync(process.execPath, [bin, ...args], { encoding: "utf8" });
     // lockfile-lint outputs a green ✔ message on success
     console.log("[check-lockfile] OK —", output.trim());
   } catch (err) {

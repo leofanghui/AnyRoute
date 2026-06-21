@@ -1,5 +1,4 @@
 // Server startup script
-import initializeCloudSync from "./shared/services/initializeCloudSync";
 import { enforceWebRuntimeEnv } from "./lib/env/runtimeEnv";
 import { enforceSecrets } from "./shared/utils/secretsValidator";
 import { initAuditLog, cleanupExpiredLogs, logAuditEvent } from "./lib/compliance/index";
@@ -13,8 +12,6 @@ import { startRuntimeConfigHotReload } from "./lib/config/hotReload";
 import { startSpendBatchWriter } from "./lib/spend/batchWriter";
 import { registerDefaultGuardrails } from "./lib/guardrails";
 import { ensurePersistentManagementPasswordHash } from "./lib/auth/managementPassword";
-import { skillExecutor } from "./lib/skills/executor";
-import { registerBuiltinSkills } from "./lib/skills/builtins";
 import { createLogger } from "./shared/utils/logger";
 
 const startupLog = createLogger("server-init");
@@ -50,8 +47,7 @@ async function startServer() {
       cleanup.deletedCallLogs ||
       cleanup.deletedProxyLogs ||
       cleanup.deletedRequestDetailLogs ||
-      cleanup.deletedAuditLogs ||
-      cleanup.deletedMcpAuditLogs
+      cleanup.deletedAuditLogs
     ) {
       startupLog.info({ cleanup }, "Expired log cleanup completed");
     }
@@ -59,7 +55,7 @@ async function startServer() {
     startupLog.warn({ err }, "Log cleanup failed");
   }
 
-  startupLog.info("Starting server with cloud sync");
+  startupLog.info("Starting minimal server");
 
   try {
     let settings = await getSettings();
@@ -85,28 +81,14 @@ async function startServer() {
       startupLog.info("Global System Prompt restored from settings");
     }
 
-    // Initialize cloud sync
     startSpendBatchWriter();
     registerDefaultGuardrails();
-    registerBuiltinSkills(skillExecutor);
     startupLog.info("Spend batch writer started");
     startupLog.info("Guardrail registry initialized");
-    startupLog.info("Builtin skill handlers registered");
-
-    // Load active plugins on startup so they survive restarts
-    try {
-      const { pluginManager } = await import("./lib/plugins/manager");
-      await pluginManager.loadAll();
-      startupLog.info("Plugin manager loaded active plugins");
-    } catch (err) {
-      startupLog.warn({ err }, "Plugin manager loadAll failed (non-fatal)");
-    }
-
-    await initializeCloudSync();
     startBudgetResetJob();
     startReasoningCacheCleanupJob();
     startRuntimeConfigHotReload();
-    startupLog.info("Server started with cloud sync initialized");
+    startupLog.info("Minimal server started");
 
     // Log server start event to audit log
     logAuditEvent({
@@ -118,7 +100,7 @@ async function startServer() {
       details: { timestamp: new Date().toISOString() },
     });
   } catch (error) {
-    startupLog.error({ err: error }, "Error initializing cloud sync");
+    startupLog.error({ err: error }, "Error initializing minimal server");
     process.exit(1);
   }
 
@@ -130,15 +112,6 @@ async function startServer() {
     } catch (err) {
       startupLog.warn({ error: getErrorMessage(err) }, "Pricing sync could not initialize");
     }
-  }
-
-  // Arena ELO sync: model intelligence from leaderboard data (non-blocking, never fatal).
-  // On by default; opt out with Dashboard Feature Flags or ARENA_ELO_SYNC_ENABLED=false.
-  try {
-    const { initArenaEloSync } = await import("./lib/arenaEloSync");
-    await initArenaEloSync();
-  } catch (err) {
-    startupLog.warn({ error: getErrorMessage(err) }, "Arena ELO sync could not initialize");
   }
 }
 

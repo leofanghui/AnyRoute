@@ -14,6 +14,24 @@ function toNonEmptyString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
 }
 
+function normalizeMinimalApiFormat(value: unknown): string | null {
+  const apiFormat = toNonEmptyString(value) || "chat-completions";
+  return apiFormat === "chat-completions" || apiFormat === "responses" ? apiFormat : null;
+}
+
+function normalizeMinimalEndpoints(value: unknown): string[] {
+  const endpoints = Array.isArray(value)
+    ? value
+        .map((endpoint) => toNonEmptyString(endpoint))
+        .filter((endpoint): endpoint is string => Boolean(endpoint))
+    : ["chat"];
+  return Array.from(
+    new Set(
+      endpoints.filter((endpoint) => ["chat", "chat/completions", "responses"].includes(endpoint))
+    )
+  ).sort();
+}
+
 /**
  * Resolve a positive integer token limit from a list of candidate values.
  * Used to fall back across the differently-named context/output fields that
@@ -50,15 +68,10 @@ export function normalizeDiscoveredModels(models: unknown): SyncedAvailableModel
       toNonEmptyString(record.displayName) ||
       toNonEmptyString(record.model) ||
       id;
-    const supportedEndpoints = Array.isArray(record.supportedEndpoints)
-      ? Array.from(
-          new Set(
-            record.supportedEndpoints
-              .map((endpoint) => toNonEmptyString(endpoint))
-              .filter((endpoint): endpoint is string => Boolean(endpoint))
-          )
-        ).sort()
-      : undefined;
+    const apiFormat = normalizeMinimalApiFormat(record.apiFormat);
+    if (!apiFormat) continue;
+    const supportedEndpoints = normalizeMinimalEndpoints(record.supportedEndpoints);
+    if (supportedEndpoints.length === 0) continue;
 
     const topProvider = asRecord(record.top_provider);
 
@@ -81,10 +94,10 @@ export function normalizeDiscoveredModels(models: unknown): SyncedAvailableModel
       id,
       name,
       source: "imported",
-      ...(toNonEmptyString(record.apiFormat)
-        ? { apiFormat: toNonEmptyString(record.apiFormat)! }
+      ...(apiFormat !== "chat-completions" ? { apiFormat } : {}),
+      ...(supportedEndpoints.length > 1 || !supportedEndpoints.includes("chat")
+        ? { supportedEndpoints }
         : {}),
-      ...(supportedEndpoints && supportedEndpoints.length > 0 ? { supportedEndpoints } : {}),
       ...(typeof inputTokenLimit === "number" ? { inputTokenLimit } : {}),
       ...(typeof outputTokenLimit === "number" ? { outputTokenLimit } : {}),
       ...(typeof record.description === "string" ? { description: record.description } : {}),

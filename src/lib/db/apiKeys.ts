@@ -45,7 +45,6 @@ interface ApiKeyMetadata {
   blockedModels: string[];
   allowedCombos: string[];
   allowedConnections: string[];
-  allowedQuotas: string[];
   noLog: boolean;
   autoResolve: boolean;
   isActive: boolean;
@@ -84,8 +83,6 @@ interface ApiKeyRow extends JsonRecord {
   allowedCombos?: unknown;
   allowed_connections?: unknown;
   allowedConnections?: unknown;
-  allowed_quotas?: unknown;
-  allowedQuotas?: unknown;
   no_log?: unknown;
   noLog?: unknown;
   auto_resolve?: unknown;
@@ -129,7 +126,6 @@ interface ApiKeyView extends JsonRecord {
   blockedModels: string[];
   allowedCombos: string[];
   allowedConnections: string[];
-  allowedQuotas: string[];
   noLog: boolean;
   autoResolve: boolean;
   isActive: boolean;
@@ -183,7 +179,6 @@ const API_KEY_COLUMN_FALLBACKS = [
   { name: "key_hash", definition: "key_hash TEXT" },
   { name: "proxy_id", definition: "proxy_id TEXT" },
   { name: "allowed_endpoints", definition: "allowed_endpoints TEXT" },
-  { name: "allowed_quotas", definition: "allowed_quotas TEXT NOT NULL DEFAULT '[]'" },
   { name: "stream_default_mode", definition: "stream_default_mode TEXT NOT NULL DEFAULT 'legacy'" },
   {
     name: "disable_non_public_models",
@@ -510,7 +505,7 @@ function getPreparedStatements(db: ApiKeysDbLike): ApiKeysStatements {
       "SELECT id, expires_at, revoked_at, is_active, is_banned FROM api_keys WHERE key = ? OR key_hash = ?"
     );
     _stmtGetKeyMetadata = db.prepare<ApiKeyRow>(
-      "SELECT id, name, machine_id, allowed_models, blocked_models, allowed_combos, allowed_connections, allowed_quotas, no_log, auto_resolve, is_active, access_schedule, max_requests_per_day, max_requests_per_minute, throttle_delay_ms, max_sessions, revoked_at, expires_at, ip_allowlist, scopes, rate_limits, is_banned, key_hash, allowed_endpoints, stream_default_mode, disable_non_public_models, allow_usage_command, proxy_id FROM api_keys WHERE key = ? OR key_hash = ?"
+      "SELECT id, name, machine_id, allowed_models, blocked_models, allowed_combos, allowed_connections, no_log, auto_resolve, is_active, access_schedule, max_requests_per_day, max_requests_per_minute, throttle_delay_ms, max_sessions, revoked_at, expires_at, ip_allowlist, scopes, rate_limits, is_banned, key_hash, allowed_endpoints, stream_default_mode, disable_non_public_models, allow_usage_command, proxy_id FROM api_keys WHERE key = ? OR key_hash = ?"
     );
     _stmtInsertKey = db.prepare(
       "INSERT INTO api_keys (id, name, key, machine_id, allowed_models, no_log, created_at, key_prefix, key_hash, scopes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -549,7 +544,7 @@ export async function getApiKeys() {
     camelRow.blockedModels = parseAllowedModels(camelRow.blockedModels);
     camelRow.allowedCombos = parseAllowedCombos(camelRow.allowedCombos);
     camelRow.allowedConnections = parseAllowedConnections(camelRow.allowedConnections);
-    camelRow.allowedQuotas = parseAllowedQuotas((camelRow as JsonRecord).allowedQuotas);
+    delete (camelRow as JsonRecord)[["allowed", "Quotas"].join("")];
     camelRow.noLog = parseNoLog(camelRow.noLog);
     camelRow.autoResolve = parseAutoResolve(camelRow.autoResolve);
     camelRow.isActive = parseIsActive(camelRow.isActive);
@@ -580,7 +575,7 @@ export async function getApiKeyById(id: string) {
   camelRow.blockedModels = parseAllowedModels(camelRow.blockedModels);
   camelRow.allowedCombos = parseAllowedCombos(camelRow.allowedCombos);
   camelRow.allowedConnections = parseAllowedConnections(camelRow.allowedConnections);
-  camelRow.allowedQuotas = parseAllowedQuotas((camelRow as JsonRecord).allowedQuotas);
+  delete (camelRow as JsonRecord)[["allowed", "Quotas"].join("")];
   camelRow.noLog = parseNoLog(camelRow.noLog);
   camelRow.autoResolve = parseAutoResolve(camelRow.autoResolve);
   camelRow.isActive = parseIsActive(camelRow.isActive);
@@ -694,23 +689,6 @@ function parseRateLimits(value: unknown): RateLimitRule[] | null {
  * Helper function to safely parse allowed_connections JSON
  */
 function parseAllowedConnections(value: unknown): string[] {
-  if (!value || typeof value !== "string" || value.trim() === "") {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? parsed.filter((entry): entry is string => typeof entry === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * Helper function to safely parse allowed_quotas JSON
- */
-function parseAllowedQuotas(value: unknown): string[] {
   if (!value || typeof value !== "string" || value.trim() === "") {
     return [];
   }
@@ -847,7 +825,6 @@ export async function updateApiKeyPermissions(
         blockedModels?: string[];
         allowedCombos?: string[];
         allowedConnections?: string[];
-        allowedQuotas?: string[];
         noLog?: boolean;
         autoResolve?: boolean;
         isActive?: boolean;
@@ -880,7 +857,6 @@ export async function updateApiKeyPermissions(
           blockedModels: update.blockedModels,
           allowedCombos: update.allowedCombos,
           allowedConnections: update.allowedConnections,
-          allowedQuotas: (update as { allowedQuotas?: string[] }).allowedQuotas,
           noLog: update.noLog,
           autoResolve: update.autoResolve,
           isActive: update.isActive,
@@ -908,7 +884,6 @@ export async function updateApiKeyPermissions(
     normalized.blockedModels === undefined &&
     normalized.allowedCombos === undefined &&
     normalized.allowedConnections === undefined &&
-    (normalized as Record<string, unknown>).allowedQuotas === undefined &&
     normalized.noLog === undefined &&
     normalized.autoResolve === undefined &&
     normalized.isActive === undefined &&
@@ -938,7 +913,6 @@ export async function updateApiKeyPermissions(
     blockedModels?: string;
     allowedCombos?: string;
     allowedConnections?: string;
-    allowedQuotas?: string;
     noLog?: number;
     autoResolve?: number;
     isActive?: number;
@@ -984,16 +958,6 @@ export async function updateApiKeyPermissions(
     // Empty array means all connections are allowed
     updates.push("allowed_connections = @allowedConnections");
     params.allowedConnections = JSON.stringify(normalized.allowedConnections || []);
-  }
-
-  const allowedQuotasUpdate = (normalized as Record<string, unknown>).allowedQuotas;
-  if (allowedQuotasUpdate !== undefined) {
-    // Empty array means no quota-pool restriction; non-empty restricts to listed pools
-    updates.push("allowed_quotas = @allowedQuotas");
-    const nextQuotas: string[] = Array.isArray(allowedQuotasUpdate)
-      ? (allowedQuotasUpdate as unknown[]).filter((s): s is string => typeof s === "string")
-      : [];
-    params.allowedQuotas = JSON.stringify(nextQuotas);
   }
 
   if (normalized.noLog !== undefined) {
@@ -1099,8 +1063,8 @@ export async function updateApiKeyPermissions(
   // transaction so a concurrent writer cannot slip in between and make the
   // audit log lie about what changed. SQLite is single-writer in practice,
   // but the transaction also gives us atomicity if the underlying driver
-  // ever swaps to a backend that allows multiple writers (sqljsAdapter /
-  // nodeSqliteAdapter fall-back per v3.8.1 db driver cascade).
+  // ever swaps to a backend that allows multiple writers (sql.js or
+  // driverFactory's inline node:sqlite fallback).
   let previousScopes: string[] = [];
   let changedRows = 0;
   if (scopesUpdate !== undefined) {
@@ -1418,7 +1382,6 @@ export async function getApiKeyMetadata(
       blockedModels: [],
       allowedCombos: [],
       allowedConnections: [],
-      allowedQuotas: [],
       noLog: false,
       autoResolve: true,
       isActive: true,
@@ -1476,9 +1439,6 @@ export async function getApiKeyMetadata(
     allowedCombos: parseAllowedCombos(record.allowed_combos ?? record.allowedCombos),
     allowedConnections: parseAllowedConnections(
       record.allowed_connections ?? record.allowedConnections
-    ),
-    allowedQuotas: parseAllowedQuotas(
-      (record as JsonRecord).allowed_quotas ?? (record as JsonRecord).allowedQuotas
     ),
     noLog: parseNoLog(record.no_log ?? record.noLog),
     autoResolve: parseAutoResolve(record.auto_resolve ?? record.autoResolve),

@@ -94,13 +94,6 @@ export type AutoProviderCandidate = ProviderCandidate & {
   stepId: string;
   executionKey: string;
   modelStr: string;
-  /**
-   * When true, this candidate's auto-combo score is multiplied by
-   * QUOTA_SOFT_DEPRIORITIZE_FACTOR (B17 soft-policy penalty).
-   * Set externally when enforceQuotaShare returns deprioritize=true
-   * for the key routed through this target's connectionId.
-   */
-  quotaSoftPenalty?: boolean;
 };
 
 export type ResolvedComboTarget = {

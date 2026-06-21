@@ -1,12 +1,10 @@
 /**
  * Single source of truth for the model-id vision heuristic (#4072).
  *
- * Three code paths used to keep their own drifting lists, so the same model id
- * could get up to three different vision verdicts:
+ * Two code paths used to keep their own drifting lists, so the same model id
+ * could get different vision verdicts:
  *   - `src/lib/modelCapabilities.ts` — last-resort fallback in `resolveVisionCapability` (#4071)
  *   - `src/app/api/v1/models/catalog.ts` — `/v1/models` listing capability
- *   - `open-sse/services/compression/lite.ts` — gate that decides whether lite
- *     compression strips images
  *
  * Concrete bugs that caused:
  *   - `lite.ts` was missing pixtral / llava / qwen-vl / glm-4v / kimi-vl /
@@ -15,8 +13,8 @@
  *   - `catalog.ts` was too broad: bare `gemma` (text) and bare `kimi` (e.g.
  *     `kimi-k2`, text) produced false-positive `vision: true` in `/v1/models`.
  *
- * Keep this list CONSERVATIVE: a false positive in routing or compression
- * re-creates #4071 (an image routed to / kept for a model that cannot see it).
+ * Keep this list CONSERVATIVE: a false positive in routing re-creates #4071
+ * (an image routed to / kept for a model that cannot see it).
  * The zero-touch path for newly released vision models is the models.dev sync
  * (`modalities` / `attachment`), not this fallback — this list only needs the
  * stable, well-known vision families.

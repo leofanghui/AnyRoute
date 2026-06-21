@@ -5,7 +5,7 @@
  * functionCall/functionResponse parts (not text blocks), so the model
  * never reproduces leaky annotation text in its output.
  *
- * Uses same env vars as tests/manual/gemini.http:
+ * Uses the live Gemini integration env vars:
  *   OMNIROUTE_URL             — base URL (default http://localhost:20128)
  *   OMNIROUTE_API_KEY         — API key for auth
  *   TEST_GEMINI_MODEL         — model override (default gemini/gemma-4-31b-it)

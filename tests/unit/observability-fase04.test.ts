@@ -1,13 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-// ═════════════════════════════════════════════════════
-//  FASE-04: Error Handling & Observability Tests
-//  Tests for circuitBreaker, requestTimeout, correlationId
-// ═════════════════════════════════════════════════════
-
-// ─── Circuit Breaker Tests ────────────────────────────
-
 import {
   CircuitBreaker,
   CircuitBreakerOpenError,
@@ -75,19 +68,14 @@ test("CircuitBreaker: transitions to HALF_OPEN after reset timeout", async () =>
 
   assert.equal(cb.state, STATE.OPEN);
 
-  // Wait for reset timeout
   await new Promise((r) => setTimeout(r, 15));
 
-  // Next call should transition to HALF_OPEN
   const result = await cb.execute(async () => "recovered");
   assert.equal(result, "recovered");
   assert.equal(cb.state, STATE.CLOSED);
 });
 
 test("CircuitBreaker: status reads refresh OPEN providers after reset timeout", async () => {
-  // resetTimeout must leave real headroom: with 10ms, any event-loop contention
-  // between execute() and the first getStatus() already lazily refreshes the
-  // state to HALF_OPEN and the OPEN assert flakes (seen on CI shard runners).
   const cb = new CircuitBreaker(`test-status-refresh${cbSuffix}`, {
     failureThreshold: 1,
     resetTimeout: 250,
@@ -117,7 +105,7 @@ test("CircuitBreaker: reset() forces back to CLOSED", () => {
 });
 
 test("CircuitBreaker: calls onStateChange callback", async () => {
-  const changes = [];
+  const changes: Array<{ name: string; from: string; to: string }> = [];
   const cb = new CircuitBreaker(`test-callback${cbSuffix}`, {
     failureThreshold: 1,
     onStateChange: (name, from, to) => changes.push({ name, from, to }),
@@ -132,66 +120,4 @@ test("CircuitBreaker: calls onStateChange callback", async () => {
   assert.ok(changes.length > 0);
   assert.equal(changes[0].from, STATE.CLOSED);
   assert.equal(changes[0].to, STATE.OPEN);
-});
-
-// ─── Request Timeout Tests ───────────────────────────
-
-import { withTimeout, getProviderTimeout } from "../../src/shared/utils/requestTimeout.ts";
-
-test("requestTimeout: withTimeout resolves before timeout", async () => {
-  const result = await withTimeout(async () => "fast", 1000, "test");
-  assert.equal(result, "fast");
-});
-
-test("requestTimeout: withTimeout rejects on timeout", async () => {
-  await assert.rejects(
-    () => withTimeout(() => new Promise((r) => setTimeout(r, 500)), 10, "slow-op"),
-    (err) => (err as any).name === "TimeoutError"
-  );
-});
-
-test("requestTimeout: getProviderTimeout returns default for unknown", () => {
-  const timeout = getProviderTimeout("unknown-provider");
-  assert.equal(timeout, 60000);
-});
-
-test("requestTimeout: getProviderTimeout returns provider-specific value", () => {
-  const groqTimeout = getProviderTimeout("groq");
-  assert.equal(groqTimeout, 30000);
-  const claudeTimeout = getProviderTimeout("claude");
-  assert.equal(claudeTimeout, 90000);
-});
-
-// ─── Correlation ID Tests ────────────────────────────
-
-import { getCorrelationId, runWithCorrelation } from "../../src/shared/middleware/correlationId.ts";
-
-test("correlationId: getCorrelationId returns undefined outside context", () => {
-  assert.equal(getCorrelationId(), undefined);
-});
-
-test("correlationId: runWithCorrelation provides ID in context", () => {
-  const id = "test-correlation-123";
-  runWithCorrelation(id, () => {
-    assert.equal(getCorrelationId(), id);
-  });
-});
-
-test("correlationId: runWithCorrelation generates ID when null", () => {
-  runWithCorrelation(null, () => {
-    const id = getCorrelationId();
-    assert.ok(id);
-    assert.ok(typeof id === "string");
-    assert.ok(id.length > 0);
-  });
-});
-
-test("correlationId: nested contexts are isolated", () => {
-  runWithCorrelation("outer", () => {
-    assert.equal(getCorrelationId(), "outer");
-    runWithCorrelation("inner", () => {
-      assert.equal(getCorrelationId(), "inner");
-    });
-    assert.equal(getCorrelationId(), "outer");
-  });
 });

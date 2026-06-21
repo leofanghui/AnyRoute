@@ -16,7 +16,7 @@ const cases: Case[] = [
   { name: "root /", path: "/", expectedClass: "MANAGEMENT", expectedNormalized: "/" },
   { name: "dashboard root", path: "/dashboard", expectedClass: "MANAGEMENT" },
   { name: "dashboard nested", path: "/dashboard/settings", expectedClass: "MANAGEMENT" },
-  { name: "dashboard onboarding", path: "/dashboard/onboarding", expectedClass: "PUBLIC" },
+  { name: "bootstrap settings", path: "/dashboard/settings/general", expectedClass: "PUBLIC" },
 
   {
     name: "/api/v1 base",
@@ -31,11 +31,7 @@ const cases: Case[] = [
   },
   { name: "/api/v1/responses", path: "/api/v1/responses", expectedClass: "CLIENT_API" },
   { name: "/api/v1/models", path: "/api/v1/models", expectedClass: "CLIENT_API" },
-  { name: "/api/v1/embeddings", path: "/api/v1/embeddings", expectedClass: "CLIENT_API" },
-  { name: "/api/v1/files", path: "/api/v1/files", expectedClass: "CLIENT_API" },
-  { name: "/api/v1/batches", path: "/api/v1/batches", expectedClass: "CLIENT_API" },
   { name: "/api/v1/ws", path: "/api/v1/ws", expectedClass: "CLIENT_API" },
-  { name: "/api/mcp/* stays management", path: "/api/mcp/status", expectedClass: "MANAGEMENT" },
 
   {
     name: "/v1 alias",
@@ -56,10 +52,10 @@ const cases: Case[] = [
     expectedNormalized: "/api/v1",
   },
   {
-    name: "/v1/v1/embeddings double-prefix",
-    path: "/v1/v1/embeddings",
+    name: "/v1/v1/models double-prefix",
+    path: "/v1/v1/models",
     expectedClass: "CLIENT_API",
-    expectedNormalized: "/api/v1/embeddings",
+    expectedNormalized: "/api/v1/models",
   },
   {
     name: "/chat/completions alias",
@@ -118,10 +114,10 @@ const cases: Case[] = [
     expectedClass: "PUBLIC",
   },
   {
-    name: "/api/cloud/* is PUBLIC",
+    name: "/api/cloud/* is MANAGEMENT after minimal pruning",
     path: "/api/cloud/something",
     method: "GET",
-    expectedClass: "PUBLIC",
+    expectedClass: "MANAGEMENT",
   },
   {
     name: "/api/oauth/* is PUBLIC",
@@ -130,10 +126,10 @@ const cases: Case[] = [
     expectedClass: "PUBLIC",
   },
   {
-    name: "/api/sync/bundle is PUBLIC",
+    name: "/api/sync/bundle is MANAGEMENT after minimal pruning",
     path: "/api/sync/bundle",
     method: "POST",
-    expectedClass: "PUBLIC",
+    expectedClass: "MANAGEMENT",
   },
   {
     name: "/api/settings/require-login GET is PUBLIC readonly",

@@ -7,7 +7,7 @@
  * entry points (resolveComboTargets, resolveNestedComboTargets, getComboFromData,
  * getComboModelsFromData, validateComboDAG, resolveNestedComboModels,
  * filterTargetsByRequestCompatibility) are re-exported from combo.ts for the
- * ~20 external consumers (chatCore.ts, the /api/combos routes, embeddings, etc.).
+ * external consumers (chatCore.ts and the /api/combos routes).
  * No barrel import — depends only on sibling leaves.
  */
 

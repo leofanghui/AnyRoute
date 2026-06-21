@@ -14,11 +14,7 @@ import {
   getCodexEffectiveServiceTier,
   type CodexGlobalServiceMode,
 } from "@/lib/providers/codexFastTier";
-import {
-  normalizeCodexLimitPolicy,
-  providerText,
-  ERROR_TYPE_LABELS,
-} from "../providerPageHelpers";
+import { normalizeCodexLimitPolicy, providerText, ERROR_TYPE_LABELS } from "../providerPageHelpers";
 
 // ---------------------------------------------------------------------------
 // Types (exported so the client can reference them without re-importing)
@@ -44,8 +40,6 @@ export interface ConnectionRowConnection {
   tokenExpiresAt?: string;
   maxConcurrent?: number | null;
   authType?: string;
-  proxyEnabled?: boolean;
-  perKeyProxyEnabled?: boolean;
 }
 
 export interface ConnectionRowProps {
@@ -74,14 +68,6 @@ export interface ConnectionRowProps {
   onEdit: () => void;
   onDelete: () => void;
   onReauth?: () => void;
-  onProxy?: () => void;
-  hasProxy?: boolean;
-  proxySource?: string;
-  proxyHost?: string;
-  proxyEnabled?: boolean;
-  perKeyProxyEnabled?: boolean;
-  onToggleProxyEnabled?: (enabled: boolean) => void;
-  onTogglePerKeyProxyEnabled?: (enabled: boolean) => void;
   onRefreshToken?: () => void;
   isRefreshing?: boolean;
   onApplyCodexAuthLocal?: () => void;
@@ -360,10 +346,6 @@ export default function ConnectionRow({
   onEdit,
   onDelete,
   onReauth,
-  onProxy,
-  hasProxy,
-  proxySource,
-  proxyHost,
   onRefreshToken,
   isRefreshing,
   onApplyCodexAuthLocal,
@@ -378,10 +360,6 @@ export default function ConnectionRow({
   isApplyingGeminiAuthLocal,
   onExportGeminiAuthFile,
   isExportingGeminiAuthFile,
-  perKeyProxyEnabled,
-  onTogglePerKeyProxyEnabled,
-  proxyEnabled,
-  onToggleProxyEnabled,
 }: ConnectionRowProps) {
   const t = useTranslations("providers");
   const emailsVisible = useEmailPrivacyStore((s) => s.emailsVisible);
@@ -703,84 +681,6 @@ export default function ConnectionRow({
                 </button>
               </>
             )}
-            {onToggleProxyEnabled && (
-              <>
-                <span className="text-text-muted/30 select-none">|</span>
-                <button
-                  onClick={() => onToggleProxyEnabled(!proxyEnabled)}
-                  aria-label={proxyEnabled ? t("proxyEnabledTitle") : t("proxyDisabledTitle")}
-                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium transition-all cursor-pointer ${
-                    proxyEnabled
-                      ? "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25"
-                      : "bg-black/[0.03] dark:bg-white/[0.03] text-text-muted/50 hover:text-text-muted hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
-                  }`}
-                  title={proxyEnabled ? t("proxyEnabledTitle") : t("proxyDisabledTitle")}
-                >
-                  <span className="material-symbols-outlined text-[13px]">vpn_lock</span>
-                  {proxyEnabled ? <span className="sr-only">{t("proxyOn")}</span> : t("proxyOff")}
-                </button>
-              </>
-            )}
-            {onTogglePerKeyProxyEnabled && (
-              <>
-                <span className="text-text-muted/30 select-none">|</span>
-                <button
-                  onClick={() => onTogglePerKeyProxyEnabled(!perKeyProxyEnabled)}
-                  aria-label={
-                    perKeyProxyEnabled
-                      ? t("perKeyProxyEnabledTitle")
-                      : t("perKeyProxyDisabledTitle")
-                  }
-                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium transition-all cursor-pointer ${
-                    perKeyProxyEnabled
-                      ? "bg-violet-500/15 text-violet-500 hover:bg-violet-500/25"
-                      : "bg-black/[0.03] dark:bg-white/[0.03] text-text-muted/50 hover:text-text-muted hover:bg-black/[0.06] dark:hover:bg-white/[0.06]"
-                  }`}
-                  title={
-                    perKeyProxyEnabled
-                      ? t("perKeyProxyEnabledTitle")
-                      : t("perKeyProxyDisabledTitle")
-                  }
-                >
-                  <span className="material-symbols-outlined text-[13px]">key</span>
-                  {perKeyProxyEnabled ? (
-                    t("perKeyProxyOn")
-                  ) : (
-                    <span className="sr-only">{t("perKeyProxyOff")}</span>
-                  )}
-                </button>
-              </>
-            )}
-            {hasProxy &&
-              (() => {
-                const colorClass =
-                  proxySource === "global"
-                    ? "bg-emerald-500/15 text-emerald-500"
-                    : proxySource === "provider"
-                      ? "bg-amber-500/15 text-amber-500"
-                      : "bg-blue-500/15 text-blue-500";
-                const label =
-                  proxySource === "global"
-                    ? t("proxySourceGlobal")
-                    : proxySource === "provider"
-                      ? t("proxySourceProvider")
-                      : t("proxySourceKey");
-                return (
-                  <>
-                    <span className="text-text-muted/30 select-none">|</span>
-                    <span
-                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium ${colorClass}`}
-                      title={t("proxyConfiguredBySource", {
-                        source: label,
-                        host: proxyHost || t("configured"),
-                      })}
-                    >
-                      <span className="material-symbols-outlined text-[13px]">vpn_lock</span>
-                      {proxyHost || t("proxy")}
-                    </span>
-                  </>
-                );
-              })()}
           </div>
         </div>
       </div>
@@ -918,13 +818,6 @@ export default function ConnectionRow({
             title={t("edit")}
           >
             <span className="material-symbols-outlined text-[18px]">edit</span>
-          </button>
-          <button
-            onClick={onProxy}
-            className="p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary"
-            title={t("proxyConfig")}
-          >
-            <span className="material-symbols-outlined text-[18px]">vpn_lock</span>
           </button>
           <button
             onClick={onDelete}

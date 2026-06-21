@@ -105,11 +105,11 @@ test("combo builder options route aggregates providers, connections, models and 
   await modelsDb.addCustomModel("openai", "custom-ops", "Custom Ops");
   await modelsDb.addCustomModel(
     "openai",
-    "text-embedding-hidden",
-    "Hidden Embedding",
+    "legacy-pruned-hidden",
+    "Hidden Pruned Model",
     "manual",
     "chat-completions",
-    ["embeddings"]
+    ["legacy-pruned"]
   );
   modelsDb.mergeModelCompatOverride("openai", "gpt-4o-mini", { isHidden: true });
 
@@ -149,7 +149,7 @@ test("combo builder options route aggregates providers, connections, models and 
   );
   assert.ok(openai.models.some((model) => model.id === "custom-ops"));
   assert.equal(
-    openai.models.some((model) => model.id === "text-embedding-hidden"),
+    openai.models.some((model) => model.id === "legacy-pruned-hidden"),
     false
   );
   assert.deepEqual(

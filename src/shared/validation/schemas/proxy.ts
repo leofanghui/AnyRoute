@@ -1,19 +1,4 @@
 import { z } from "zod";
-import {
-  ACCOUNT_FALLBACK_STRATEGY_VALUES,
-  ROUTING_STRATEGY_VALUES,
-} from "@/shared/constants/routingStrategies";
-import { SUPPORTED_BATCH_ENDPOINTS } from "@/shared/constants/batchEndpoints";
-import { MAX_REQUEST_BODY_LIMIT_MB, MIN_REQUEST_BODY_LIMIT_MB } from "@/shared/constants/bodySize";
-import { COMBO_CONFIG_MODES } from "@/shared/constants/comboConfigMode";
-import { providerAllowsOptionalApiKey } from "@/shared/constants/providers";
-import { HIDEABLE_SIDEBAR_ITEM_IDS } from "@/shared/constants/sidebarVisibility";
-import {
-  isForbiddenUpstreamHeaderName,
-  isForbiddenCustomHeaderName,
-} from "@/shared/constants/upstreamHeaders";
-import { MAX_TIMER_TIMEOUT_MS } from "@/shared/utils/runtimeTimeouts";
-
 
 export const proxyConfigSchema = z
   .object({
@@ -118,7 +103,7 @@ export const proxyRegistryFieldsSchema = z
     region: z.string().trim().max(64).nullable().optional(),
     notes: z.string().trim().max(1000).nullable().optional(),
     status: z.enum(["active", "inactive"]).optional().default("active"),
-    source: z.enum(["manual", "oneproxy", "dashboard-custom", "vercel-relay"]).optional(),
+    source: z.enum(["manual", "dashboard-custom", "vercel-relay"]).optional(),
     // Address-family egress policy (#3777): "auto" keeps the prior dual-stack behavior;
     // "ipv4"/"ipv6" pin the connection to that family (no v4 leak under an IPv6-only proxy).
     family: z.enum(["auto", "ipv4", "ipv6"]).optional().default("auto"),

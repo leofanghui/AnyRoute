@@ -124,7 +124,6 @@ export function getDefaultConnectionName(option: Pick<WizardProviderOption, "nam
 export function buildProviderSpecificData(input: {
   baseUrl?: string;
   region?: string;
-  cx?: string;
   customUserAgent?: string;
 }): Record<string, string> | null {
   const providerSpecificData = Object.fromEntries(

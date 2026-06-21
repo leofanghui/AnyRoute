@@ -1,22 +1,11 @@
 import { NextResponse } from "next/server";
-import {
-  getComboById,
-  updateCombo,
-  deleteCombo,
-  getComboByName,
-  getCombos,
-  isCloudEnabled,
-} from "@/lib/localDb";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
+import { getComboById, updateCombo, deleteCombo, getComboByName, getCombos } from "@/lib/localDb";
 import { validateCompositeTiersConfig } from "@/lib/combos/compositeTiers";
 import { normalizeComboModels } from "@/lib/combos/steps";
 import { validateComboDAG, clampComboDepth } from "@omniroute/open-sse/services/combo.ts";
 import { updateComboSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
-import { buildErrorBody } from "@omniroute/open-sse/utils/error";
-import { QUOTA_MODEL_PREFIX } from "@/lib/quota/quotaModelNaming";
 
 // GET /api/combos/[id] - Get combo by ID
 export async function GET(request, { params }) {
@@ -68,35 +57,10 @@ export async function PUT(request, { params }) {
     if (!currentCombo) {
       return NextResponse.json({ error: "Combo not found" }, { status: 404 });
     }
-    if (currentCombo.name.startsWith(QUOTA_MODEL_PREFIX)) {
-      return NextResponse.json(
-        buildErrorBody(
-          409,
-          "This combo is managed by Quota Share and cannot be edited here. Manage it from the Quota Share page."
-        ),
-        { status: 409 }
-      );
-    }
     const allCombos = await getCombos();
 
     const comboName = validation.data.name || currentCombo.name;
     const normalizedUpdate = { ...validation.data };
-    if (normalizedUpdate.compressionOverride !== undefined) {
-      const legacyCompressionOverride = normalizedUpdate.compressionOverride;
-      const nextConfig =
-        currentCombo.config &&
-        typeof currentCombo.config === "object" &&
-        !Array.isArray(currentCombo.config)
-          ? { ...currentCombo.config }
-          : {};
-      if (legacyCompressionOverride) {
-        nextConfig.compressionMode = legacyCompressionOverride;
-      } else {
-        delete nextConfig.compressionMode;
-      }
-      normalizedUpdate.config = nextConfig;
-      delete normalizedUpdate.compressionOverride;
-    }
 
     const body = normalizedUpdate.models
       ? {
@@ -143,9 +107,6 @@ export async function PUT(request, { params }) {
 
     const combo = await updateCombo(id, body);
 
-    // Auto sync to Cloud if enabled
-    await syncToCloudIfEnabled();
-
     return NextResponse.json(combo);
   } catch (error) {
     console.log("Error updating combo:", error);
@@ -164,42 +125,15 @@ export async function DELETE(request, { params }) {
     if (!existingCombo) {
       return NextResponse.json({ error: "Combo not found" }, { status: 404 });
     }
-    if (existingCombo.name.startsWith(QUOTA_MODEL_PREFIX)) {
-      return NextResponse.json(
-        buildErrorBody(
-          409,
-          "This combo is managed by Quota Share and cannot be deleted here. Manage it from the Quota Share page."
-        ),
-        { status: 409 }
-      );
-    }
     const success = await deleteCombo(id);
 
     if (!success) {
       return NextResponse.json({ error: "Combo not found" }, { status: 404 });
     }
 
-    // Auto sync to Cloud if enabled
-    await syncToCloudIfEnabled();
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.log("Error deleting combo:", error);
     return NextResponse.json({ error: "Failed to delete combo" }, { status: 500 });
-  }
-}
-
-/**
- * Sync to Cloud if enabled
- */
-async function syncToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.log("Error syncing to cloud:", error);
   }
 }

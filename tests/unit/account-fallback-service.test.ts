@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const accountFallback = await import("../../open-sse/services/accountFallback.ts");
-const accountSelector = await import("../../open-sse/services/accountSelector.ts");
 const { RateLimitReason, COOLDOWN_MS, PROVIDER_PROFILES } =
   await import("../../open-sse/config/constants.ts");
 const { getCircuitBreaker } = await import("../../src/shared/utils/circuitBreaker.ts");
@@ -14,7 +13,6 @@ const {
   filterAvailableAccounts,
   getEarliestRateLimitedUntil,
   formatRetryAfter,
-  applyErrorState,
   lockModelIfPerModelQuota,
   isModelLocked,
   getModelLockoutInfo,
@@ -33,8 +31,6 @@ const {
   isCreditsExhausted,
   CREDITS_EXHAUSTED_SIGNALS,
 } = accountFallback;
-
-const { selectAccount } = accountSelector;
 
 /** Build a full ProviderProfile from partial overrides (test helper). */
 function makeProfile(overrides: Record<string, unknown> = {}): any {
@@ -299,26 +295,6 @@ test("getEarliestRateLimitedUntil returns the shortest future cooldown and forma
 
     assert.equal(earliest, new Date(Date.now() + 30_000).toISOString());
     assert.equal(formatRetryAfter(earliest), "reset after 30s");
-  });
-});
-
-test("applyErrorState and selectAccount advance to the next account after an auth failure", () => {
-  withMockedNow(1_700_000_000_000, () => {
-    const accounts = [
-      { id: "conn-a", backoffLevel: 0 },
-      { id: "conn-b", backoffLevel: 0 },
-    ];
-
-    const firstSelection = selectAccount(accounts, "fill-first");
-    assert.equal(firstSelection.account.id, "conn-a");
-
-    const failedFirst = applyErrorState(firstSelection.account, 401, "Unauthorized", "claude");
-    assert.equal(failedFirst.status, "error");
-    assert.equal(failedFirst.lastError.reason, RateLimitReason.AUTH_ERROR);
-
-    const candidates = filterAvailableAccounts([failedFirst, accounts[1]], failedFirst.id);
-    const nextSelection = selectAccount(candidates, "fill-first");
-    assert.equal(nextSelection.account.id, "conn-b");
   });
 });
 
@@ -1288,17 +1264,17 @@ test("Gemini RPD (quota_exhausted) still triggers midnight lockout in recordMode
 });
 
 // ─── G-02: X-Omni-Fallback-Hint: connection_cooldown ─────────────────────────
-// When 9router executor signals a supervisor-not-running 503, checkFallbackError
+// When a local/session readiness failure signals a 503, checkFallbackError
 // must return 5s cooldown with skipProviderBreaker:true — not trip the circuit breaker.
 
 test("G-02: X-Omni-Fallback-Hint connection_cooldown on 503 returns 5s cooldown + skipProviderBreaker", () => {
   const headers = new Headers({ "X-Omni-Fallback-Hint": "connection_cooldown" });
   const result = checkFallbackError(
     503,
-    "9router is not running (state: stopped)",
+    "local session is not ready",
     0,
     null,
-    "9router",
+    "gemini-web",
     headers
   );
   assert.equal(result.shouldFallback, true);
@@ -1313,10 +1289,10 @@ test("G-02: X-Omni-Fallback-Hint connection_cooldown header lookup is case-insen
   const headers: Record<string, string> = { "x-omni-fallback-hint": "connection_cooldown" };
   const result = checkFallbackError(
     503,
-    "9router is not running (state: stopped)",
+    "local session is not ready",
     0,
     null,
-    "9router",
+    "gemini-web",
     headers
   );
   assert.equal(result.skipProviderBreaker, true);
@@ -1326,7 +1302,7 @@ test("G-02: X-Omni-Fallback-Hint connection_cooldown header lookup is case-insen
 test("G-02: hint header is ignored for non-503 status codes", () => {
   const headers = new Headers({ "X-Omni-Fallback-Hint": "connection_cooldown" });
   // 502 should NOT trigger the hint path even if the header is present
-  const result = checkFallbackError(502, "bad gateway", 0, null, "9router", headers);
+  const result = checkFallbackError(502, "bad gateway", 0, null, "gemini-web", headers);
   assert.equal(result.skipProviderBreaker, undefined); // normal path, no skip flag
 });
 
@@ -1343,10 +1319,10 @@ test("G-02: five consecutive 503 service_not_running do NOT trip provider circui
   for (let i = 0; i < 5; i++) {
     const result = checkFallbackError(
       503,
-      "9router is not running (state: stopped)",
+      "local session is not ready",
       0,
       null,
-      "9router",
+      "gemini-web",
       headers
     );
     assert.equal(
@@ -1355,14 +1331,14 @@ test("G-02: five consecutive 503 service_not_running do NOT trip provider circui
       `call ${i + 1} should have skipProviderBreaker:true`
     );
   }
-  // Verify the circuit breaker for 9router is NOT open after those 5 calls
+  // Verify the circuit breaker for the provider is NOT open after those 5 calls
   const { isProviderInCooldown, clearProviderFailure } = accountFallback;
   assert.equal(
-    isProviderInCooldown("9router"),
+    isProviderInCooldown("gemini-web"),
     false,
-    "9router circuit breaker must remain closed"
+    "provider circuit breaker must remain closed"
   );
-  clearProviderFailure("9router"); // cleanup
+  clearProviderFailure("gemini-web"); // cleanup
 });
 
 test("recordModelLockoutFailure caps cooldown at BACKOFF_CONFIG.max to prevent absurdly long lockouts", () => {

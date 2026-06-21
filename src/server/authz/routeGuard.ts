@@ -26,17 +26,7 @@ import { getAuthzBypassSnapshot } from "@/lib/config/runtimeSettings";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1"]);
 
 export const LOCAL_ONLY_API_PREFIXES: ReadonlyArray<string> = [
-  "/api/mcp/",
-  "/api/cli-tools/runtime/",
-  "/api/services/", // T-10: embedded service lifecycle (spawn child processes)
-  "/dashboard/providers/services/", // T-07: reverse proxy to embedded service UIs
-  "/api/copilot/", // unauthenticated LLM driver — CLI-only by default; admins can opt-in to remote access via manage-scope bypass
-  "/api/tools/agent-bridge/", // AgentBridge: spawns MITM server + DNS edits (Hard Rules #15 + #17)
-  "/api/tools/traffic-inspector/", // Traffic Inspector: http-proxy listener + system proxy (Hard Rules #15 + #17)
-  "/api/plugins/", // plugins: load/execute via worker_threads + child_process (Hard Rules #15 + #17)
-  "/api/plugins", // bare path: GET list + POST install also trigger plugin loading
   "/api/system/version", // auto-update: spawns git checkout + npm install — RCE-via-tunnel surface (Hard Rules #15 + #17, found by 6A.8 route-guard gate)
-  "/api/db-backups/exportAll", // spawns tar for export archive (Hard Rules #15 + #17, found by 6A.8 route-guard gate)
 ];
 
 /**
@@ -70,13 +60,7 @@ export const LOCAL_ONLY_API_PATTERNS: ReadonlyArray<RegExp> = [
  *      malformed DB row somehow claims a spawn-capable path is bypassable,
  *      the policy still refuses to honour it.
  */
-export const SPAWN_CAPABLE_PREFIXES: ReadonlyArray<string> = [
-  "/api/cli-tools/runtime/",
-  "/api/services/", // T-10: can run npm install + spawn node processes
-  "/api/tools/agent-bridge/", // start/stop MITM server + DNS edits (Hard Rules #15 + #17)
-  "/api/tools/traffic-inspector/", // http-proxy listener + system proxy (Hard Rules #15 + #17)
-  "/api/plugins/", // plugins: load/execute via worker_threads + child_process (Hard Rules #15 + #17)
-];
+export const SPAWN_CAPABLE_PREFIXES: ReadonlyArray<string> = ["/api/system/version"];
 
 /**
  * Compile-time default of the manage-scope bypass list. Kept as an exported
@@ -87,11 +71,9 @@ export const SPAWN_CAPABLE_PREFIXES: ReadonlyArray<string> = [
  * consult this constant — it reads `getAuthzBypassSnapshot().prefixes`,
  * which is hot-reloaded on every settings PATCH.
  */
-export const LOCAL_ONLY_MANAGE_SCOPE_BYPASS_PREFIXES: ReadonlyArray<string> = ["/api/mcp/"];
 
 export const ALWAYS_PROTECTED_API_PATHS: ReadonlyArray<string> = [
   "/api/shutdown",
-  "/api/providers/health-autopilot/actions",
   "/api/settings/database",
 ];
 
@@ -183,9 +165,9 @@ export function isLocalOnlyBypassableByManageScope(path: string): boolean {
   return snapshot.prefixes.some((p) => {
     // Defence-in-depth: reject a bypass prefix that is the same as, child of,
     // OR PARENT of any spawn-capable prefix. The parent case catches e.g.
-    // `/api/cli-tools/` (parent of `/api/cli-tools/runtime/`) — a request to
-    // `/api/cli-tools/runtime/foo` would otherwise satisfy `path.startsWith(p)`
-    // and reach the spawn-capable surface without a loopback check.
+    // `/api/system/` (parent of `/api/system/version`) so a request to
+    // `/api/system/version` cannot reach the spawn-capable surface without a
+    // loopback check.
     if (
       SPAWN_CAPABLE_PREFIXES.some(
         (spawn) => p === spawn || p.startsWith(spawn) || spawn.startsWith(p)

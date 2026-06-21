@@ -79,7 +79,6 @@ export default function AddApiKeyModal({
   const isCloudflare = provider === "cloudflare-ai";
   const localProviderMetadata = getLocalProviderMetadata(provider);
   const isLocalSelfHostedProvider = !!localProviderMetadata;
-  const isGooglePse = provider === "google-pse-search";
   const webSessionCredential = getWebSessionCredentialRequirement(provider);
   const isNoAuthWebSessionCredential = webSessionCredential?.kind === "none";
   const isWebSessionCredential = !!webSessionCredential && webSessionCredential.kind !== "none";
@@ -103,7 +102,6 @@ export default function AddApiKeyModal({
     apiKey: "",
     priority: 1,
     baseUrl: initialBaseUrl || defaultBaseUrl,
-    cx: "",
     region: showsRegion ? defaultRegion : "",
     apiRegion: "international",
     validationModelId: "",
@@ -196,7 +194,6 @@ export default function AddApiKeyModal({
           customUserAgent: formData.customUserAgent.trim() || undefined,
           baseUrl: formData.baseUrl.trim() || undefined,
           region: showsRegion ? formData.region.trim() || defaultRegion : undefined,
-          cx: formData.cx.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -227,11 +224,6 @@ export default function AddApiKeyModal({
     setSaving(true);
     setSaveError(null);
     try {
-      if (isGooglePse && !formData.cx.trim()) {
-        setSaveError(t("searchEngineIdRequired"));
-        return;
-      }
-
       let validatedBaseUrl = null;
       if (usesBaseUrl) {
         const checked = normalizeAndValidateHttpBaseUrl(formData.baseUrl, defaultBaseUrl);
@@ -258,7 +250,6 @@ export default function AddApiKeyModal({
               customUserAgent: formData.customUserAgent.trim() || undefined,
               baseUrl: formData.baseUrl.trim() || undefined,
               region: showsRegion ? formData.region.trim() || defaultRegion : undefined,
-              cx: formData.cx.trim() || undefined,
             }),
           });
           const data = await res.json();
@@ -302,9 +293,6 @@ export default function AddApiKeyModal({
       }
       if (provider === "bailian-coding-plan" && formData.consoleApiKey.trim()) {
         providerSpecificData.consoleApiKey = formData.consoleApiKey.trim();
-      }
-      if (isGooglePse && formData.cx.trim()) {
-        providerSpecificData.cx = formData.cx.trim();
       }
       if (usesBaseUrl) {
         providerSpecificData.baseUrl = validatedBaseUrl;
@@ -657,10 +645,7 @@ export default function AddApiKeyModal({
                   <Button
                     onClick={handleValidate}
                     disabled={
-                      (!isCompatible && !apiKeyOptional && !formData.apiKey) ||
-                      (isGooglePse && !formData.cx.trim()) ||
-                      validating ||
-                      saving
+                      (!isCompatible && !apiKeyOptional && !formData.apiKey) || validating || saving
                     }
                     variant="secondary"
                   >
@@ -672,15 +657,6 @@ export default function AddApiKeyModal({
                   </Button>
                 </div>
               </div>
-            )}
-            {isGooglePse && (
-              <Input
-                label={t("searchEngineIdLabel")}
-                value={formData.cx}
-                onChange={(e) => setFormData({ ...formData, cx: e.target.value })}
-                placeholder="012345678901234567890:abc123xyz"
-                hint={t("searchEngineIdHint")}
-              />
             )}
             {validationResult && (
               <Badge variant={validationResult === "success" ? "success" : "error"}>
@@ -846,7 +822,6 @@ export default function AddApiKeyModal({
                 disabled={
                   !formData.name ||
                   (!isCompatible && !apiKeyOptional && !formData.apiKey) ||
-                  (isGooglePse && !formData.cx.trim()) ||
                   saving ||
                   (usesBaseUrl && !formData.baseUrl.trim() && !defaultBaseUrl)
                 }

@@ -82,13 +82,6 @@ async function installProviderFetchMock(page: Page) {
         return jsonResponse({ success: true });
       }
 
-      if (path === "/api/settings/proxy") {
-        if (url.searchParams.has("resolve")) {
-          return jsonResponse({ proxy: null, level: null });
-        }
-        return jsonResponse({ providers: {} });
-      }
-
       if (path === "/api/provider-models") {
         return jsonResponse({
           models: [],
@@ -272,7 +265,9 @@ test.describe("Providers management", () => {
     // and shows a Close button. Dismiss it before interacting with the connection list.
     const importDialog = page.getByRole("dialog");
     // The Modal renders two "Close" elements (header X + footer button) — use .first()
-    await expect(importDialog.getByRole("button", { name: "Close" }).first()).toBeVisible({ timeout: 15_000 });
+    await expect(importDialog.getByRole("button", { name: "Close" }).first()).toBeVisible({
+      timeout: 15_000,
+    });
     await importDialog.getByRole("button", { name: "Close" }).first().click();
     await expect(importDialog).not.toBeVisible();
 

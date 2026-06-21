@@ -3,7 +3,6 @@ import fsSync from "fs";
 import os from "os";
 import path from "path";
 import { spawn, execFileSync } from "child_process";
-import { getHermesHome } from "@/lib/cli-helper/config-generator/hermesHome";
 import { getCachedLoginShellPath, mergeShellPath } from "./loginShellPath";
 
 const VALID_RUNTIME_MODES = new Set(["auto", "host", "container"]);
@@ -30,65 +29,6 @@ const CLI_TOOLS: Record<string, any> = {
       auth: ".codex/auth.json",
     },
   },
-  droid: {
-    defaultCommand: "droid",
-    envBinKey: "CLI_DROID_BIN",
-    requiresBinary: true,
-    // Droid CLI can be slow on some environments; 4s was causing false negatives.
-    healthcheckTimeoutMs: 8000,
-    paths: {
-      settings: ".factory/settings.json",
-    },
-  },
-  openclaw: {
-    defaultCommand: "openclaw",
-    envBinKey: "CLI_OPENCLAW_BIN",
-    requiresBinary: true,
-    // openclaw CLI may take >4s on cold start in containers.
-    healthcheckTimeoutMs: 15000,
-    paths: {
-      settings: ".openclaw/openclaw.json",
-    },
-  },
-  cursor: {
-    defaultCommands: ["agent", "cursor"],
-    envBinKey: "CLI_CURSOR_BIN",
-    requiresBinary: true,
-    // Cursor startup can be slower on first run in containerized host-mount mode.
-    healthcheckTimeoutMs: 15000,
-    paths: {
-      config: ".cursor/cli-config.json",
-      auth: ".config/cursor/auth.json",
-      state: ".cursor/agent-cli-state.json",
-    },
-  },
-  windsurf: {
-    defaultCommand: null,
-    envBinKey: "CLI_WINDSURF_BIN",
-    requiresBinary: false,
-    healthcheckTimeoutMs: 4000,
-    paths: {},
-  },
-  devin: {
-    defaultCommand: "devin",
-    envBinKey: "CLI_DEVIN_BIN",
-    requiresBinary: true,
-    // devin acp cold-start can take a few seconds on first run
-    healthcheckTimeoutMs: 12000,
-    paths: {
-      // %APPDATA%\devin\config.json  (Windows)
-      // ~/.config/devin/config.json  (Linux/macOS)
-      get config() {
-        return isWindows()
-          ? path.join(
-              process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming"),
-              "devin",
-              "config.json"
-            )
-          : path.join(os.homedir(), ".config", "devin", "config.json");
-      },
-    },
-  },
   cline: {
     defaultCommand: "cline",
     envBinKey: "CLI_CLINE_BIN",
@@ -98,28 +38,6 @@ const CLI_TOOLS: Record<string, any> = {
     paths: {
       globalState: ".cline/data/globalState.json",
       secrets: ".cline/data/secrets.json",
-    },
-  },
-  kilo: {
-    defaultCommand: "kilocode",
-    envBinKey: "CLI_KILO_BIN",
-    requiresBinary: true,
-    // kilocode renders an ASCII logo banner on startup which can take >4s
-    // on cold-start or low-resource environments (VPS, CI). Increase timeout
-    // to avoid false healthcheck_failed results.
-    healthcheckTimeoutMs: 15000,
-    paths: {
-      auth: ".local/share/kilo/auth.json",
-    },
-  },
-  continue: {
-    defaultCommand: null,
-    envBinKey: "CLI_CONTINUE_BIN",
-    requiresBinary: false,
-    // opencode and continue may take up to 15s on first run / cold start on VPS
-    healthcheckTimeoutMs: 15000,
-    paths: {
-      settings: ".continue/config.json",
     },
   },
   opencode: {
@@ -132,36 +50,6 @@ const CLI_TOOLS: Record<string, any> = {
       config: ".config/opencode/opencode.json",
     },
   },
-  hermes: {
-    // Original / legacy simple Hermes entry (recovered from origin/main)
-    defaultCommand: "hermes",
-    envBinKey: "CLI_HERMES_BIN",
-    requiresBinary: false,
-    healthcheckTimeoutMs: 4000,
-    paths: {
-      config: ".config/hermes/config.json",
-    },
-  },
-  "hermes-agent": {
-    // Rich first-class support for the advanced Hermes Agent (multi-role: default, delegation, auxiliary.*)
-    defaultCommand: "hermes",
-    envBinKey: "CLI_HERMES_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 4000,
-    paths: {
-      // The relative path is kept for documentation purposes; getCliConfigPaths()
-      // has a special case for hermes-agent that calls getHermesHome() instead of
-      // getCliConfigHome(), so HERMES_HOME is always honoured (#3628).
-      config: "config.yaml",
-    },
-  },
-  amp: {
-    defaultCommand: "amp",
-    envBinKey: "CLI_AMP_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 12000,
-    paths: {},
-  },
   qoder: {
     defaultCommand: "qodercli",
     envBinKey: "CLI_QODER_BIN",
@@ -170,16 +58,6 @@ const CLI_TOOLS: Record<string, any> = {
     paths: {
       config: ".qoder/settings.json",
       auth: ".qoder/auth.json",
-    },
-  },
-  qwen: {
-    defaultCommand: "qwen",
-    envBinKey: "CLI_QWEN_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 12000,
-    paths: {
-      settings: ".qwen/settings.json",
-      env: ".qwen/.env",
     },
   },
   "gemini-cli": {
@@ -191,52 +69,6 @@ const CLI_TOOLS: Record<string, any> = {
       auth: ".gemini/oauth_creds.json",
       accounts: ".gemini/google_accounts.json",
       settings: ".gemini/settings.json",
-    },
-  },
-  // ── Plan 14 — new "custom" configType tools ───────────────────────────────
-  forge: {
-    defaultCommand: "forge",
-    envBinKey: "CLI_FORGE_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 8000,
-    paths: {
-      config: ".forge/config.toml",
-    },
-  },
-  jcode: {
-    defaultCommand: "jcode",
-    envBinKey: "CLI_JCODE_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 8000,
-    paths: {
-      config: ".jcode/config.json",
-    },
-  },
-  "deepseek-tui": {
-    defaultCommand: "deepseek-tui",
-    envBinKey: "CLI_DEEPSEEK_TUI_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 8000,
-    paths: {
-      config: ".config/deepseek-tui/config.toml",
-    },
-  },
-  smelt: {
-    defaultCommand: "smelt",
-    envBinKey: "CLI_SMELT_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 8000,
-    paths: {
-      config: ".smelt/config.json",
-    },
-  },
-  pi: {
-    defaultCommand: "pi",
-    envBinKey: "CLI_PI_BIN",
-    requiresBinary: true,
-    healthcheckTimeoutMs: 8000,
-    paths: {
-      config: ".pi/config.json",
     },
   },
 };
@@ -536,26 +368,13 @@ const getKnownToolPaths = (toolId: string): string[] => {
       ["claude.exe", "claude"],
     ],
     codex: [["codex.cmd", "codex"]],
-    droid: [
-      ["droid.cmd", "droid"],
-      ["droid.exe", "droid"],
-    ],
-    openclaw: [["openclaw.cmd", "openclaw"]],
-    cursor: [
-      ["agent.cmd", "agent"],
-      ["cursor.cmd", "cursor"],
-    ],
     cline: [["cline.cmd", "cline"]],
-    kilo: [["kilocode.cmd", "kilocode"]],
     opencode: [["opencode.cmd", "opencode"]],
     qoder: [
       ["qodercli.cmd", "qodercli"],
       ["qodercli.exe", "qodercli"],
     ],
-    devin: [
-      ["devin.exe", "devin"],
-      ["devin.cmd", "devin"],
-    ],
+    "gemini-cli": [["gemini.cmd", "gemini"]],
   };
 
   const bins = toolBins[toolId] || [];
@@ -575,15 +394,6 @@ const getKnownToolPaths = (toolId: string): string[] => {
         paths.push(path.join(localAppData, "Programs", "Claude", "claude.exe"));
         paths.push(path.join(localAppData, "claude-code", "claude.exe"));
       }
-    }
-
-    if (toolId === "droid") {
-      paths.push(path.join(home, "bin", "droid.exe"));
-    }
-
-    // Devin CLI installs to %LOCALAPPDATA%\devin\cli\bin\devin.exe
-    if (toolId === "devin" && localAppData) {
-      paths.push(path.join(localAppData, "devin", "cli", "bin", "devin.exe"));
     }
 
     for (const [winName] of bins) {
@@ -622,12 +432,6 @@ const getKnownToolPaths = (toolId: string): string[] => {
       }
       if (toolId === "claude") {
         paths.push(path.join(home, ".claude", "bin", posixName));
-      }
-      // Devin CLI installs to ~/.local/share/devin/bin/devin (Linux)
-      // or via shell installer to ~/.devin/bin/devin
-      if (toolId === "devin") {
-        paths.push(path.join(home, ".local", "share", "devin", "bin", "devin"));
-        paths.push(path.join(home, ".devin", "bin", "devin"));
       }
     }
   }
@@ -970,13 +774,6 @@ export const getCliConfigPaths = (toolId: string) => {
   if (toolId === "opencode") {
     return {
       config: getOpenCodeConfigPath(),
-    };
-  }
-
-  // hermes-agent: honour HERMES_HOME env var instead of the generic CLI_CONFIG_HOME (#3628).
-  if (toolId === "hermes-agent") {
-    return {
-      config: path.join(getHermesHome(), "config.yaml"),
     };
   }
 

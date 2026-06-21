@@ -6,7 +6,7 @@
 // violation. When a developer fixes a violation, the entry in KNOWN_* must
 // also be removed — otherwise the gate silently allows the violation to
 // regress. This pattern is validated practice (ESLint --report-unused-disable-
-// directives; Notion suppression hygiene).
+// directives and similar stale-suppression checks).
 
 /**
  * Returns the subset of `allowlist` entries that do NOT appear in

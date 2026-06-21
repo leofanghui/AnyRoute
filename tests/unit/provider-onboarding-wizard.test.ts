@@ -64,12 +64,11 @@ test("provider onboarding builds providerSpecificData without empty fields", () 
     catalog.buildProviderSpecificData({
       baseUrl: " https://gateway.example/v1 ",
       region: "",
-      cx: " cx-123 ",
-      customUserAgent: "   ",
+      customUserAgent: " test-agent ",
     }),
     {
       baseUrl: "https://gateway.example/v1",
-      cx: "cx-123",
+      customUserAgent: "test-agent",
     }
   );
   assert.equal(catalog.buildProviderSpecificData({}), null);

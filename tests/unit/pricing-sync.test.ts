@@ -59,44 +59,31 @@ describe("transformToOmniRoute", () => {
     assert.strictEqual(result["gemini-cli"]["gemini-2.5-flash"].input, 0.3);
   });
 
-  test("ingests non-chat models (embedding token + image per-image)", () => {
-    // Phase 2 (cost-telemetry parity): non-chat modes are no longer skipped.
-    // Token-priced modes (embedding) are scaled to $/1M like chat; non-token
-    // modes (image) carry their per-image cost through verbatim as absolute USD.
+  test("skips pricing for pruned non-chat modes", () => {
     const raw = {
-      "openai/text-embedding-3-small": {
+      "openai/vector-small": {
         input_cost_per_token: 0.00000002,
         output_cost_per_token: 0,
         litellm_provider: "openai",
-        mode: "embedding",
+        mode: "legacy_vector",
       },
-      "openai/dall-e-3": {
+      "openai/media-model": {
         input_cost_per_token: 0,
         output_cost_per_token: 0,
         litellm_provider: "openai",
-        mode: "image_generation",
-        output_cost_per_image: 0.04,
+        mode: "legacy_media",
       },
     };
 
     const result = transformToOmniRoute(raw);
-
-    const embedding = result.openai?.["text-embedding-3-small"];
-    assert.ok(embedding, "Should ingest token-priced embedding model");
-    assert.strictEqual(embedding.input, 0.02);
-    assert.strictEqual(embedding.mode, "embedding");
-
-    const image = result.openai?.["dall-e-3"];
-    assert.ok(image, "Should ingest image model with per-image cost");
-    assert.strictEqual(image.output_cost_per_image, 0.04);
-    assert.strictEqual(image.mode, "image_generation");
+    assert.strictEqual(Object.keys(result.openai || {}).length, 0);
   });
 
-  test("skips models with no token AND no non-token pricing", () => {
+  test("skips retained-mode models with no token pricing", () => {
     const raw = {
       "openai/metadata-only": {
         litellm_provider: "openai",
-        mode: "image_generation",
+        mode: "chat",
       },
     };
 
@@ -105,7 +92,7 @@ describe("transformToOmniRoute", () => {
     assert.strictEqual(
       Object.keys(openaiModels).length,
       0,
-      "Should skip models carrying no pricing of any kind"
+      "Should skip models carrying no token pricing"
     );
   });
 

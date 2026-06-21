@@ -12,7 +12,6 @@ const getPlatformIsMac = () => {
 const getPlatformIsMacServer = () => false;
 import ThemeToggle from "./ThemeToggle";
 import TokenHealthBadge from "./TokenHealthBadge";
-import DegradationBadge from "./DegradationBadge";
 import LanguageSelector from "./LanguageSelector";
 import ProviderIcon from "./ProviderIcon";
 import { useTranslations } from "next-intl";
@@ -35,73 +34,20 @@ import { useIsElectron } from "@/shared/hooks/useElectron";
 const isE2EMode = process.env.NEXT_PUBLIC_OMNIROUTE_E2E_MODE === "1";
 
 // Map sidebar item id → header description i18n key
-// "omni-skills" is an extended key for the /dashboard/omni-skills route (graceful fallback during deploy)
-const HEADER_DESCRIPTIONS: Partial<Record<HideableSidebarItemId | "omni-skills", string>> = {
+const HEADER_DESCRIPTIONS: Partial<Record<HideableSidebarItemId, string>> = {
   home: "homeDescription",
   endpoints: "endpointDescription",
   "api-manager": "apiManagerDescription",
   providers: "providerDescription",
   combos: "comboDescription",
-  batch: "batchDescription",
-  costs: "costsDescription",
   analytics: "analyticsDescription",
-  cache: "cacheDescription",
-  quota: "limitsDescription",
-  runtime: "runtimeDescription",
-  media: "mediaDescription",
-  "cli-code": "cliToolsDescription",
-  "cli-agents": "agentsDescription",
-  "acp-agents": "agentsDescription",
-  "cloud-agents": "cloudAgentsDescription",
-  memory: "memoryDescription",
-  skills: "skillsDescription",
-  "agent-skills": "agentSkillsDescription",
-  "omni-skills": "omniSkillsDescription",
-  settings: "settingsDescription",
-  "context-caveman": "contextCavemanDescription",
-  "context-rtk": "contextRtkDescription",
-  "context-combos": "contextCombosDescription",
-  translator: "translatorDescription",
-  playground: "playgroundDescription",
-  "search-tools": "searchToolsDescription",
+  costs: "costsDescription",
   logs: "logsDescription",
-  audit: "auditDescription",
-  webhooks: "webhooksDescription",
   health: "healthDescription",
-  proxy: "proxyDescription",
-  changelog: "changelogDescription",
-  // Protocols
-  mcp: "mcpDescription",
-  a2a: "a2aDescription",
-  "api-endpoints": "apiEndpointsDescription",
-  // Agents & AI sub-pages
-  "batch-files": "batchFilesDescription",
-  // Analytics sub-pages
-  "analytics-evals": "analyticsEvalsDescription",
-  "analytics-search": "analyticsSearchDescription",
-  "analytics-utilization": "analyticsUtilizationDescription",
-  "analytics-combo-health": "analyticsComboHealthDescription",
-  "analytics-compression": "analyticsCompressionDescription",
-  // Costs sub-pages
-  "costs-budget": "costsBudgetDescription",
-  "costs-pricing": "costsPricingDescription",
-  // Logs sub-pages
-  "logs-proxy": "logsProxyDescription",
-  "logs-console": "logsConsoleDescription",
-  "logs-activity": "logsActivityDescription",
-  // Audit sub-pages
-  "audit-mcp": "auditMcpDescription",
-  // Settings sub-pages
   "settings-general": "settingsGeneralDescription",
-  "settings-appearance": "settingsAppearanceDescription",
-  "settings-ai": "settingsAiDescription",
-  "settings-security": "settingsSecurityDescription",
-  "settings-routing": "settingsRoutingDescription",
-  "settings-resilience": "settingsResilienceDescription",
-  "settings-advanced": "settingsAdvancedDescription",
-  // Proxy sub-pages
-  "mitm-proxy": "mitmProxyDescription",
-  "1proxy": "oneProxyDescription",
+  "settings-sidebar": "settingsSidebarDescription",
+  docs: "docsDescription",
+  changelog: "changelogDescription",
 };
 
 // Build href → sidebar item lookup (non-external items only)
@@ -269,7 +215,6 @@ export default function Header({
         )}
         <LanguageSelector />
         <ThemeToggle />
-        {!isE2EMode && <DegradationBadge />}
         {!isE2EMode && <TokenHealthBadge />}
         <button
           onClick={handleLogout}

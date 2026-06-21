@@ -37,26 +37,26 @@ test("appearance widget visibility settings reject non-boolean values", () => {
 });
 
 test("localOnlyManageScopeBypass settings are accepted by the settings PATCH schema", () => {
-  // Only NON-spawn-capable prefixes are acceptable. This test previously asserted
-  // that "/api/cli-tools/runtime/" was accepted — it was written against the buggy
-  // schema (the BYPASS_PREFIX_NOT_ALLOWED layer-1 refine documented in routeGuard.ts
-  // was missing) and consecrated the bug. The real contract (Hard Rules #15/#17 +
-  // authz-bypass AC-8) is covered by the rejection test below.
   const validation = updateSettingsSchema.safeParse({
     localOnlyManageScopeBypassEnabled: true,
-    localOnlyManageScopeBypassPrefixes: ["/api/mcp/"],
+    localOnlyManageScopeBypassPrefixes: ["/api/internal/codex-responses-ws/"],
   });
 
   assert.equal(validation.success, true);
   if (!validation.success) return;
   assert.equal(validation.data.localOnlyManageScopeBypassEnabled, true);
-  assert.deepEqual(validation.data.localOnlyManageScopeBypassPrefixes, ["/api/mcp/"]);
+  assert.deepEqual(validation.data.localOnlyManageScopeBypassPrefixes, [
+    "/api/internal/codex-responses-ws/",
+  ]);
 });
 
 test("localOnlyManageScopeBypassPrefixes rejects spawn-capable prefixes (BYPASS_PREFIX_NOT_ALLOWED)", () => {
   const validation = updateSettingsSchema.safeParse({
     localOnlyManageScopeBypassEnabled: true,
-    localOnlyManageScopeBypassPrefixes: ["/api/mcp/", "/api/cli-tools/runtime/"],
+    localOnlyManageScopeBypassPrefixes: [
+      "/api/internal/codex-responses-ws/",
+      "/api/system/version",
+    ],
   });
 
   assert.equal(validation.success, false);
@@ -77,7 +77,7 @@ test("localOnlyManageScopeBypassEnabled rejects non-boolean values", () => {
 
 test("localOnlyManageScopeBypassPrefixes rejects non-array values", () => {
   const validation = updateSettingsSchema.safeParse({
-    localOnlyManageScopeBypassPrefixes: "/api/mcp/",
+    localOnlyManageScopeBypassPrefixes: "/api/internal/codex-responses-ws/",
   });
 
   assert.equal(validation.success, false);

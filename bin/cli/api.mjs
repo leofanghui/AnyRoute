@@ -27,8 +27,7 @@ export function getBaseUrl(opts = {}) {
   if (envUrl) return stripTrailingSlash(envUrl);
 
   // Resolve from the active context (canonical store + legacy profile fallback).
-  // This is what makes "remote mode" work: `omniroute contexts use <remote>`
-  // routes every command at the remote server's baseUrl.
+  // This lets `omniroute contexts use <name>` route commands at another server.
   try {
     const ctx = resolveActiveContext(opts.context ?? process.env.OMNIROUTE_CONTEXT);
     if (ctx?.baseUrl) return stripTrailingSlash(ctx.baseUrl);
@@ -59,13 +58,12 @@ export async function buildHeaders(opts) {
     headers.set("content-type", "application/json");
   }
   // Auth precedence: explicit opts/env → active context. Within a context the
-  // scoped accessToken wins over the legacy apiKey. This routes the active
-  // context's credential to the (possibly remote) server automatically.
+  // active context's API key is used when no explicit credential is present.
   let auth = opts.apiKey ?? process.env.OMNIROUTE_API_KEY;
   if (!auth) {
     try {
       const ctx = resolveActiveContext(opts.context ?? process.env.OMNIROUTE_CONTEXT);
-      auth = ctx?.accessToken || ctx?.apiKey || null;
+      auth = ctx?.apiKey || null;
     } catch {
       // No context credential available — continue unauthenticated.
     }

@@ -63,7 +63,6 @@ test("store then retrieve returns the cached entry (cache hit)", async () => {
   assert.ok(entry, "entry should exist");
   assert.deepEqual(entry!.bytes, payload);
   assert.equal(entry!.mime, "image/jpeg");
-  assert.ok(typeof entry!.bytesSha256 === "string" && entry!.bytesSha256.length === 64);
   __resetChatGptImageCacheForTesting();
 });
 

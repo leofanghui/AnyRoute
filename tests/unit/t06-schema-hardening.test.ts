@@ -6,9 +6,6 @@ import {
   translatorSendSchema,
   translatorTranslateSchema,
   cliSettingsEnvSchema,
-  v1EmbeddingsSchema,
-  providerChatCompletionSchema,
-  v1CountTokensSchema,
   intelligenceSyncRequestSchema,
   pricingSyncRequestSchema,
   updateTaskRoutingSchema,
@@ -64,57 +61,6 @@ test("cliSettingsEnvSchema rejects invalid key format", () => {
     env: {
       "anthropic-base-url": "https://example.com/v1",
     },
-  });
-  assert.equal(validation.success, false);
-});
-
-test("v1EmbeddingsSchema accepts string and token-array inputs", () => {
-  const withString = validateBody(v1EmbeddingsSchema, {
-    model: "openai/text-embedding-3-small",
-    input: "hello world",
-  });
-  assert.equal(withString.success, true);
-
-  const withTokenArray = validateBody(v1EmbeddingsSchema, {
-    model: "openai/text-embedding-3-small",
-    input: [101, 102, 103],
-  });
-  assert.equal(withTokenArray.success, true);
-});
-
-test("v1EmbeddingsSchema rejects empty embedding input", () => {
-  const validation = validateBody(v1EmbeddingsSchema, {
-    model: "openai/text-embedding-3-small",
-    input: [],
-  });
-  assert.equal(validation.success, false);
-});
-
-test("providerChatCompletionSchema requires model", () => {
-  const validation = validateBody(providerChatCompletionSchema, {
-    messages: [{ role: "user", content: "hello" }],
-  });
-  assert.equal(validation.success, false);
-});
-
-test("providerChatCompletionSchema requires at least one message/input/prompt field", () => {
-  const validation = validateBody(providerChatCompletionSchema, {
-    model: "openai/gpt-4o-mini",
-  });
-  assert.equal(validation.success, false);
-});
-
-test("providerChatCompletionSchema accepts valid message payload", () => {
-  const validation = validateBody(providerChatCompletionSchema, {
-    model: "openai/gpt-4o-mini",
-    messages: [{ role: "user", content: "hello" }],
-  });
-  assert.equal(validation.success, true);
-});
-
-test("v1CountTokensSchema rejects empty messages", () => {
-  const validation = validateBody(v1CountTokensSchema, {
-    messages: [],
   });
   assert.equal(validation.success, false);
 });

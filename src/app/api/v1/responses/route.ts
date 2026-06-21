@@ -1,7 +1,6 @@
 import { handleChat } from "@/sse/handlers/chat";
 import { withEarlyStreamKeepalive } from "@omniroute/open-sse/utils/earlyStreamKeepalive";
 import { withInjectionGuard } from "@/middleware/promptInjectionGuard";
-import { resolveResponsesApiModel } from "@/app/api/internal/codex-responses-ws/modelResolution";
 import { getModelInfo } from "@/sse/services/model";
 import { getComboByName } from "@/lib/db/combos";
 import { resolveKeepaliveThreshold } from "@omniroute/open-sse/utils/keepaliveThreshold";
@@ -14,6 +13,38 @@ import { resolveKeepaliveThreshold } from "@omniroute/open-sse/utils/keepaliveTh
 // certain Node APIs used by the translator bootstrap are not available.
 // The translators are always initialized via the open-sse side (chatCore),
 // so /v1/responses just delegates to handleChat which handles everything.
+
+interface ResolvedModelInfo {
+  provider?: string;
+  model?: string;
+}
+
+async function resolveResponsesApiModel(
+  requestedModel: string,
+  isCombo?: (name: string) => Promise<boolean> | boolean
+): Promise<{ model: string; changed: boolean }> {
+  if (!requestedModel || requestedModel.includes("/") || requestedModel === "auto") {
+    return { model: requestedModel, changed: false };
+  }
+
+  if (isCombo) {
+    try {
+      if (await isCombo(requestedModel)) return { model: requestedModel, changed: false };
+    } catch {
+      // Combo lookup is best-effort; fall through to codex preference.
+    }
+  }
+
+  try {
+    const resolved = (await getModelInfo(`codex/${requestedModel}`)) as ResolvedModelInfo;
+    if (resolved?.provider !== "codex") {
+      return { model: requestedModel, changed: false };
+    }
+    return { model: `codex/${resolved.model || requestedModel}`, changed: true };
+  } catch {
+    return { model: requestedModel, changed: false };
+  }
+}
 
 export async function OPTIONS() {
   return new Response(null, {
@@ -42,7 +73,6 @@ export async function withCodexPreferredModel(request: Request): Promise<Request
     }
     const { model, changed } = await resolveResponsesApiModel(
       body.model,
-      getModelInfo,
       async (name) => !!(await getComboByName(name))
     );
     if (!changed) return request;
@@ -74,10 +104,12 @@ async function postHandler(request, context) {
     // to produce the first byte, so use a longer keepalive threshold (15s vs 2s).
     let model;
     try {
-      const body = await resolved.clone().json().catch(() => null);
+      const body = await resolved
+        .clone()
+        .json()
+        .catch(() => null);
       model = body?.model;
-    } catch {
-    }
+    } catch {}
     const thresholdMs = resolveKeepaliveThreshold(model);
     return await withEarlyStreamKeepalive(handleChat(resolved), {
       signal: request.signal,

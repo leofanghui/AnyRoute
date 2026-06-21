@@ -106,7 +106,6 @@ export async function registerNodejs(): Promise<void> {
     { initGracefulShutdown },
     { initApiBridgeServer },
     { startBackgroundRefresh },
-    { ensureCloudSyncInitialized },
     { startProviderLimitsSyncScheduler },
     { getSettings },
     { applyRuntimeSettings },
@@ -114,13 +113,10 @@ export async function registerNodejs(): Promise<void> {
     { startSpendBatchWriter },
     { registerDefaultGuardrails },
     { ensurePersistentManagementPasswordHash },
-    { skillExecutor },
-    { registerBuiltinSkills },
   ] = await Promise.all([
     import("@/lib/gracefulShutdown"),
     import("@/lib/apiBridgeServer"),
     import("@/domain/quotaCache"),
-    import("@/lib/initCloudSync"),
     import("@/shared/services/providerLimitsSyncScheduler"),
     import("@/lib/db/settings"),
     import("@/lib/config/runtimeSettings"),
@@ -128,30 +124,19 @@ export async function registerNodejs(): Promise<void> {
     import("@/lib/spend/batchWriter"),
     import("@/lib/guardrails"),
     import("@/lib/auth/managementPassword"),
-    import("@/lib/skills/executor"),
-    import("@/lib/skills/builtins"),
   ]);
 
   initGracefulShutdown();
   initApiBridgeServer();
   startSpendBatchWriter();
   registerDefaultGuardrails();
-  registerBuiltinSkills(skillExecutor);
   console.log("[STARTUP] Spend batch writer started");
   console.log("[STARTUP] Guardrail registry initialized");
-  console.log("[STARTUP] Builtin skill handlers registered");
   if (!isBackgroundServicesDisabled()) {
     startBackgroundRefresh();
     console.log("[STARTUP] Quota cache background refresh started");
     startProviderLimitsSyncScheduler();
     console.log("[STARTUP] Provider limits sync scheduler started");
-    const cloudSyncInitialized = await ensureCloudSyncInitialized();
-    console.log(
-      `[STARTUP] Cloud/model sync background bootstrap ${cloudSyncInitialized ? "initialized" : "skipped"}`
-    );
-    const { initBatchProcessor } = await import("@omniroute/open-sse/services/batchProcessor");
-    initBatchProcessor();
-    console.log("[STARTUP] Batch processor started");
   }
 
   try {
@@ -199,15 +184,6 @@ export async function registerNodejs(): Promise<void> {
       console.log(
         `[STARTUP] Migrated Codex connection defaults for ${migration.updatedConnectionIds.length} connection(s)`
       );
-      if (settings.cloudEnabled === true) {
-        const [{ syncToCloud }, { getConsistentMachineId }] = await Promise.all([
-          import("@/lib/cloudSync"),
-          import("@/shared/utils/machineId"),
-        ]);
-        const machineId = await getConsistentMachineId();
-        await syncToCloud(machineId);
-        console.log("[STARTUP] Synced migrated Codex connection defaults to cloud");
-      }
     }
 
     startRuntimeConfigHotReload();
@@ -227,8 +203,7 @@ export async function registerNodejs(): Promise<void> {
       cleanup.deletedCallLogs ||
       cleanup.deletedProxyLogs ||
       cleanup.deletedRequestDetailLogs ||
-      cleanup.deletedAuditLogs ||
-      cleanup.deletedMcpAuditLogs
+      cleanup.deletedAuditLogs
     ) {
       console.log("[COMPLIANCE] Expired log cleanup:", cleanup);
     }
@@ -241,42 +216,11 @@ export async function registerNodejs(): Promise<void> {
 
   if (!isBackgroundServicesDisabled()) {
     try {
-      const { bootstrapEmbeddedServices } = await import("@/lib/services/bootstrap");
-      await bootstrapEmbeddedServices();
-      console.log("[STARTUP] Embedded services bootstrap complete");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn("[STARTUP] Embedded services bootstrap failed (non-fatal):", msg);
-    }
-
-    try {
-      const { initEmbedWsProxy } = await import("@/lib/services/embedWsProxy");
-      initEmbedWsProxy();
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn("[STARTUP] Embed WS proxy failed to start (non-fatal):", msg);
-    }
-
-    try {
       const { autoRefreshDaemon } = await import("@omniroute/open-sse/services/autoRefreshDaemon");
       autoRefreshDaemon.start();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn("[STARTUP] Auto-refresh daemon failed to start (non-fatal):", msg);
-    }
-
-    try {
-      // Arena ELO sync: model intelligence from the Arena AI leaderboard, powering the
-      // Free Provider Rankings page. On by default; configurable from Dashboard Feature Flags.
-      // Non-blocking — the initial sync is fire-and-forget and never fatal.
-      const { initArenaEloSync } = await import("@/lib/arenaEloSync");
-      const started = await initArenaEloSync();
-      if (started) {
-        console.log("[STARTUP] Arena ELO sync initialized");
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn("[STARTUP] Arena ELO sync failed to start (non-fatal):", msg);
     }
 
     // Pricing sync: opt-in external pricing data (self-gated by PRICING_SYNC_ENABLED inside

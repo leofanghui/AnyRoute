@@ -232,8 +232,7 @@ export async function ensureGitTagExists(
 export function buildNpmUpdateScript(latest: string): string {
   return [
     "set -eu",
-    // --include=optional keeps the optionalDependencies (better-sqlite3, keytar,
-    // tls-client, and the llmlingua SLM stack) installed on every update so an
+    // --include=optional keeps runtime optionalDependencies installed on every update so an
     // `omit=optional` config / .npmrc cannot silently drop them.
     `npm install -g omniroute@${latest} --include=optional --ignore-scripts --legacy-peer-deps`,
     "if command -v pm2 >/dev/null 2>&1; then",

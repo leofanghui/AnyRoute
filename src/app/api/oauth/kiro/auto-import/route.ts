@@ -6,11 +6,8 @@ import {
   createProviderConnection,
   getProviderConnections,
   updateProviderConnection,
-  isCloudEnabled,
   resolveProxyForProvider,
 } from "@/models";
-import { syncToCloud } from "@/lib/cloudSync";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
 import { KiroService } from "@/lib/oauth/services/kiro";
 import { runWithProxyContext } from "@omniroute/open-sse/utils/proxyFetch.ts";
 
@@ -395,11 +392,6 @@ async function saveAndRespond(
         providerSpecificData,
         testStatus: "active",
       } as any);
-    }
-
-    if (isCloudEnabled()) {
-      const machineId = await getConsistentMachineId();
-      await syncToCloud(machineId).catch(() => {});
     }
 
     return NextResponse.json({

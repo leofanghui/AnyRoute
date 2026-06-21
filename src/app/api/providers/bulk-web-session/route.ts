@@ -4,9 +4,7 @@ import {
   getProviderAuditTarget,
   summarizeProviderConnectionForAudit,
 } from "@/lib/compliance/providerAudit";
-import { createProviderConnection, isCloudEnabled } from "@/models";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
+import { createProviderConnection } from "@/models";
 import { bulkWebSessionImportSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { sanitizeProviderSpecificDataForResponse } from "@/lib/providers/requestDefaults";
@@ -59,10 +57,7 @@ export async function POST(request: Request) {
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
     try {
-      const providerSpecificData = buildProviderSpecificData(
-        requirement,
-        entry.credential
-      );
+      const providerSpecificData = buildProviderSpecificData(requirement, entry.credential);
 
       if (!hasUsableWebSessionCredential(provider, providerSpecificData)) {
         throw new Error(
@@ -113,10 +108,6 @@ export async function POST(request: Request) {
         message: sanitizeErrorMessage(err) || "Failed to create connection",
       });
     }
-  }
-
-  if (created.length > 0) {
-    await syncToCloudIfEnabled();
   }
 
   logAuditEvent({
@@ -171,15 +162,4 @@ function buildProviderSpecificData(
   }
 
   return data;
-}
-
-async function syncToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    // cloud sync is best-effort — ignore errors
-  }
 }

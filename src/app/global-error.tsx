@@ -47,11 +47,11 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
               Try Again
             </button>
             <a
-              href="/status"
+              href="/dashboard/health"
               className="px-8 py-3 rounded-[10px] text-sm font-semibold border border-[var(--color-border)] hover:bg-[var(--color-bg-alt)] no-underline focus:outline-2 focus:outline-offset-2 focus:outline-primary"
-              aria-label="Open system status"
+              aria-label="Open health dashboard"
             >
-              System Status
+              Health Dashboard
             </a>
           </div>
         </main>

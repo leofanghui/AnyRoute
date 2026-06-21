@@ -4,17 +4,14 @@ import * as toolDetector from "../../../src/lib/cli-helper/tool-detector.ts";
 
 describe("tool-detector", () => {
   before(() => {
-    // Install mock exec implementation for deterministic testing
+    // Install mock exec implementation for deterministic testing.
     // @ts-expect-error - internal test hook
     toolDetector.__setExecFileImpl(async (cmd) => {
       if (cmd === "opencode") {
         return { stdout: "v1.0.0\n" };
       }
-      if (cmd === "hermes") {
-        return { stdout: "v0.75.3\n" };
-      }
-      if (cmd === "openclaw") {
-        return { stdout: "v0.3.1\n" };
+      if (cmd === "codex") {
+        return { stdout: "codex-cli 0.1.0\n" };
       }
       if (cmd === "which") {
         return { stdout: "/usr/local/bin/opencode\n" };
@@ -29,7 +26,7 @@ describe("tool-detector", () => {
       assert.strictEqual(result, null);
     });
 
-    it("returns DetectedTool object for installed tool", async () => {
+    it("returns DetectedTool object for OpenCode", async () => {
       const result = await toolDetector.detectTool("opencode");
       assert.ok(result !== null);
       assert.strictEqual(result!.id, "opencode");
@@ -40,57 +37,22 @@ describe("tool-detector", () => {
       assert.strictEqual(typeof result!.configured, "boolean");
     });
 
-    it("returns DetectedTool object for Hermes with the Hermes config path", async () => {
-      const result = await toolDetector.detectTool("hermes");
+    it("returns DetectedTool object for Codex", async () => {
+      const result = await toolDetector.detectTool("codex");
       assert.ok(result !== null);
-      assert.strictEqual(result!.id, "hermes");
-      assert.strictEqual(result!.name, "Hermes");
+      assert.strictEqual(result!.id, "codex");
+      assert.strictEqual(result!.name, "Codex CLI");
       assert.strictEqual(result!.installed, true);
-      assert.strictEqual(result!.version, "0.75.3");
-      assert.ok(result!.configPath.includes(".hermes/config.yaml"));
-      assert.strictEqual(typeof result!.configured, "boolean");
-    });
-
-    // Regression test for #2833 — openclaw was missing from TOOLS array
-    it("returns DetectedTool object for openclaw with the openclaw config path", async () => {
-      const result = await toolDetector.detectTool("openclaw");
-      assert.ok(result !== null, "detectTool('openclaw') must not return null");
-      assert.strictEqual(result!.id, "openclaw");
-      assert.strictEqual(result!.name, "OpenClaw");
-      assert.strictEqual(result!.installed, true);
-      assert.strictEqual(result!.version, "0.3.1");
-      assert.ok(
-        result!.configPath.includes(".openclaw/openclaw.json"),
-        `expected configPath to include '.openclaw/openclaw.json', got: ${result!.configPath}`,
-      );
+      assert.strictEqual(result!.version, "codex-cli 0.1.0");
+      assert.ok(result!.configPath.includes(".codex/config.yaml"));
       assert.strictEqual(typeof result!.configured, "boolean");
     });
   });
 
   describe("detectAllTools", () => {
-    it("returns array (may be empty if tools not installed)", async () => {
+    it("returns only retained minimal config tools", async () => {
       const tools = await toolDetector.detectAllTools();
-      assert.ok(Array.isArray(tools));
-      // All items must pass shape check
-      for (const t of tools) {
-        assert.ok(t.id);
-        assert.ok(t.name);
-        assert.strictEqual(typeof t.installed, "boolean");
-        assert.ok("configPath" in t);
-        assert.ok("configured" in t);
-      }
-    });
-
-    // Regression test for #2833 — openclaw must appear in detectAllTools()
-    it("includes openclaw in the detected tools list", async () => {
-      const tools = await toolDetector.detectAllTools();
-      const openclaw = tools.find((t) => t.id === "openclaw");
-      assert.ok(openclaw !== undefined, "detectAllTools() must include an entry with id='openclaw'");
-      assert.strictEqual(openclaw!.name, "OpenClaw");
-      assert.ok(
-        openclaw!.configPath.includes(".openclaw/openclaw.json"),
-        `expected configPath to include '.openclaw/openclaw.json', got: ${openclaw!.configPath}`,
-      );
+      assert.deepStrictEqual(tools.map((t) => t.id).sort(), ["codex", "opencode"]);
     });
   });
 });

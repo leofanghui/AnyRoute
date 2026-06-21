@@ -271,7 +271,7 @@ Releases are published to GitHub Releases (`diegosouzapw/OmniRoute`), which is a
 
 ## See Also
 
-- [SETUP_GUIDE.md](./SETUP_GUIDE.md)
-- [RELEASE_CHECKLIST.md](../ops/RELEASE_CHECKLIST.md)
+- [Docs Index](../README.md)
+- [Quick Start](../getting-started/QUICK-START.md)
 - Source: `electron/main.js`, `electron/preload.js`, `electron/package.json`
 - Helpers: `scripts/build/prepare-electron-standalone.mjs`, `scripts/dev/smoke-electron-packaged.mjs`

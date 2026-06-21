@@ -27,19 +27,18 @@ test("open.mjs pode ser importado sem erro", async () => {
 
 test("RESOURCES inclui todos os recursos principais", async () => {
   const resources = [
+    "home",
+    "endpoint",
     "combos",
     "providers",
     "api-manager",
-    "cli-tools",
-    "agents",
+    "analytics",
+    "costs",
     "settings",
     "logs",
-    "memory",
-    "skills",
-    "evals",
-    "audit",
-    "cost",
-    "resilience",
+    "health",
+    "docs",
+    "changelog",
   ];
   const mod = await import("../../bin/cli/commands/open.mjs");
   assert.equal(typeof mod.registerOpen, "function");
@@ -68,7 +67,7 @@ test("URL de combo com nome usa path /dashboard/combos/<name>", () => {
 
 test("URL de settings com section usa path /dashboard/settings/<section>", () => {
   const base = "http://localhost:20128";
-  const section = "memory";
+  const section = "general";
   const url = `${base}/dashboard/settings/${encodeURIComponent(section)}`;
-  assert.ok(url.includes("/dashboard/settings/memory"));
+  assert.ok(url.includes("/dashboard/settings/general"));
 });

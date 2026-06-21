@@ -1,27 +1,16 @@
 // Provider definitions
 
 /**
- * Service kind — declarative tag for what a provider can do beyond basic LLM chat.
- * Affects UI filtering and playground routing; does not influence request routing.
+ * Service kind for the minimal source profile.
+ * Future specialty modules can extend this union when their handlers return.
  */
-export type ServiceKind =
-  | "llm"
-  | "embedding"
-  | "image"
-  | "imageToText"
-  | "tts"
-  | "stt"
-  | "webSearch"
-  | "webFetch"
-  | "video"
-  | "music";
+export type ServiceKind = "llm";
 
-export type RiskNoticeVariant = "oauth" | "webCookie" | "deprecated" | "embedded-service";
+export type RiskNoticeVariant = "oauth" | "webCookie" | "deprecated";
 
 export interface ProviderRiskNoticeFields {
   subscriptionRisk?: boolean;
   riskNoticeVariant?: RiskNoticeVariant;
-  isEmbeddedService?: boolean;
 }
 
 export const FREE_PROVIDERS = {};
@@ -91,20 +80,6 @@ export const NOAUTH_PROVIDERS = {
       "Free — Chipotle's Pepper AI (IPsoft Amelia). Anonymous sessions, no API key. Rate-limited.",
     authHint:
       "No credentials required. Uses Chipotle's public support chatbot via reverse-engineered SockJS/STOMP protocol.",
-  },
-  "veoaifree-web": {
-    id: "veoaifree-web",
-    alias: "veo-free",
-    name: "Veo AI Free",
-    icon: "videocam",
-    color: "#8B5CF6",
-    textIcon: "VF",
-    website: "https://veoaifree.com",
-    noAuth: true,
-    hasFree: true,
-    serviceKinds: ["video"],
-    freeNote: "Free video generation — VEO 3.1, Seedance. 6 requests/hour.",
-    authHint: "No auth required. Rate limited to 6 requests/hour per IP.",
   },
   mimocode: {
     id: "mimocode",
@@ -919,19 +894,6 @@ export const APIKEY_PROVIDERS = {
     hasFree: true,
     freeNote: "Trial credits for new accounts",
   },
-  runwayml: {
-    id: "runwayml",
-    alias: "runway",
-    name: "Runway",
-    icon: "movie",
-    color: "#111827",
-    textIcon: "RW",
-    website: "https://docs.dev.runwayml.com",
-    authHint:
-      "Use your Runway API key in Authorization: Bearer <key>. OmniRoute targets the current Runway API at https://api.dev.runwayml.com/v1 and sends the required X-Runway-Version header automatically.",
-    apiHint:
-      "Runway video generation is task-based. OmniRoute submits text-to-video or image-to-video jobs, polls /v1/tasks/{id}, and normalizes the finished video outputs back into the OpenAI-like /v1/videos/generations response.",
-  },
   anthropic: {
     id: "anthropic",
     alias: "anthropic",
@@ -1323,56 +1285,6 @@ export const APIKEY_PROVIDERS = {
     freeNote: "Free GPT-5, o-series, DeepSeek-R1, Llama 4, Grok 3 — GitHub account only.",
     authHint: "Create a GitHub PAT with 'models: read' scope at github.com/settings/tokens",
   },
-  haiper: {
-    id: "haiper",
-    alias: "hp",
-    name: "Haiper",
-    icon: "videocam",
-    color: "#6366F1",
-    textIcon: "HP",
-    website: "https://haiper.ai",
-    authHint: "Get API key at haiper.ai/haiper-api",
-  },
-  leonardo: {
-    id: "leonardo",
-    alias: "leo",
-    name: "Leonardo AI",
-    icon: "palette",
-    color: "#8B5CF6",
-    textIcon: "LE",
-    website: "https://leonardo.ai",
-    authHint: "Get API key at leonardo.ai/developer",
-  },
-  ideogram: {
-    id: "ideogram",
-    alias: "ideo",
-    name: "Ideogram",
-    icon: "image",
-    color: "#EC4899",
-    textIcon: "ID",
-    website: "https://ideogram.ai",
-    authHint: "Get API key at ideogram.ai/docs/api",
-  },
-  suno: {
-    id: "suno",
-    alias: "suno",
-    name: "Suno",
-    icon: "music_note",
-    color: "#F59E0B",
-    textIcon: "SU",
-    website: "https://suno.ai",
-    authHint: "Paste session cookie from suno.ai (Clerk auth)",
-  },
-  udio: {
-    id: "udio",
-    alias: "udio",
-    name: "Udio",
-    icon: "music_note",
-    color: "#10B981",
-    textIcon: "UD",
-    website: "https://udio.com",
-    authHint: "Paste session cookie from udio.com (Supabase auth)",
-  },
   "cloudflare-ai": {
     id: "cloudflare-ai",
     alias: "cf",
@@ -1731,7 +1643,8 @@ export const APIKEY_PROVIDERS = {
     textIcon: "GLB",
     website: "https://opengateway.gitlawb.com",
     hasFree: false,
-    freeNote: "Free MiMo (xiaomi/mimo-v2.5) revoked 2026-05 — Opengateway is now a pay-as-you-go credit gateway; no recurring free model.",
+    freeNote:
+      "Free MiMo (xiaomi/mimo-v2.5) revoked 2026-05 — Opengateway is now a pay-as-you-go credit gateway; no recurring free model.",
     apiHint: "Get your API key from Gitlawb Opengateway dashboard.",
   },
   "gitlawb-gmi": {
@@ -1743,7 +1656,8 @@ export const APIKEY_PROVIDERS = {
     textIcon: "GMI",
     website: "https://opengateway.gitlawb.com",
     hasFree: false,
-    freeNote: "Free Nemotron promo ended 2026-06 — the GMI Cloud route is now pay-as-you-go credit only.",
+    freeNote:
+      "Free Nemotron promo ended 2026-06 — the GMI Cloud route is now pay-as-you-go credit only.",
     apiHint: "Get your API key from Gitlawb Opengateway dashboard.",
   },
   "inference-net": {
@@ -1950,78 +1864,10 @@ export const APIKEY_PROVIDERS = {
     textIcon: "CH",
     website: "https://chutes.ai",
     hasFree: false,
-    freeNote: "No free tier as of 2026 — Chutes moved to pay-as-you-go (free Early Access ended 2026-03).",
+    freeNote:
+      "No free tier as of 2026 — Chutes moved to pay-as-you-go (free Early Access ended 2026-03).",
     authHint: "Bearer API key for the Chutes OpenAI-compatible gateway.",
     passthroughModels: true,
-  },
-  "voyage-ai": {
-    id: "voyage-ai",
-    alias: "voyage",
-    name: "Voyage AI",
-    icon: "blur_on",
-    color: "#0F766E",
-    textIcon: "VA",
-    website: "https://www.voyageai.com",
-    authHint: "Bearer API key for Voyage AI embeddings and rerank APIs.",
-    hasFree: true,
-    freeNote: "200M free tokens for embeddings and reranking",
-  },
-  "jina-ai": {
-    id: "jina-ai",
-    alias: "jina",
-    name: "Jina AI",
-    icon: "sort",
-    color: "#2563EB",
-    textIcon: "JA",
-    website: "https://jina.ai",
-    authHint: "Bearer API key for the Jina AI rerank API.",
-    hasFree: true,
-    freeNote: "10M free tokens on signup (non-commercial), no credit card required",
-  },
-  "fal-ai": {
-    id: "fal-ai",
-    alias: "fal",
-    name: "Fal.ai",
-    icon: "image",
-    color: "#2563EB",
-    textIcon: "FL",
-    website: "https://fal.ai",
-  },
-  "stability-ai": {
-    id: "stability-ai",
-    alias: "stability",
-    name: "Stability AI",
-    icon: "image",
-    color: "#8B5CF6",
-    textIcon: "SA",
-    website: "https://stability.ai",
-  },
-  "black-forest-labs": {
-    id: "black-forest-labs",
-    alias: "bfl",
-    name: "Black Forest Labs",
-    icon: "image",
-    color: "#111827",
-    textIcon: "BF",
-    website: "https://blackforestlabs.ai",
-  },
-  recraft: {
-    id: "recraft",
-    alias: "recraft",
-    name: "Recraft",
-    icon: "image",
-    color: "#EC4899",
-    textIcon: "RC",
-    website: "https://recraft.ai",
-  },
-  topaz: {
-    id: "topaz",
-    alias: "topaz",
-    name: "Topaz",
-    icon: "image",
-    color: "#059669",
-    textIcon: "TP",
-    website: "https://topazlabs.com",
   },
   baidu: {
     id: "baidu",
@@ -2058,7 +1904,8 @@ export const APIKEY_PROVIDERS = {
     textIcon: "IF",
     website: "https://xinghuo.xfyun.cn",
     hasFree: true,
-    freeNote: "Spark Lite is free (2 QPS rate-limited), but iFlytek ToS §2.4(3) prohibits programmatic extraction and requires Chinese real-name auth — use with caution.",
+    freeNote:
+      "Spark Lite is free (2 QPS rate-limited), but iFlytek ToS §2.4(3) prohibits programmatic extraction and requires Chinese real-name auth — use with caution.",
     passthroughModels: true,
     authHint: "Get API key at console.xfyun.cn",
   },
@@ -2084,7 +1931,8 @@ export const APIKEY_PROVIDERS = {
     textIcon: "YI",
     website: "https://01.ai",
     hasFree: false,
-    freeNote: "No free API tier (2026) — Yi-Light retired; platform.01.ai is pay-as-you-go (Yi-Lightning paid). Open weights are download-only.",
+    freeNote:
+      "No free API tier (2026) — Yi-Light retired; platform.01.ai is pay-as-you-go (Yi-Lightning paid). Open weights are download-only.",
     passthroughModels: true,
     authHint: "Get API key at platform.lingyiwanwu.com",
   },
@@ -2162,7 +2010,8 @@ export const APIKEY_PROVIDERS = {
     textIcon: "SD",
     website: "https://xinghuo.xfyun.cn",
     hasFree: true,
-    freeNote: "Spark Lite free (alias for iflytek), but ToS restricts to personal/non-commercial use and prohibits relaying access to third parties — use with caution.",
+    freeNote:
+      "Spark Lite free (alias for iflytek), but ToS restricts to personal/non-commercial use and prohibits relaying access to third parties — use with caution.",
     passthroughModels: true,
     authHint: "Get API key at console.xfyun.cn",
   },
@@ -2245,19 +2094,6 @@ export const APIKEY_PROVIDERS = {
     passthroughModels: true,
     authHint: "Get API key at liquid.ai",
   },
-  nomic: {
-    id: "nomic",
-    alias: "nomic",
-    name: "Nomic",
-    icon: "hub",
-    color: "#7C3AED",
-    textIcon: "NM",
-    website: "https://nomic.ai",
-    hasFree: true,
-    freeNote: "Free Nomic Embed API. Open-source embeddings, no credit card required.",
-    passthroughModels: true,
-    authHint: "Get API key at atlas.nomic.ai",
-  },
   monsterapi: {
     id: "monsterapi",
     alias: "monster",
@@ -2267,40 +2103,10 @@ export const APIKEY_PROVIDERS = {
     textIcon: "MA",
     website: "https://monsterapi.ai",
     hasFree: true,
-    freeNote: "One-time signup trial credits for decentralized GPU inference (no recurring free plan). No credit card required.",
+    freeNote:
+      "One-time signup trial credits for decentralized GPU inference (no recurring free plan). No credit card required.",
     passthroughModels: true,
     authHint: "Get API key at monsterapi.ai",
-  },
-  // ── Web Fetch Providers ─────────────────────────────────────────────────────
-  firecrawl: {
-    id: "firecrawl",
-    alias: "fc",
-    name: "Firecrawl",
-    icon: "language",
-    color: "#FB923C",
-    textIcon: "FC",
-    website: "https://firecrawl.dev",
-    hasFree: true,
-    notice: {
-      text: "Free tier: 500 fetches/month, no credit card needed.",
-      apiKeyUrl: "https://firecrawl.dev/app/api-keys",
-    },
-    serviceKinds: ["webFetch"],
-  },
-  "jina-reader": {
-    id: "jina-reader",
-    alias: "jr",
-    name: "Jina Reader",
-    icon: "menu_book",
-    color: "#0EA5E9",
-    textIcon: "JR",
-    website: "https://jina.ai/reader",
-    hasFree: true,
-    notice: {
-      text: "Free tier: 1M fetches/month.",
-      apiKeyUrl: "https://jina.ai/api-dashboard",
-    },
-    serviceKinds: ["webFetch"],
   },
   byteplus: {
     id: "byteplus",
@@ -2375,14 +2181,7 @@ export const APIKEY_PROVIDERS = {
 };
 
 // Sub-categories within APIKEY_PROVIDERS (used by dashboard and catalog views).
-export const IMAGE_ONLY_PROVIDER_IDS = new Set([
-  "nanobanana",
-  "fal-ai",
-  "stability-ai",
-  "black-forest-labs",
-  "recraft",
-  "topaz",
-]);
+export const IMAGE_ONLY_PROVIDER_IDS = new Set<string>();
 
 export const AGGREGATOR_PROVIDER_IDS = new Set([
   "openrouter",
@@ -2422,23 +2221,14 @@ export const ENTERPRISE_CLOUD_PROVIDER_IDS = new Set([
   "modal",
 ]);
 
-export const VIDEO_PROVIDER_IDS = new Set([
-  "runwayml",
-  "veoaifree-web",
-  "pollinations",
-  "minimax",
-  "together",
-  "replicate",
-  "haiper",
-  "leonardo",
-]);
+export const VIDEO_PROVIDER_IDS = new Set<string>();
 
 // IDE Providers: editors with built-in AI subscription (separate section in UI).
 // These providers live in OAUTH_PROVIDERS but render under "IDE Providers"
 // instead of "OAuth Providers" to avoid visual duplication.
 export const IDE_PROVIDER_IDS = new Set(["cursor", "zed", "trae"]);
 
-export const EMBEDDING_RERANK_PROVIDER_IDS = new Set(["voyage-ai", "jina-ai"]);
+export const EMBEDDING_RERANK_PROVIDER_IDS = new Set<string>();
 
 // Local / Self-Hosted Providers
 export const LOCAL_PROVIDERS = {
@@ -2559,225 +2349,13 @@ export const LOCAL_PROVIDERS = {
     localDefault: "http://localhost:5000/v1",
     passthroughModels: true,
   },
-  sdwebui: {
-    id: "sdwebui",
-    alias: "sdwebui",
-    name: "SD WebUI",
-    icon: "brush",
-    color: "#FF7043",
-    textIcon: "SD",
-    website: "https://github.com/AUTOMATIC1111/stable-diffusion-webui",
-    hasFree: true,
-    authHint:
-      "No API key required. Configure the local WebUI base URL (default: http://localhost:7860).",
-    localDefault: "http://localhost:7860",
-  },
-  comfyui: {
-    id: "comfyui",
-    alias: "comfyui",
-    name: "ComfyUI",
-    icon: "account_tree",
-    color: "#4CAF50",
-    textIcon: "CF",
-    website: "https://github.com/comfyanonymous/ComfyUI",
-    hasFree: true,
-    authHint:
-      "No API key required. Configure the local ComfyUI base URL (default: http://localhost:8188).",
-    localDefault: "http://localhost:8188",
-  },
 };
 
-// Search Providers
-export const SEARCH_PROVIDERS = {
-  "perplexity-search": {
-    id: "perplexity-search",
-    alias: "pplx-search",
-    name: "Perplexity Search",
-    icon: "search",
-    color: "#20808D",
-    textIcon: "PS",
-    website: "https://docs.perplexity.ai/guides/search-quickstart",
-    authHint: "Same API key as Perplexity (pplx-...)",
-  },
-  "serper-search": {
-    id: "serper-search",
-    alias: "serper-search",
-    name: "Serper Search",
-    icon: "search",
-    color: "#4285F4",
-    textIcon: "SP",
-    website: "https://serper.dev",
-    hasFree: true,
-    authHint: "API key from serper.dev dashboard",
-    serviceKinds: ["webSearch"],
-  },
-  "brave-search": {
-    id: "brave-search",
-    alias: "brave-search",
-    name: "Brave Search",
-    icon: "travel_explore",
-    color: "#FB542B",
-    textIcon: "BR",
-    website: "https://brave.com/search/api",
-    hasFree: true,
-    authHint: "Subscription token from Brave Search API dashboard",
-  },
-  "exa-search": {
-    id: "exa-search",
-    alias: "exa-search",
-    name: "Exa Search",
-    icon: "neurology",
-    color: "#1E40AF",
-    textIcon: "EX",
-    website: "https://exa.ai",
-    hasFree: true,
-    authHint: "API key from dashboard.exa.ai",
-    serviceKinds: ["webSearch", "webFetch"],
-  },
-  "tavily-search": {
-    id: "tavily-search",
-    alias: "tavily-search",
-    name: "Tavily Search",
-    icon: "manage_search",
-    color: "#5B4FDB",
-    textIcon: "TV",
-    website: "https://tavily.com",
-    hasFree: true,
-    authHint: "API key from app.tavily.com (format: tvly-...)",
-    serviceKinds: ["webSearch", "webFetch"],
-  },
-  "google-pse-search": {
-    id: "google-pse-search",
-    alias: "google-pse",
-    name: "Google Programmable Search",
-    icon: "travel_explore",
-    color: "#4285F4",
-    textIcon: "GP",
-    website: "https://developers.google.com/custom-search/v1/overview",
-    authHint: "Requires a Google API key and your Programmable Search Engine ID (cx)",
-  },
-  "linkup-search": {
-    id: "linkup-search",
-    alias: "linkup",
-    name: "Linkup Search",
-    icon: "public",
-    color: "#0F766E",
-    textIcon: "LU",
-    website: "https://docs.linkup.so",
-    authHint: "Bearer API key from the Linkup dashboard",
-  },
-  "searchapi-search": {
-    id: "searchapi-search",
-    alias: "searchapi",
-    name: "SearchAPI",
-    icon: "manage_search",
-    color: "#2563EB",
-    textIcon: "SA",
-    website: "https://www.searchapi.io/docs",
-    authHint: "API key from SearchAPI (query param or Bearer auth)",
-  },
-  "youcom-search": {
-    id: "youcom-search",
-    alias: "youcom-search",
-    name: "You.com Search",
-    icon: "travel_explore",
-    color: "#2563EB",
-    textIcon: "YOU",
-    website: "https://you.com/docs/search/overview",
-    authHint: "X-API-Key from the You.com platform dashboard",
-  },
-  "searxng-search": {
-    id: "searxng-search",
-    alias: "searxng",
-    name: "SearXNG Search",
-    icon: "search",
-    color: "#1A237E",
-    textIcon: "SX",
-    website: "https://docs.searxng.org",
-    hasFree: true,
-    authHint:
-      "API key is optional. Set your SearXNG base URL. Some instances may require a bearer token for access.",
-  },
-  "ollama-search": {
-    id: "ollama-search",
-    alias: "ollama-search",
-    name: "Ollama Search",
-    icon: "search",
-    color: "#58A6FF",
-    textIcon: "OS",
-    website: "https://ollama.com/settings/api-keys",
-    authHint: "Same API key as Ollama Cloud (from ollama.com/settings/api-keys)",
-  },
-};
+// Search providers are not included in the minimal source profile.
+export const SEARCH_PROVIDERS = {};
 
-// Audio Only Providers
-export const AUDIO_ONLY_PROVIDERS = {
-  deepgram: {
-    id: "deepgram",
-    alias: "dg",
-    name: "Deepgram",
-    icon: "mic",
-    color: "#13EF93",
-    textIcon: "DG",
-    website: "https://deepgram.com",
-  },
-  assemblyai: {
-    id: "assemblyai",
-    alias: "aai",
-    name: "AssemblyAI",
-    icon: "record_voice_over",
-    color: "#0062FF",
-    textIcon: "AA",
-    website: "https://assemblyai.com",
-  },
-  elevenlabs: {
-    id: "elevenlabs",
-    alias: "el",
-    name: "ElevenLabs",
-    icon: "record_voice_over",
-    color: "#6C47FF",
-    textIcon: "EL",
-    website: "https://elevenlabs.io",
-  },
-  cartesia: {
-    id: "cartesia",
-    alias: "cartesia",
-    name: "Cartesia",
-    icon: "spatial_audio",
-    color: "#FF4F8B",
-    textIcon: "CA",
-    website: "https://cartesia.ai",
-  },
-  playht: {
-    id: "playht",
-    alias: "playht",
-    name: "PlayHT",
-    icon: "play_circle",
-    color: "#00B4D8",
-    textIcon: "PH",
-    website: "https://play.ht",
-  },
-  inworld: {
-    id: "inworld",
-    alias: "inworld",
-    name: "Inworld",
-    icon: "voice_chat",
-    color: "#7B2EF2",
-    textIcon: "IW",
-    website: "https://inworld.ai",
-  },
-  "aws-polly": {
-    id: "aws-polly",
-    alias: "polly",
-    name: "AWS Polly",
-    icon: "record_voice_over",
-    color: "#FF9900",
-    textIcon: "PL",
-    website: "https://aws.amazon.com/polly/",
-    authHint:
-      "Use AWS Secret Access Key as API key; set providerSpecificData.accessKeyId and optional region.",
-  },
-};
+// Audio providers are not included in the minimal source profile.
+export const AUDIO_ONLY_PROVIDERS = {};
 
 export const OPENAI_COMPATIBLE_PREFIX = "openai-compatible-";
 export const ANTHROPIC_COMPATIBLE_PREFIX = "anthropic-compatible-";
@@ -2807,55 +2385,9 @@ export const UPSTREAM_PROXY_PROVIDERS = {
     binaryName: "cli-proxy-api",
     githubRepo: "router-for-me/CLIProxyAPI",
   },
-  "9router": {
-    id: "9router",
-    alias: "nr",
-    name: "9router",
-    icon: "router",
-    color: "#0EA5E9",
-    textIcon: "9R",
-    website: "https://www.npmjs.com/package/9router",
-    defaultPort: 20130,
-    healthEndpoint: "/api/health",
-    npmPackage: "9router",
-    embedded: true,
-    isEmbeddedService: true,
-    riskNoticeVariant: "embedded-service" as const,
-  },
 };
 
-export const CLOUD_AGENT_PROVIDERS = {
-  jules: {
-    id: "jules",
-    alias: "jules",
-    name: "Google Jules",
-    icon: "engineering",
-    color: "#4285F4",
-    textIcon: "JL",
-    website: "https://jules.google",
-    authHint: "Jules API key for creating and managing cloud coding tasks.",
-  },
-  devin: {
-    id: "devin",
-    alias: "devin",
-    name: "Devin",
-    icon: "smart_toy",
-    color: "#111827",
-    textIcon: "DV",
-    website: "https://devin.ai",
-    authHint: "Devin API key for cloud agent sessions.",
-  },
-  "codex-cloud": {
-    id: "codex-cloud",
-    alias: "codex-cloud",
-    name: "Codex Cloud",
-    icon: "cloud",
-    color: "#10A37F",
-    textIcon: "CC",
-    website: "https://openai.com/codex",
-    authHint: "OpenAI API key with Codex Cloud task access.",
-  },
-};
+export const CLOUD_AGENT_PROVIDERS = {};
 
 export function isClaudeCodeCompatibleProvider(providerId: unknown): providerId is string {
   return typeof providerId === "string" && providerId.startsWith(CLAUDE_CODE_COMPATIBLE_PREFIX);
@@ -2886,11 +2418,9 @@ export function isSelfHostedChatProvider(providerId: unknown): boolean {
 
 export function providerAllowsOptionalApiKey(providerId: unknown): boolean {
   return (
-    providerId === "searxng-search" ||
     providerId === "pollinations" ||
     providerId === "copilot-web" ||
     providerId === "duckduckgo-web" ||
-    providerId === "veoaifree-web" ||
     providerId === "hackclub" ||
     providerId === "huggingchat" ||
     providerId === "gitlawb" ||
@@ -2919,7 +2449,6 @@ const BULK_API_KEY_EXCLUDED = new Set([
   "deepseek-web",
   "inner-ai",
   "qoder",
-  "google-pse-search",
   "command-code",
   "azure",
   "cloudflare-ai",

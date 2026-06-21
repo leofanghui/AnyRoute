@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getApiKeys, createApiKey, isCloudEnabled, updateApiKeyPermissions } from "@/lib/localDb";
+import { getApiKeys, createApiKey, updateApiKeyPermissions } from "@/lib/localDb";
 import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
 import { createKeySchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { isApiKeyRevealEnabled, maskStoredApiKey } from "@/lib/apiKeyExposure";
@@ -76,9 +75,6 @@ export async function POST(request) {
       });
     }
 
-    // Auto sync to Cloud if enabled
-    await syncKeysToCloudIfEnabled();
-
     return NextResponse.json(
       {
         key: apiKey.key,
@@ -94,20 +90,5 @@ export async function POST(request) {
   } catch (error) {
     log.error("keys", "Error creating key", error);
     return NextResponse.json({ error: "Failed to create key" }, { status: 500 });
-  }
-}
-
-/**
- * Sync API keys to Cloud if enabled
- */
-async function syncKeysToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    log.error("keys", "Error syncing keys to cloud", error);
   }
 }

@@ -1,24 +1,23 @@
 #!/usr/bin/env node
-// Doc accuracy gate — catches fabricated API/endpoint/function/env-var claims in docs.
+// Doc accuracy gate �?catches fabricated API/endpoint/function/env-var claims in docs.
 //
 // Scans every `docs/{*,*/*}.md` and `AGENTS.md` for concrete code references and
 // verifies each one against the source. Reports drift as warnings (soft-fail
 // by default) and exits 1 with `--strict` so CI can block fabricated claims.
 //
 // What it checks:
-//   1. /api/... endpoint paths        → must match a route.ts file under src/app/api/
-//   2. UPPER_SNAKE env var names        → must have a process.env.X or env.X read
-//   3. CLI commands `omniroute ...`     → must exist in bin/cli/commands/ or bin/
-//   4. BUILTIN_EVENTS hook names        → must be exported from hooks.ts
-//   5. `src/.../foo.ts` file refs       → must exist (relative to repo root)
-//   6. `open-sse/.../bar.ts` file refs  → must exist
-//   7. `bin/...` file refs              → must exist
+//   1. /api/... endpoint paths        �?must match a route.ts file under src/app/api/
+//   2. UPPER_SNAKE env var names        �?must have a process.env.X or env.X read
+//   3. CLI commands `omniroute ...`     �?must exist in bin/cli/commands/ or bin/
+//   4. BUILTIN_EVENTS hook names        �?must be exported from hooks.ts
+//   5. `src/.../foo.ts` file refs       �?must exist (relative to repo root)
+//   6. `open-sse/.../bar.ts` file refs  �?must exist
+//   7. `bin/...` file refs              �?must exist
 //
 // Out of scope (covered by other scripts):
-//   - File-size / line-count claims        → scripts/check/check-docs-counts-sync.mjs
-//   - Env var → doc table sync             → scripts/check/check-env-doc-sync.mjs
-//   - Cross-doc link integrity             → scripts/check/check-doc-links.mjs
-//   - openapi.yaml ↔ routes sync           → scripts/check/check-openapi-coverage.mjs
+//   - File-size / line-count claims        �?verify with wc/ls before documenting
+//   - Env var �?doc table sync             �?verify against source before documenting
+//   - Cross-doc link integrity             �?scripts/check/check-doc-links.mjs
 //
 // Exit codes:
 //   0  no drift (or soft warnings only)
@@ -61,10 +60,10 @@ const KNOWN_HOOKS = new Set([
   "onDeactivate",
   "onUninstall",
   // Real callbacks wired in code that docs reference (verified present in src/):
-  // onChunk/onFirstChunk — streaming callbacks (src/shared/utils/streamTracker.ts,
-  //   playground ChatTab.tsx); onServerStatus/onPortChanged/onUpdateStatus — Electron
+  // onChunk/onFirstChunk �?streaming callbacks (src/sse/services/streamState.ts,
+  //   playground ChatTab.tsx); onServerStatus/onPortChanged/onUpdateStatus �?Electron
   //   IPC callbacks (src/shared/hooks/useElectron.ts, HomePageClient.tsx);
-  //   onEmpty — model-metadata registry callback (src/lib/modelMetadataRegistry.ts).
+  //   onEmpty �?model-metadata registry callback (src/lib/modelMetadataRegistry.ts).
   "onChunk",
   "onFirstChunk",
   "onServerStatus",
@@ -74,7 +73,7 @@ const KNOWN_HOOKS = new Set([
 ]);
 
 // Common false-positives the heuristic would otherwise flag. Add to this
-// list as the script matures — keep it small and well-justified.
+// list as the script matures �?keep it small and well-justified.
 const ENV_VAR_ALLOWLIST = new Set([
   "PATH",
   "HOME",
@@ -91,7 +90,6 @@ const ENV_VAR_ALLOWLIST = new Set([
   "PORT", // generic, not OmniRoute-specific
   "DATA_DIR",
   "REQUIRE_API_KEY",
-  "OMNIROUTE_BUILD_PROFILE", // build-time only
   "OMNIROUTE_BUILD_SHA",
   "OMNIROUTE_URL", // used by ad-hoc tooling, validated elsewhere
   "OMNIROUTE_KEY", // ditto
@@ -99,11 +97,10 @@ const ENV_VAR_ALLOWLIST = new Set([
   // ── External-tool / spawn-injected / ops env vars ────────────────────────
   // Real environment variables, but they belong to an UPSTREAM CLI/tool, a
   // docker-compose/electron-build pipeline, or are injected into a spawned
-  // subprocess — never read via `process.env.X` in OmniRoute's own source, so the
+  // subprocess �?never read via `process.env.X` in OmniRoute's own source, so the
   // code-read index can't see them. Documented (correctly) in the relevant guides.
   "COPILOT_PROVIDER_BASE_URL", // GitHub Copilot CLI ≥v1.0.19's own env var (AGENTBRIDGE.md)
   "OPENAI_BASE_URL", // env var OmniRoute passes to downstream CLIs (AGENT_PROTOCOLS_GUIDE.md)
-  "NINEROUTER_API_KEY", // injected into the 9router subprocess at spawn (EMBEDDED-SERVICES.md)
   "CLAUDE_CODE_MAX_OUTPUT_TOKENS", // Claude Code CLI's own env var (CODEX-CLI-CONFIGURATION.md)
   "CODEX_HOME", // Codex CLI's own config-home env var (CODEX-CLI-CONFIGURATION.md)
   "REDIS_PORT", // docker-compose host-port override (DOCKER_GUIDE.md)
@@ -296,7 +293,7 @@ const ENV_VAR_DENYLIST = new Set([
   "PROVIDER_HEALTH_AUTOPILOT_RECOVERY_RETRY_BACKOFF_FLOOR",
   "PROVIDER_HEALTH_AUTOPILOT_RECOVERY_RETRY_BACKOFF_CEILING",
   "PROVIDER_HEALTH_AUTOPILOT_RECOVERY_RETRY_BACKOFF_CAP",
-  // Gate allowlist constant names (JS identifiers, not env vars) — documented in
+  // Gate allowlist constant names (JS identifiers, not env vars) �?documented in
   // docs/architecture/QUALITY_GATES.md and docs/research/DISCOVERY_TOOL_DESIGN.md
   "KNOWN_STALE_DOC_REFS", // export const in check-docs-symbols.mjs
   "KNOWN_MISSING", // export const in check-fetch-targets.mjs
@@ -319,32 +316,13 @@ const ENV_VAR_DENYLIST = new Set([
 const ENDPOINT_ALLOWLIST = new Set([
   "/api/v1/models",
   "/api/v1/chat/completions",
-  "/api/v1/embeddings",
   "/api/v1/responses",
-  "/api/v1/images/generations",
-  "/api/v1/audio/transcriptions",
-  "/api/v1/audio/speech",
-  "/api/v1/videos/generations",
-  "/api/v1/music/generations",
-  "/api/v1/moderations",
-  "/api/v1/rerank",
-  "/api/v1/search",
-  "/api/v1/messages",
-  "/api/v1/agents/tasks",
-  "/api/v1/agents/tasks/{id}",
-  "/api/v1/agents/credentials",
-  "/api/v1/agents/health",
-  "/.well-known/agent.json",
   "/v1/models",
   "/v1/chat/completions",
-  "/v1/embeddings",
   "/v1/responses",
   "/v1/ws", // WebSocket bridge, not standard route.ts
-  "/a2a", // JSON-RPC 2.0 entry
-  "/api/mcp/stream", // Streamable HTTP MCP transport
-  "/api/mcp/sse", // SSE MCP transport
   "/api/health",
-  // Upstream/external provider endpoints documented in provider guides — these are
+  // Upstream/external provider endpoints documented in provider guides �?these are
   // paths on the UPSTREAM service (Claude.ai web, Blackbox), not OmniRoute routes.
   "/api/organizations/{orgId}/chat_conversations/{convId}/completion", // claude-web upstream
   "/api/chat", // Blackbox Web upstream (validated-token target)
@@ -353,21 +331,20 @@ const ENDPOINT_ALLOWLIST = new Set([
 /** Doc files to skip (auto-generated, vendored, or third-party). */
 const SKIP_DOC_FILES = new Set([
   "docs/reference/PROVIDER_REFERENCE.md", // auto-generated from providers.ts
-  "docs/reference/openapi.yaml",
-  "docs/i18n", // translations — separate workflow
+  "docs/i18n", // translations �?separate workflow
   // Point-in-time documentation audit (v3.8.24): intentionally references drift,
-  // counts, and not-yet-existing files as part of documenting them — not living docs.
+  // counts, and not-yet-existing files as part of documenting them �?not living docs.
   "docs/ops/DOCUMENTATION_AUDIT_REPORT.md",
   // Design / research / plan docs: by definition describe not-yet-built files and
   // proposed (not-yet-shipped) endpoints (each carries a `Status: Design`/`Active
-  // research`/`Plano` header). Same rationale as the audit report above — these are
+  // research`/`Plano` header). Same rationale as the audit report above �?these are
   // forward-looking specs, not living API docs, so their forward references are
   // expected, not fabrications.
-  "docs/research", // DISCOVERY_TOOL_DESIGN.md, UNLIMITED_LLM_ACCESS.md, …
+  "docs/research", // DISCOVERY_TOOL_DESIGN.md, UNLIMITED_LLM_ACCESS.md, �?
   "docs/superpowers/plans", // dated implementation plans (files described before they exist)
   // Release notes are historical, point-in-time records: they intentionally describe
   // modules/paths as they were at that release (e.g. a module later moved or renamed).
-  // Rewriting them to today's layout would falsify history — out of scope for a
+  // Rewriting them to today's layout would falsify history �?out of scope for a
   // living-docs accuracy gate.
   "docs/releases",
   // Forward-looking coverage plan: a `- [ ]` checklist of test targets and helper
@@ -409,8 +386,8 @@ function allScanFiles(root = ROOT) {
 
 // ── Codebase index ─────────────────────────────────────────────────────────
 
-// Env var helper wrappers used across OmniRoute — envInt(NAME, 5), envBool(NAME),
-// envStr(NAME), … — read the named var from the environment, so a string-literal
+// Env var helper wrappers used across OmniRoute �?envInt(NAME, 5), envBool(NAME),
+// envStr(NAME), �?�?read the named var from the environment, so a string-literal
 // argument is a genuine env-var read, equivalent to a direct process.env member read.
 // (Comment avoids a literal `process.env.<NAME>` token so the sibling env-doc-sync
 // grep does not mistake this example for a real env-var read.)
@@ -424,11 +401,11 @@ export function buildCodebaseIndex(root = ROOT) {
   // A documented prefix like /api/cloud/ is valid even without a route.ts at that
   // exact level, as long as some src/app/api/cloud/**/route.ts exists.
   const apiPrefixes = new Set();
-  // Map of /api/... → methods implemented in route.ts
+  // Map of /api/... �?methods implemented in route.ts
   const apiMethods = new Map();
 
   function dynToBrace(seg) {
-    // [id] → {id}, [...path] → {path} — match the doc convention for dynamic segments.
+    // [id] �?{id}, [...path] �?{path} �?match the doc convention for dynamic segments.
     return seg.replace(/^\[\.\.\.(.+)\]$/, "{$1}").replace(/^\[(.+)\]$/, "{$1}");
   }
 
@@ -508,12 +485,12 @@ export function buildCodebaseIndex(root = ROOT) {
           // env["X"] (bracket on a destructured env binding)
           for (const m of content.matchAll(/\benv\[\s*["'`]([A-Z][A-Z0-9_]+)["'`]\s*\]/g))
             envVars.add(m[1]);
-          // envInt("X", …) / envBool("X") / envStr("X") … helper wrappers
+          // envInt("X", �? / envBool("X") / envStr("X") �?helper wrappers
           for (const m of content.matchAll(ENV_HELPER_CALL)) envVars.add(m[1]);
           // import.meta.env.X (Vite-style, unlikely here but cheap)
           for (const m of content.matchAll(/import\.meta\.env\.([A-Z][A-Z0-9_]+)/g))
             envVars.add(m[1]);
-          // export const / const / let / var / enum NAME — JS identifiers, not env vars.
+          // export const / const / let / var / enum NAME �?JS identifiers, not env vars.
           for (const m of content.matchAll(
             /\b(?:export\s+)?(?:const|let|var|enum)\s+([A-Z][A-Z0-9_]{2,})\b/g
           ))
@@ -535,7 +512,7 @@ export function buildCodebaseIndex(root = ROOT) {
   // real env vars and must not be flagged as fabricated.
   walkForEnv("tests");
 
-  // Env contract maintained by the sibling gate (check-env-doc-sync.mjs): a var
+  // Env contract maintained by source verification: a var
   // listed in .env.example or docs/reference/ENVIRONMENT.md is, by definition, a
   // documented OmniRoute env var (including external-CLI / docker / electron vars
   // that are not read via process.env in our own source).
@@ -572,7 +549,7 @@ export function buildCodebaseIndex(root = ROOT) {
           const content = fs.readFileSync(child, "utf8");
           // Programmatic API: `command('foo', ...)`, `.command('bar')`, and
           // arg-bearing forms `.command('connect <host>')` / `.command('chat [msg]')`
-          // — capture the leading subcommand token regardless of trailing args.
+          // �?capture the leading subcommand token regardless of trailing args.
           const m1 = content.matchAll(/\.command\(\s*['"`]([a-z][a-z0-9-]+)/g);
           for (const m of m1) cliCommands.add(m[1]);
           // Subcommand names: `${name}Cmd`, `name = "foo"`, etc.
@@ -598,7 +575,7 @@ const COARSE_PATTERNS = {
   apiPath: /(?<!\w)\/api\/[A-Za-z0-9_\-\/\[\]\{\}]+(?!\w)/g,
   // Catches ALL_CAPS env var names of length >= 3
   envVar: /\b([A-Z][A-Z0-9_]{2,})\b/g,
-  // omniroute <verb> <sub> ... — only on the same line, captures first 2 tokens
+  // omniroute <verb> <sub> ... �?only on the same line, captures first 2 tokens
   cliCmd: /\bomniroute\s+([a-z][a-z0-9-]+)(?:\s+([a-z][a-z0-9-]+))?/g,
   // Built-in event names like onRequest, onFoo
   hookName: /\b(on[A-Z][a-zA-Z]+)\b/g,
@@ -646,7 +623,7 @@ export function scanDocFile(absPath, index, root = ROOT) {
       index.apiRoutes.has(candidate + "/")
     )
       continue;
-    // Prefix-with-subroutes: a documented prefix like /api/cloud/ or /api/services/{name}/
+    // Prefix-with-subroutes: a documented prefix like /api/providers/{id}/
     // is valid when some src/app/api/<prefix>/**/route.ts exists. Accept when the
     // documented path is (or is an ancestor of) a real route prefix, or vice-versa.
     let isPrefix = false;
@@ -669,7 +646,7 @@ export function scanDocFile(absPath, index, root = ROOT) {
     });
   }
 
-  // 2) Env vars — only flag names wrapped in backticks AND containing an
+  // 2) Env vars �?only flag names wrapped in backticks AND containing an
   //    underscore. The maintainer's actual fabricated env vars (PR #3456)
   //    were always in `BACKTICKS` inside tables; bare all-caps tokens
   //    inside markdown link display text are doc references, not env vars.
@@ -688,7 +665,7 @@ export function scanDocFile(absPath, index, root = ROOT) {
     if (ENV_VAR_DENYLIST.has(name)) continue;
     const ln = lineOf(text, m.index);
     // Use the line as seen in the stripped text (where m.index is valid) for context
-    // checks — fenced-code removal shifts offsets, so text.split()[ln-1] can be wrong.
+    // checks �?fenced-code removal shifts offsets, so text.split()[ln-1] can be wrong.
     const lineStart = textNoCode.lastIndexOf("\n", m.index) + 1;
     let lineEnd = textNoCode.indexOf("\n", m.index);
     if (lineEnd === -1) lineEnd = textNoCode.length;
@@ -696,7 +673,7 @@ export function scanDocFile(absPath, index, root = ROOT) {
     if (/example|placeholder|todo|tbd|\.\.\./i.test(lineText)) continue;
     // A doc that explicitly states a var does NOT exist / is not implemented is
     // documenting its absence, not fabricating it. Examples:
-    //   "`MEMORY_RRF_VECTOR_WEIGHT` … do not exist"
+    //   "`MEMORY_RRF_VECTOR_WEIGHT` �?do not exist"
     //   "a `ZED_CONFIG_PATH` environment variable override is not yet implemented"
     if (
       /\b(?:do(?:es)?\s+not\s+exist|no\s+such|not\s+a\s+real|isn't\s+a\s+real|never\s+(?:read|exists?)|not\s+(?:yet\s+)?(?:implemented|supported))\b/i.test(
@@ -712,7 +689,7 @@ export function scanDocFile(absPath, index, root = ROOT) {
     });
   }
 
-  // 3) CLI commands: `omniroute foo bar` — only flag when the line is in
+  // 3) CLI commands: `omniroute foo bar` �?only flag when the line is in
   //    a code-like context (inside backticks or a shell block). Bare prose
   //    like "we use omniroute and..." is not a command claim.
   for (const m of textNoCode.matchAll(COARSE_PATTERNS.cliCmd)) {
@@ -735,7 +712,7 @@ export function scanDocFile(absPath, index, root = ROOT) {
     });
   }
 
-  // 4) Hook names — only flag when wrapped in backticks/code, since bare
+  // 4) Hook names �?only flag when wrapped in backticks/code, since bare
   //    "onFoo" prose is common English.
   for (const m of textNoCode.matchAll(/`?(on[A-Z][a-zA-Z]+)`?/g)) {
     const name = m[1];
@@ -749,7 +726,7 @@ export function scanDocFile(absPath, index, root = ROOT) {
       kind: "hook",
       value: name,
       line: ln,
-      msg: `hook ${name} not in BUILTIN_EVENTS (hooks.ts) — is this a real hook?`,
+      msg: `hook ${name} not in BUILTIN_EVENTS (hooks.ts) �?is this a real hook?`,
     });
   }
 
@@ -760,13 +737,13 @@ export function scanDocFile(absPath, index, root = ROOT) {
     if (fs.existsSync(abs)) continue;
     // Allow README/AGENTS to mention example files explicitly in a non-verified way
     if (/\{\{|\.\.\./.test(ref)) continue; // templated / placeholder
-    // Tutorial placeholders in the "how to add a …" scenarios are intentional
+    // Tutorial placeholders in the "how to add a �? scenarios are intentional
     // stand-ins, not real files: src/app/api/your-route/route.ts,
     // src/lib/db/yourModule.ts, src/lib/guardrails/myGuardrail.ts, etc.
     if (/(?:^|\/)(?:your-|your[A-Z]|my[A-Z])/.test(ref)) continue;
     // Skip matches that are only the tail of a longer path, not a repo-root ref:
-    // the fileRef regex anchors on the `src`/`open-sse`/… token, so a leading `/`
-    // means the real reference is `<something>/src/...` — either a relative example
+    // the fileRef regex anchors on the `src`/`open-sse`/�?token, so a leading `/`
+    // means the real reference is `<something>/src/...` �?either a relative example
     // path (`./src/index.ts`, a PII-pattern sample) or a workspace-package path
     // (`@omniroute/opencode-provider/src/index.ts`). Neither resolves from repo root.
     if (m.index > 0 && textNoCode[m.index - 1] === "/") continue;
@@ -806,7 +783,7 @@ export function runFabricatedDocsCheck(opts = {}) {
 export function formatHumanReport(result) {
   const { totalFindings, files, fileCount, index } = result;
   const lines = [];
-  lines.push("Doc accuracy gate — fabricated-claim detection");
+  lines.push("Doc accuracy gate �?fabricated-claim detection");
   lines.push("================================================");
   lines.push(`Scanned ${fileCount} markdown file(s)`);
   lines.push(
@@ -815,7 +792,7 @@ export function formatHumanReport(result) {
   lines.push("");
 
   if (totalFindings === 0) {
-    lines.push("✓ No fabricated API/env/CLI/hook/file references found.");
+    lines.push("�?No fabricated API/env/CLI/hook/file references found.");
     return lines.join("\n");
   }
 
@@ -849,7 +826,7 @@ export function formatHumanReport(result) {
         .map((r) => `${r}:${f.line}`)
         .join(", ");
       const more = f.files.size > 3 ? ` (+${f.files.size - 3} more)` : "";
-      lines.push(`  • ${f.value.padEnd(40)} ${f.msg}`);
+      lines.push(`  �?${f.value.padEnd(40)} ${f.msg}`);
       lines.push(`      ${fileList}${more}`);
     }
     if (items.length > 20) lines.push(`  ... and ${items.length - 20} more`);
@@ -858,7 +835,7 @@ export function formatHumanReport(result) {
   return lines.join("\n");
 }
 
-// CLI entry — only run when invoked directly (not when imported for tests).
+// CLI entry �?only run when invoked directly (not when imported for tests).
 const isMain = import.meta.url === `file://${process.argv[1]}`;
 if (isMain) {
   main();
@@ -887,14 +864,14 @@ function main() {
   console.log(formatHumanReport(result));
   console.log();
   if (totalFindings === 0) {
-    // Clean run — pass regardless of mode.
+    // Clean run �?pass regardless of mode.
     process.exit(0);
   }
   if (STRICT) {
-    console.error(`✗ ${totalFindings} claim(s) drift from source. Failing (--strict).`);
+    console.error(`�?${totalFindings} claim(s) drift from source. Failing (--strict).`);
     process.exit(1);
   } else {
-    console.warn(`⚠ ${totalFindings} claim(s) drift from source. Re-run with --strict to fail.`);
+    console.warn(`�?${totalFindings} claim(s) drift from source. Re-run with --strict to fail.`);
     process.exit(0);
   }
 }

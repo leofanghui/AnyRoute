@@ -8,7 +8,6 @@ import { makeManagementSessionRequest } from "../helpers/managementSession.ts";
 const TEST_DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "omniroute-api-keys-route-"));
 process.env.DATA_DIR = TEST_DATA_DIR;
 process.env.API_KEY_SECRET = "test-api-key-secret";
-process.env.CLOUD_URL = "http://cloud.example";
 
 const core = await import("../../src/lib/db/core.ts");
 const apiKeysDb = await import("../../src/lib/db/apiKeys.ts");
@@ -259,38 +258,6 @@ test("GET /api/keys uses default pagination when query params are absent and rep
   assert.ok(body.keys.every((entry) => entry.key !== undefined && entry.key !== ""));
 });
 
-test("POST /api/keys triggers cloud sync when cloud mode is enabled", async () => {
-  await enableManagementAuth();
-  await localDb.updateSettings({ cloudEnabled: true });
-  await createManagementKey();
-  const originalFetch = globalThis.fetch;
-  const calls = [];
-  globalThis.fetch = async (url, options = {}) => {
-    calls.push({ url, options });
-    return Response.json({ changes: { apiKeys: 1 } });
-  };
-
-  try {
-    const response = await listRoute.POST(
-      await makeManagementSessionRequest("http://localhost/api/keys", {
-        method: "POST",
-        body: { name: "Cloud Synced Key" },
-      })
-    );
-    const body = (await response.json()) as any;
-    const syncPayload = JSON.parse(calls[0].options.body);
-
-    assert.equal(response.status, 201);
-    assert.equal(body.name, "Cloud Synced Key");
-    assert.equal(calls.length, 1);
-    assert.match(String(calls[0].url), /^http:\/\/cloud\.example\/sync\//);
-    assert.ok(Array.isArray(syncPayload.providers));
-    assert.ok(Array.isArray(syncPayload.apiKeys));
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
-
 test("GET /api/keys returns 500 when the key store throws unexpectedly", async () => {
   await apiKeysDb.createApiKey("Alpha", MACHINE_ID);
 
@@ -321,37 +288,6 @@ test("GET /api/keys returns 500 when the key store throws unexpectedly", async (
     apiKeysDb.resetApiKeyState();
     console.log = originalLog;
     console.error = originalError;
-  }
-});
-
-test("POST /api/keys still succeeds when cloud sync fails after creation", async () => {
-  await enableManagementAuth();
-  await localDb.updateSettings({ cloudEnabled: true });
-  await createManagementKey();
-  const originalFetch = globalThis.fetch;
-  let syncAttempts = 0;
-
-  globalThis.fetch = async () => {
-    syncAttempts += 1;
-    throw new Error("cloud sync offline");
-  };
-
-  try {
-    const response = await listRoute.POST(
-      await makeManagementSessionRequest("http://localhost/api/keys", {
-        method: "POST",
-        body: { name: "Cloud Failure Tolerated" },
-      })
-    );
-    const body = (await response.json()) as any;
-    const stored = await apiKeysDb.getApiKeyById(body.id);
-
-    assert.equal(response.status, 201);
-    assert.equal(body.name, "Cloud Failure Tolerated");
-    assert.equal(syncAttempts, 1);
-    assert.equal(stored?.name, "Cloud Failure Tolerated");
-  } finally {
-    globalThis.fetch = originalFetch;
   }
 });
 

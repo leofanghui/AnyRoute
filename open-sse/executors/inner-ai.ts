@@ -278,7 +278,7 @@ async function resolveModels(
   // Keep only text/chat models that are enabled and available for this account.
   // Prefer the ai_model_categories field; fall back to llm_model heuristic.
   const nonTextPattern =
-    /image|video|audio|img|vid|sound|music|voice|tts|stt|track|clip|avatar|cartoon|flux|stable.diff|recraft|ideogram|leonardo|magnific|bria|seedream|luma|kling|pika|veo|wan-|heygen|did-|vidu|pixverse|sora-|gen-[0-9]|playground|gemini-fal|gamma|lyria|clothes|whisper/i;
+    /image|video|audio|img|vid|sound|music|voice|tts|stt|track|clip|avatar|cartoon|playground|whisper/i;
   const models = raw.filter((m) => {
     if (m.enable === false || m.unavailable_api) return false;
     if (m.ultra_only && !isUltra) return false;
@@ -600,7 +600,10 @@ export class InnerAiExecutor extends BaseExecutor {
 
     // Build message content from OpenAI messages array
     const rawMessages = Array.isArray(bodyObj.messages) ? bodyObj.messages : [];
-    const { hasTools, requestedTools, effectiveMessages } = prepareToolMessages(bodyObj, rawMessages);
+    const { hasTools, requestedTools, effectiveMessages } = prepareToolMessages(
+      bodyObj,
+      rawMessages
+    );
     const messages = effectiveMessages as Array<Record<string, unknown>>;
     const messageContent = buildMessageContent(messages);
     if (!messageContent.trim()) {
@@ -697,18 +700,32 @@ export class InnerAiExecutor extends BaseExecutor {
     const completionId = `chatcmpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     if (hasTools) {
-      const { content: cleaned, toolCalls, finishReason } = buildToolAwareResult(content, requestedTools, "inner");
+      const {
+        content: cleaned,
+        toolCalls,
+        finishReason,
+      } = buildToolAwareResult(content, requestedTools, "inner");
       if (toolCalls) {
         return {
           response: new Response(
             JSON.stringify({
-              id: completionId, object: "chat.completion",
-              created: Math.floor(Date.now() / 1000), model: resolvedModel,
-              choices: [{ index: 0, message: { role: "assistant", content: null, tool_calls: toolCalls }, finish_reason: finishReason }],
+              id: completionId,
+              object: "chat.completion",
+              created: Math.floor(Date.now() / 1000),
+              model: resolvedModel,
+              choices: [
+                {
+                  index: 0,
+                  message: { role: "assistant", content: null, tool_calls: toolCalls },
+                  finish_reason: finishReason,
+                },
+              ],
             }),
             { status: 200, headers: { "Content-Type": "application/json" } }
           ),
-          url: INNER_AI_CHAT_URL, headers: reqHeaders, transformedBody: innerAiBody,
+          url: INNER_AI_CHAT_URL,
+          headers: reqHeaders,
+          transformedBody: innerAiBody,
         };
       }
       content = cleaned;

@@ -22,19 +22,6 @@ type PricingEntry = {
   cached?: number;
   cache_creation?: number;
   mode?: string;
-  // Non-token pricing dimensions (absolute USD, NOT scaled ×1e6).
-  input_cost_per_second?: number;
-  output_cost_per_second?: number;
-  input_cost_per_image?: number;
-  output_cost_per_image?: number;
-  input_cost_per_pixel?: number;
-  output_cost_per_pixel?: number;
-  input_cost_per_character?: number;
-  output_cost_per_character?: number;
-  input_cost_per_video_per_second?: number;
-  output_cost_per_video_per_second?: number;
-  search_unit_cost?: number;
-  ocr_cost_per_page?: number;
 };
 
 type PricingModels = Record<string, PricingEntry>;
@@ -47,19 +34,6 @@ interface LiteLLMModelInfo {
   cache_creation_input_token_cost?: number;
   litellm_provider?: string;
   mode?: string;
-  // Non-token pricing dimensions (absolute USD, NOT scaled ×1e6).
-  input_cost_per_second?: number;
-  output_cost_per_second?: number;
-  input_cost_per_image?: number;
-  output_cost_per_image?: number;
-  input_cost_per_pixel?: number;
-  output_cost_per_pixel?: number;
-  input_cost_per_character?: number;
-  output_cost_per_character?: number;
-  input_cost_per_video_per_second?: number;
-  output_cost_per_video_per_second?: number;
-  search_unit_cost?: number;
-  ocr_cost_per_page?: number;
 }
 
 interface SyncStatus {
@@ -118,7 +92,6 @@ const LITELLM_PROVIDER_MAP: Record<string, string[]> = {
   gemini: ["gemini", "gemini-cli"],
   bedrock_converse: ["kiro"],
   cloudflare: ["cloudflare-ai"],
-  stability: ["stability-ai"],
 };
 
 // ─── Periodic sync state ─────────────────────────────────
@@ -127,6 +100,17 @@ let syncTimer: ReturnType<typeof setInterval> | null = null;
 let lastSyncTime: string | null = null;
 let lastSyncModelCount = 0;
 let activeSyncIntervalMs = SYNC_INTERVAL_MS;
+
+function isRetainedPricingMode(mode: string | undefined): boolean {
+  if (!mode) return true;
+  const normalized = mode.toLowerCase();
+  return (
+    normalized === "chat" ||
+    normalized === "responses" ||
+    normalized === "completion" ||
+    normalized === "text_completion"
+  );
+}
 
 // ─── Core: Fetch + Transform ─────────────────────────────
 
@@ -152,33 +136,17 @@ export async function fetchLiteLLMPricing(): Promise<Record<string, LiteLLMModel
  * Transform LiteLLM raw data → OmniRoute PricingByProvider format.
  *
  * Conversion: cost_per_token × 1_000_000 → $/1M tokens (OmniRoute format).
- * Ingests both chat (token) AND non-token modes (image / audio / rerank /
- * video / embedding). Token pricing is scaled to $/1M; non-token fields
- * (per-image, per-second, per-character, search-unit, …) are carried through
- * verbatim as absolute USD.
+ * Token pricing is scaled to $/1M. Non-token price dimensions are ignored in
+ * the minimal source profile.
  */
 export function transformToOmniRoute(raw: Record<string, LiteLLMModelInfo>): PricingByProvider {
   const result: PricingByProvider = {};
 
   for (const [modelKey, info] of Object.entries(raw)) {
-    const NON_TOKEN_FIELDS = [
-      "input_cost_per_second",
-      "output_cost_per_second",
-      "input_cost_per_image",
-      "output_cost_per_image",
-      "input_cost_per_pixel",
-      "output_cost_per_pixel",
-      "input_cost_per_character",
-      "output_cost_per_character",
-      "input_cost_per_video_per_second",
-      "output_cost_per_video_per_second",
-      "search_unit_cost",
-      "ocr_cost_per_page",
-    ] as const;
+    if (!isRetainedPricingMode(info.mode)) continue;
 
     const hasToken = info.input_cost_per_token != null || info.output_cost_per_token != null;
-    const hasNonToken = NON_TOKEN_FIELDS.some((f) => info[f] != null);
-    if (!hasToken && !hasNonToken) continue;
+    if (!hasToken) continue;
 
     const inputCost = (info.input_cost_per_token || 0) * 1_000_000;
     const outputCost = (info.output_cost_per_token || 0) * 1_000_000;
@@ -195,11 +163,6 @@ export function transformToOmniRoute(raw: Record<string, LiteLLMModelInfo>): Pri
     if (info.cache_creation_input_token_cost != null) {
       entry.cache_creation =
         Math.round(info.cache_creation_input_token_cost * 1_000_000 * 1000) / 1000;
-    }
-
-    for (const f of NON_TOKEN_FIELDS) {
-      const v = info[f];
-      if (typeof v === "number" && Number.isFinite(v)) entry[f] = v;
     }
 
     // Extract model name (strip provider prefix from key)

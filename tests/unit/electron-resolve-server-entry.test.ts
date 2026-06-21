@@ -2,7 +2,7 @@
  * Tests for electron/lib/resolveServerEntry.js (#3386)
  *
  * The Electron main process must launch `server-ws.mjs` (the peer-stamp wrapper)
- * instead of bare `server.js` so that LOCAL_ONLY routes (AgentBridge, MCP, services)
+ * instead of bare `server.js` so that LOCAL_ONLY retained service routes
  * pass the loopback authz check.  This helper is unit-tested here with an injectable
  * existsSync so no filesystem or Electron binary is needed.
  *
@@ -58,7 +58,13 @@ describe("resolveServerEntry (#3386 — Electron 403 LOCAL_ONLY fix)", () => {
   it("returns a plain filename (no directory component) in both branches", () => {
     const withWs = resolveServerEntry(FAKE_SERVER_DIR, () => true);
     const withoutWs = resolveServerEntry(FAKE_SERVER_DIR, () => false);
-    assert.ok(!withWs.includes("/") && !withWs.includes("\\"), "server-ws.mjs result must be a bare filename");
-    assert.ok(!withoutWs.includes("/") && !withoutWs.includes("\\"), "server.js result must be a bare filename");
+    assert.ok(
+      !withWs.includes("/") && !withWs.includes("\\"),
+      "server-ws.mjs result must be a bare filename"
+    );
+    assert.ok(
+      !withoutWs.includes("/") && !withoutWs.includes("\\"),
+      "server.js result must be a bare filename"
+    );
   });
 });

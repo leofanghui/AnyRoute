@@ -26,8 +26,8 @@ function runCli(dataDir: string): { code: number | null; stderr: string } {
     // Use a real (non-informational) command so the STORAGE_ENCRYPTION_KEY
     // bootstrap runs. `--version`/`--help` are intentionally skipped now (#3129),
     // so the #1622 provisioning path must be exercised by an actual command.
-    // `config list --json` is fast and offline (no server, no network).
-    const res = spawnSync("node", [BIN, "config", "list", "--json"], {
+    // `config lang get --json` is fast and offline (no server, no network).
+    const res = spawnSync("node", [BIN, "config", "lang", "get", "--json"], {
       cwd: dataDir,
       env: {
         ...cleanEnv,

@@ -7,7 +7,7 @@
 //
 // Complementa os outros gates anti-alucinação:
 //   - check-fetch-targets.mjs  : fetch("/api/...") na UI → route.ts (código → código)
-//   - check-openapi-routes.mjs : path da openapi.yaml → route.ts (spec → código)
+//   - route docs should cite real route.ts files directly
 //   - este gate                : /api/... na prosa/markdown → route.ts (docs → código)
 //
 // LOW-NOISE por design: escopo APENAS a paths de rota `/api/...` (sinal mais alto).
@@ -52,26 +52,7 @@ function isFileRef(p) {
 // drift/alucinação em docs pré-existentes — cada uma precisa de: criar a rota, corrigir
 // o path na doc, ou remover a menção. NÃO adicione novas aqui sem justificativa — esse
 // é o ponto do gate. Issues de tracking devem ser abertas para cada cluster.
-export const KNOWN_STALE_DOC_REFS = new Set([
-  // docs/reference/API_REFERENCE.md — guardrails/shadow doc-fiction RESOLVED in #3496:
-  // GET /api/guardrails + POST /api/guardrails/test are now REAL routes (wrapping the
-  // existing guardrailRegistry); the fictional enable/disable/logs rows and the entire
-  // shadow table were removed from the doc (shadow A-B comparison is combo-config +
-  // /api/combos/metrics). No allowlist entries needed for these anymore.
-  // docs/research/DISCOVERY_TOOL_DESIGN.md — design doc de feature NÃO implementada
-  // (Phase 2). Refs INTENCIONAIS: o doc agora traz um banner "⚠️ Not yet implemented
-  // — Phase 2" acima da tabela de endpoints. Mantidos aqui até a feature existir. — #3498
-  "/api/discovery/results",
-  "/api/discovery/results/:id",
-  "/api/discovery/scan",
-  "/api/discovery/verify/:id",
-  // docs/reference/ENVIRONMENT.md — endpoint UPSTREAM do provedor Blackbox Web,
-  // citado na descrição de env var (não é rota do OmniRoute):
-  "/api/chat",
-  // docs/ops/TUNNELS_GUIDE.md — a doc afirma EXPLICITAMENTE que este endpoint NÃO
-  // existe ("There is no central /api/settings/tunnels endpoint"); menção pedagógica:
-  "/api/settings/tunnels",
-]);
+export const KNOWN_STALE_DOC_REFS = new Set([]);
 
 function walk(dir, filter, acc = []) {
   if (!fs.existsSync(dir)) return acc;
@@ -85,9 +66,7 @@ function walk(dir, filter, acc = []) {
 
 export function collectRouteFiles() {
   return new Set(
-    walk(API, (n) => /^route\.tsx?$/.test(n)).map((p) =>
-      path.relative(ROOT, p).replace(/\\/g, "/")
-    )
+    walk(API, (n) => /^route\.tsx?$/.test(n)).map((p) => path.relative(ROOT, p).replace(/\\/g, "/"))
   );
 }
 

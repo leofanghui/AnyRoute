@@ -118,17 +118,6 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     warningLevel: "info",
   },
   {
-    key: "ONEPROXY_ENABLED",
-    label: "OneProxy Enabled",
-    description: "Enable 1proxy request proxying.",
-    descriptionI18nKey: "settings.featureFlags.oneproxyEnabled",
-    category: "network",
-    defaultValue: "true",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "info",
-  },
-  {
     key: "PROXY_AUTO_SELECT_ENABLED",
     label: "Proxy Auto-Selection Fallback",
     description:
@@ -150,17 +139,6 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     defaultValue: "false",
     type: "boolean",
     requiresRestart: false,
-    warningLevel: "danger",
-  },
-  {
-    key: "MITM_DISABLE_TLS_VERIFY",
-    label: "Disable TLS Verify (MITM)",
-    description: "Disable TLS certificate verification for MITM proxy",
-    descriptionI18nKey: "featureFlagMitmDisableTlsVerifyDescription",
-    category: "network",
-    defaultValue: "false",
-    type: "boolean",
-    requiresRestart: true,
     warningLevel: "danger",
   },
   {
@@ -188,18 +166,6 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
 
   // ──────────────── Policies (3) ────────────────
   {
-    key: "TOOL_POLICY_MODE",
-    label: "Tool Policy Mode",
-    description: "Set the tool use policy enforcement mode",
-    descriptionI18nKey: "featureFlagToolPolicyModeDescription",
-    category: "policies",
-    defaultValue: "disabled",
-    type: "enum",
-    enumValues: ["disabled", "warn", "block"],
-    requiresRestart: false,
-    warningLevel: "info",
-  },
-  {
     key: "RATE_LIMIT_AUTO_ENABLE",
     label: "Rate Limit Auto-Enable",
     description: "Automatically enable rate limiting based on usage patterns",
@@ -222,29 +188,7 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     warningLevel: "info",
   },
 
-  // ──────────────── Runtime (10) ────────────────
-  {
-    key: "OMNIROUTE_MCP_ENFORCE_SCOPES",
-    label: "MCP Enforce Scopes",
-    description: "Enforce scope restrictions on MCP tool access",
-    descriptionI18nKey: "featureFlagOmnirouteMcpEnforceScopesDescription",
-    category: "runtime",
-    defaultValue: "true",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "caution",
-  },
-  {
-    key: "OMNIROUTE_MCP_COMPRESS_DESCRIPTIONS",
-    label: "MCP Compress Descriptions",
-    description: "Compress MCP tool descriptions to reduce token usage",
-    descriptionI18nKey: "featureFlagOmnirouteMcpCompressDescriptionsDescription",
-    category: "runtime",
-    defaultValue: "false",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "info",
-  },
+  // ──────────────── Runtime ────────────────
   {
     key: "OMNIROUTE_ENABLE_RUNTIME_BACKGROUND_TASKS",
     label: "Runtime Background Tasks",
@@ -266,29 +210,6 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     type: "boolean",
     requiresRestart: true,
     warningLevel: "caution",
-  },
-  {
-    key: "OMNIROUTE_RTK_TRUST_PROJECT_FILTERS",
-    label: "RTK Trust Project Filters",
-    description: "Trust project-level filters from RTK without validation",
-    descriptionI18nKey: "featureFlagOmnirouteRtkTrustProjectFiltersDescription",
-    category: "runtime",
-    defaultValue: "false",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "caution",
-  },
-  {
-    key: "OMNIROUTE_ENABLE_LIVE_WS",
-    label: "Live Dashboard WebSocket",
-    description:
-      "Start the real-time dashboard WebSocket server on import (port 20129, loopback-bound by default). Default: enabled. Set to '0' or 'false' to disable. LAN exposure requires LIVE_WS_HOST=0.0.0.0 + LIVE_WS_ALLOWED_ORIGINS.",
-    descriptionI18nKey: "featureFlagOmnirouteEnableLiveWsDescription",
-    category: "runtime",
-    defaultValue: "true",
-    type: "boolean",
-    requiresRestart: true,
-    warningLevel: "info",
   },
   {
     key: "OMNIROUTE_CODEX_WS_ENABLED",
@@ -373,7 +294,7 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     warningLevel: "info",
   },
 
-  // ──────────────── Health (3) ────────────────
+  // ──────────────── Health ────────────────
   {
     key: "OMNIROUTE_DISABLE_LOCAL_HEALTHCHECK",
     label: "Disable Local Health Check",
@@ -395,16 +316,5 @@ export const FEATURE_FLAG_DEFINITIONS: FeatureFlagDefinition[] = [
     type: "boolean",
     requiresRestart: false,
     warningLevel: "info",
-  },
-  {
-    key: "SKILLS_SANDBOX_NETWORK_ENABLED",
-    label: "Skills Sandbox Network",
-    description: "Enable network access in the skills sandbox environment",
-    descriptionI18nKey: "featureFlagSkillsSandboxNetworkEnabledDescription",
-    category: "health",
-    defaultValue: "false",
-    type: "boolean",
-    requiresRestart: false,
-    warningLevel: "caution",
   },
 ];

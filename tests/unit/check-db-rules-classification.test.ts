@@ -52,7 +52,7 @@ function walkSync(dir: string, cb: (p: string) => void): void {
  *   import(`${...}/db/<mod>.ts`)  — dynamic template (bin/cli/runtime.mjs pattern)
  */
 function hasImporter(mod: string, roots: string[]): boolean {
-  // Escape special regex chars in mod name (underscore-prefixed names like _rowTypes)
+  // Escape special regex chars in module names.
   const escaped = mod.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const patterns = [
     // static: from "…/db/<mod>"
@@ -65,8 +65,7 @@ function hasImporter(mod: string, roots: string[]): boolean {
     new RegExp(`from\\s+['"]\\.\\.?/${escaped}['"]`),
   ];
   // The canonical db module path — we must skip ONLY this exact file, not all files
-  // that happen to share the same basename (e.g. src/lib/usage/comboForecast.ts must
-  // NOT be skipped when searching for importers of src/lib/db/comboForecast.ts).
+  // that happen to share the same basename in other directories.
   const dbModulePath = path.join(REPO_ROOT, "src", "lib", "db", `${mod}.ts`);
   let found = false;
   for (const root of roots) {
@@ -93,15 +92,12 @@ function hasImporter(mod: string, roots: string[]): boolean {
 
 // Modules marked "type-only": exports only TypeScript types; no runtime import
 // needed — the ts compiler erases them. These are genuinely correct as-is.
-const TYPE_ONLY = new Set(["_rowTypes"]);
+const TYPE_ONLY = new Set<string>();
 
 // Modules explicitly documented as DEAD? in the classification comments.
 // They remain in INTENTIONALLY_INTERNAL for schema-reservation reasons.
 // Flag them but do NOT fail — a separate decision is needed to remove them.
 const DOCUMENTED_DEAD = new Set([
-  "compressionScheduler", // DEAD?: 0 production importers as of 2026-06-11
-  "discovery", // DEAD?: 0 importers; lib/discovery/index.ts is independent
-  "pluginMetrics", // DEAD? (production): write path not yet wired (self-documented)
   "prompts", // DEAD? (production): zero production callers; integration test only verifies interface shape
 ]);
 
@@ -122,31 +118,17 @@ test("INTENTIONALLY_INTERNAL is exported from check-db-rules.mjs", () => {
   assert.ok(INTENTIONALLY_INTERNAL.size > 0, "INTENTIONALLY_INTERNAL must not be empty");
 });
 
-test("INTENTIONALLY_INTERNAL contains the expected 26 audited modules", () => {
+test("INTENTIONALLY_INTERNAL contains the expected 12 audited modules", () => {
   const expected = [
-    "_rowTypes",
-    "accessTokens",
-    "cleanup",
-    "cliToolState",
-    "comboForecast",
     "commandCodeAuth",
-    "compression",
-    "compressionScheduler",
     "detailedLogs",
-    "discovery",
     "domainState",
     "encryption",
     "healthCheck",
-    "jsonMigration",
     "migrationRunner",
-    "notion",
-    "obsidian",
-    "pluginMetrics",
     "prompts",
-    "providerStats",
     "recovery",
     "secrets",
-    "serviceModels",
     "stateReset",
     "stats",
     "tierConfig",
@@ -178,28 +160,6 @@ test("every non-type-only, non-dead module in INTENTIONALLY_INTERNAL has ≥1 re
     [],
     `These INTENTIONALLY_INTERNAL modules have ZERO importers — either they became dead ` +
       `(add to DOCUMENTED_DEAD with a DEAD? comment) or they were misclassified:\n  ${failures.join(", ")}`
-  );
-});
-
-test("type-only module _rowTypes is imported within src/lib/db/ by its consumers", () => {
-  // _rowTypes exports only TypeScript interfaces, so the import is always `import type`.
-  // It should be consumed within db/ itself (AgentBridge, Inspector CRUD modules).
-  const dbDir = path.join(REPO_ROOT, "src/lib/db");
-  let found = false;
-  if (fs.existsSync(dbDir)) {
-    for (const entry of fs.readdirSync(dbDir, { withFileTypes: true })) {
-      if (!entry.isFile() || !/\.ts$/.test(entry.name)) continue;
-      if (entry.name === "_rowTypes.ts") continue;
-      const src = fs.readFileSync(path.join(dbDir, entry.name), "utf8");
-      if (/from\s+['"]\.\/_rowTypes['"]/.test(src)) {
-        found = true;
-        break;
-      }
-    }
-  }
-  assert.ok(
-    found,
-    "_rowTypes must be imported (as type) by at least one sibling module in src/lib/db/"
   );
 });
 

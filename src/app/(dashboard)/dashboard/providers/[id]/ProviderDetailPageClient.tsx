@@ -37,7 +37,6 @@ import { useModelVisibilityHandlers } from "./hooks/useModelVisibilityHandlers";
 import { useModelCompatState } from "./hooks/useModelCompatState";
 import { useConnectionGate } from "./hooks/useConnectionGate";
 import { useProviderNodeActions } from "./hooks/useProviderNodeActions";
-import ProviderPlaygroundPanel from "./components/ProviderPlaygroundPanel";
 import ProviderModelsSection from "./components/ProviderModelsSection";
 import CustomModelsSection from "./components/CustomModelsSection";
 import ConnectionsListPanel from "./components/ConnectionsListPanel";
@@ -48,7 +47,6 @@ import CompatibleNodeCard from "./components/CompatibleNodeCard";
 import ProviderModalsPanel from "./components/ProviderModalsPanel";
 import EmptyConnectionsPlaceholder from "./components/EmptyConnectionsPlaceholder";
 import UpstreamProxyCard from "./components/UpstreamProxyCard";
-import SearchProviderCard from "./components/SearchProviderCard";
 import NoAuthProviderControls from "./components/NoAuthProviderControls";
 // providerText used by UpstreamProxyCard (Phase 1t.7)
 
@@ -66,7 +64,6 @@ export default function ProviderDetailPageClient() {
   const [showEditNodeModal, setShowEditNodeModal] = useState(false);
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
-  const [proxyTarget, setProxyTarget] = useState(null);
   const [importCodexModalOpen, setImportCodexModalOpen] = useState(false);
   const [codexCliGuideOpen, setCodexCliGuideOpen] = useState(false);
   const [importClaudeModalOpen, setImportClaudeModalOpen] = useState(false);
@@ -78,7 +75,6 @@ export default function ProviderDetailPageClient() {
     isAnthropicCompatibleProvider(providerId) && !isClaudeCodeCompatibleProvider(providerId);
   const isCompatible = isOpenAICompatible || isAnthropicCompatible || isCcCompatible;
   const isAnthropicProtocolCompatible = isAnthropicCompatible || isCcCompatible;
-  const isSearchProvider = providerId.endsWith("-search");
 
   // ── Phase 1f hooks ────────────────────────────────────────────────────────
   const {
@@ -95,9 +91,6 @@ export default function ProviderDetailPageClient() {
     batchDeleteConfirmOpen,
     healthFilter,
     page,
-    distributingProxies,
-    proxyConfig,
-    connProxyMap,
     cpaProviderEnabled,
     refreshingId,
     setPage,
@@ -107,15 +100,12 @@ export default function ProviderDetailPageClient() {
     setBatchTestResults,
     setProviderNode,
     fetchConnections,
-    fetchProxyConfig,
     handleDelete,
     handleUpdateConnectionStatus,
     handleToggleRateLimit,
     handleToggleClaudeExtraUsage,
     handleToggleCodexLimit,
     handleToggleCliproxyapiMode,
-    handleToggleProxyEnabled,
-    handleTogglePerKeyProxyEnabled,
     handleRetestConnection,
     handleRefreshToken,
     handleSwapPriority,
@@ -126,11 +116,10 @@ export default function ProviderDetailPageClient() {
     handleBatchTestAll,
     handleToggleSelectOne,
     handleToggleSelectAll,
-    handleDistributeProxies,
     parseApiErrorMessage,
     getAttachmentFilename,
     PAGE_SIZE,
-  } = useProviderConnections(providerId, isCompatible, isSearchProvider);
+  } = useProviderConnections(providerId, isCompatible, false);
 
   const {
     codexGlobalServiceMode,
@@ -156,7 +145,7 @@ export default function ProviderDetailPageClient() {
     fetchAliases,
     handleSetAlias,
     handleDeleteAlias,
-  } = useProviderModels(providerId, isSearchProvider);
+  } = useProviderModels(providerId, false);
 
   // ── shared hook/store ─────────────────────────────────────────────────────
   const { copied, copy } = useCopyToClipboard();
@@ -243,7 +232,6 @@ export default function ProviderDetailPageClient() {
     return Array.from(deduped.values());
   }, [providerId, registryModels, syncedAvailableModels, modelMeta.customModels]);
   const isManagedAvailableModelsProvider = isCompatible || providerId === "openrouter";
-  // isSearchProvider declared earlier (before hooks)
   const isUpstreamProxyProvider = providerInfo?.category === "upstream-proxy";
   const compatibleSupportsModelImport = compatibleProviderSupportsModelImport(providerId);
 
@@ -281,10 +269,10 @@ export default function ProviderDetailPageClient() {
 
   // ── model-related effects (loading gate) ────────────────────────────────
   useEffect(() => {
-    if (loading || isSearchProvider) return;
+    if (loading) return;
     fetchProviderModelMeta();
     fetchAliases();
-  }, [loading, isSearchProvider, fetchProviderModelMeta, fetchAliases]);
+  }, [loading, fetchProviderModelMeta, fetchAliases]);
 
   const handleOAuthSuccess = useCallback(() => {
     fetchConnections();
@@ -491,8 +479,6 @@ export default function ProviderDetailPageClient() {
             batchTesting={batchTesting}
             batchRetesting={batchRetesting}
             retestingId={retestingId}
-            distributingProxies={distributingProxies}
-            proxyConfig={proxyConfig}
             preferClaudeCodeForUnprefixedClaudeModels={preferClaudeCodeForUnprefixedClaudeModels}
             claudeRoutingSettingsLoaded={claudeRoutingSettingsLoaded}
             claudeRoutingSettingsLoadError={claudeRoutingSettingsLoadError}
@@ -506,8 +492,6 @@ export default function ProviderDetailPageClient() {
             savingCodexGlobalServiceMode={savingCodexGlobalServiceMode}
             handleChangeCodexGlobalServiceMode={handleChangeCodexGlobalServiceMode}
             loadCodexSettings={loadCodexSettings}
-            onSetProxyTarget={setProxyTarget}
-            handleDistributeProxies={handleDistributeProxies}
             handleBatchTestAll={handleBatchTestAll}
             gateConnectionFlow={gateConnectionFlow}
             openApiKeyAddFlow={openApiKeyAddFlow}
@@ -555,12 +539,9 @@ export default function ProviderDetailPageClient() {
               batchTesting={batchTesting}
               retestingId={retestingId}
               refreshingId={refreshingId}
-              distributingProxies={distributingProxies}
               healthFilter={healthFilter}
               page={page}
               PAGE_SIZE={PAGE_SIZE}
-              connProxyMap={connProxyMap}
-              proxyConfig={proxyConfig}
               applyingCodexAuthId={applyingCodexAuthId}
               exportingCodexAuthId={exportingCodexAuthId}
               applyingClaudeAuthId={applyingClaudeAuthId}
@@ -577,8 +558,6 @@ export default function ProviderDetailPageClient() {
               handleToggleClaudeExtraUsage={handleToggleClaudeExtraUsage}
               handleToggleCliproxyapiMode={handleToggleCliproxyapiMode}
               handleToggleCodexLimit={handleToggleCodexLimit}
-              handleToggleProxyEnabled={handleToggleProxyEnabled}
-              handleTogglePerKeyProxyEnabled={handleTogglePerKeyProxyEnabled}
               handleRetestConnection={handleRetestConnection}
               handleRefreshToken={handleRefreshToken}
               handleSwapPriority={handleSwapPriority}
@@ -587,14 +566,12 @@ export default function ProviderDetailPageClient() {
               handleBatchRetest={handleBatchRetest}
               handleToggleSelectOne={handleToggleSelectOne}
               handleToggleSelectAll={handleToggleSelectAll}
-              handleDistributeProxies={handleDistributeProxies}
               cpaProviderEnabled={cpaProviderEnabled}
               onOpenEditModal={(conn) => {
                 setSelectedConnection(conn);
                 setShowEditModal(true);
               }}
               onOpenOAuth={(conn) => gateConnectionFlow(() => setShowOAuthModal(true, conn))}
-              onSetProxyTarget={setProxyTarget}
               onOpenApplyCodexModal={setApplyCodexModalConnectionId}
               onExportCodexAuthFile={handleExportCodexAuthFile}
               onOpenApplyClaudeModal={setApplyClaudeModalConnectionId}
@@ -609,8 +586,8 @@ export default function ProviderDetailPageClient() {
       )}
       {isUpstreamProxyProvider && <UpstreamProxyCard t={t} />}
 
-      {/* Models — hidden for search providers (they don't have models) */}
-      {!isSearchProvider && !isUpstreamProxyProvider && (
+      {/* Models */}
+      {!isUpstreamProxyProvider && (
         <Card>
           <h2 className="text-lg font-semibold mb-4">{t("availableModels")}</h2>
           {/* Phase 1m: extracted to components/ProviderModelsSection.tsx */}
@@ -684,12 +661,6 @@ export default function ProviderDetailPageClient() {
         </Card>
       )}
 
-      {/* Search provider info */}
-      {isSearchProvider && <SearchProviderCard providerId={providerId} t={t} />}
-
-      {/* Playground panel — rendered for providers that declare serviceKinds */}
-      <ProviderPlaygroundPanel providerId={providerId} />
-
       {/* Modals — Phase 1t.5: extracted to components/ProviderModalsPanel.tsx */}
       <ProviderModalsPanel
         providerId={providerId}
@@ -762,9 +733,6 @@ export default function ProviderDetailPageClient() {
         batchTestResults={batchTestResults}
         setBatchTestResults={setBatchTestResults}
         emailsVisible={emailsVisible}
-        proxyTarget={proxyTarget}
-        setProxyTarget={setProxyTarget}
-        fetchProxyConfig={fetchProxyConfig}
         importProgress={importProgress}
         showImportModal={showImportModal}
         setShowImportModal={setShowImportModal}

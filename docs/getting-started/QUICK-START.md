@@ -99,7 +99,7 @@ You should see your connected models listed.
 
 - **[Auto-Combo Guide](./AUTO-COMBO-GUIDE.md)** — Let OmniRoute pick the best AI for you
 - **[Providers Guide](./PROVIDERS-GUIDE.md)** — Connect more providers (free and paid)
-- **[Free Tiers Guide](./FREE-TIERS-GUIDE.md)** — Get free AI with no credit card
+- **[Providers Guide](./PROVIDERS-GUIDE.md)** — Configure providers and keys
 - **[Troubleshooting](./TROUBLESHOOTING.md)** — Fix common issues
 
 ---
@@ -116,11 +116,11 @@ You should see your connected models listed.
 
 ### "How much does it cost?"
 
-OmniRoute itself is **free and open-source**. You only pay for the providers you use. Many providers have free tiers — see the [Free Tiers Guide](./FREE-TIERS-GUIDE.md).
+OmniRoute itself is **free and open-source**. You only pay for the providers you use. Configure providers from the [Providers Guide](./PROVIDERS-GUIDE.md).
 
 ### "Can I use it with Claude Code / Cursor / Copilot?"
 
-**Yes!** OmniRoute works with any tool that supports OpenAI format. Just set the base URL to `http://localhost:20128/v1`. See the [CLI Tools Guide](../reference/CLI-TOOLS.md) for specific setup instructions.
+**Yes!** OmniRoute works with any tool that supports OpenAI format. Set the base URL to `http://localhost:20128/v1`.
 
 ### "What if a provider goes down?"
 

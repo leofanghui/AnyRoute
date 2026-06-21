@@ -22,13 +22,9 @@ export interface ProviderSummaryStats {
   apikey: SummaryStat;
   compatible: SummaryStat;
   webcookie: SummaryStat;
-  search: SummaryStat;
-  audio: SummaryStat;
   local: SummaryStat;
   upstreamproxy: SummaryStat;
-  cloudagent: SummaryStat;
   ide: SummaryStat;
-  webfetch: SummaryStat;
 }
 
 interface ProviderSummaryCardProps {
@@ -112,22 +108,7 @@ export default function ProviderSummaryCard({
       stat: summaryStats.compatible,
     },
     { key: "webcookie", color: "bg-purple-500", label: "Web Cookie", stat: summaryStats.webcookie },
-    { key: "search", color: "bg-teal-500", label: "Search", stat: summaryStats.search },
-    {
-      key: "webfetch",
-      color: "bg-orange-500",
-      label: t("webFetch"),
-      stat: summaryStats.webfetch,
-      title: t("webFetchTooltip"),
-    },
-    { key: "audio", color: "bg-rose-500", label: "Audio", stat: summaryStats.audio },
     { key: "local", color: "bg-emerald-500", label: "Local", stat: summaryStats.local },
-    {
-      key: "cloudagent",
-      color: "bg-violet-500",
-      label: "Cloud Agent",
-      stat: summaryStats.cloudagent,
-    },
   ].filter((category) => category.key !== "no-auth" || category.stat.total > 0);
 
   return (

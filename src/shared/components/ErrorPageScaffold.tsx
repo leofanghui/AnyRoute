@@ -27,7 +27,10 @@ export default function ErrorPageScaffold({
 }: ErrorPageScaffoldProps) {
   const t = useTranslations("common");
   const resolvedPrimary = primaryAction ?? { href: "/dashboard", label: t("goToDashboard") };
-  const resolvedSecondary = secondaryAction ?? { href: "/status", label: t("checkSystemStatus") };
+  const resolvedSecondary = secondaryAction ?? {
+    href: "/dashboard/health",
+    label: t("checkSystemStatus"),
+  };
 
   return (
     <main

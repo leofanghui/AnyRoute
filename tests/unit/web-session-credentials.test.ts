@@ -45,8 +45,6 @@ test("web session credential metadata identifies cookie, token, and no-auth prov
     acceptsFullCookieHeader: true,
     storageKeys: ["cookie", "arena-auth-prod-v1", "session"],
   });
-  // veoaifree-web is now a NOAUTH provider — not in WEB_SESSION_CREDENTIAL_REQUIREMENTS
-  assert.equal(webSessionCredentials.getWebSessionCredentialRequirement("veoaifree-web"), null);
   assert.deepEqual(webSessionCredentials.getWebSessionCredentialRequirement("t3-web"), {
     kind: "cookie",
     credentialName: "convex-session-id + Cookie header",
@@ -82,7 +80,5 @@ test("web session credential validator requires provider-specific non-empty valu
 });
 
 test("no-auth web providers can be saved without an API key", () => {
-  assert.equal(providers.providerAllowsOptionalApiKey("veoaifree-web"), true);
-  assert.equal(webSessionCredentials.requiresWebSessionCredential("veoaifree-web"), false);
   assert.equal(webSessionCredentials.requiresWebSessionCredential("chatgpt-web"), true);
 });

@@ -8,11 +8,11 @@ import LanguageSelector from "@/shared/components/LanguageSelector";
 
 export const metadata = {
   title: {
-    template: "%s — OmniRoute Docs",
+    template: "%s - OmniRoute Docs",
     default: "OmniRoute Documentation",
   },
   description:
-    "Comprehensive documentation for OmniRoute AI gateway — setup, API, compression, deployment, and more.",
+    "Documentation for the minimal OmniRoute AI gateway: setup, providers, routing, API, and deployment.",
   robots: {
     index: true,
     follow: true,
@@ -50,13 +50,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         defaultTheme: "dark",
         attribute: "class",
       }}
-      search={{
-        options: {
-          api: "/docs/api/search",
-        },
-      }}
     >
-      <DocsLayout tree={source.pageTree} {...docsLayoutOptions}>
+      <DocsLayout tree={source.pageTree as any} {...docsLayoutOptions}>
         {children}
       </DocsLayout>
     </RootProvider>

@@ -74,7 +74,7 @@ function removeNativeModules(baseDir) {
   if (!existsSync(baseDir)) return;
   const dirs = readdirSync(baseDir);
   for (const dir of dirs) {
-    if (dir.startsWith("better-sqlite3") || dir.startsWith("keytar")) {
+    if (dir.startsWith("better-sqlite3")) {
       const fullPath = join(baseDir, dir);
       rmSync(fullPath, { recursive: true, force: true });
     }
@@ -108,7 +108,7 @@ assembleStandalone({
 // Electron-UNIQUE post-assembly steps
 removeGeneratedElectronArtifacts();
 
-// Strip better-sqlite3 and keytar so electron-builder rebuilds them against Electron ABI
+// Strip better-sqlite3 so electron-builder rebuilds it against Electron ABI
 removeNativeModules(join(ELECTRON_STANDALONE_DIR, "node_modules"));
 removeNativeModules(join(ELECTRON_STANDALONE_DIR, ".next", "node_modules"));
 

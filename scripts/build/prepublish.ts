@@ -142,7 +142,7 @@ console.log("  ✅ Standalone artifact present:", standaloneServerJs);
 
 // ── Step 3–7: Assemble standalone into dist/ ───────────────
 // All shared copy/sync/sanitize/chunk-patch operations are delegated to
-// assembleStandalone.  npm-UNIQUE steps (MITM, MCP, CLI, sidecars) follow.
+// assembleStandalone. npm-unique steps (CLI, sidecars, pruning) follow.
 console.log("  📋 Assembling standalone bundle into dist/...");
 assembleStandalone({
   distDir: join(ROOT, NEXT_DIST),
@@ -168,141 +168,6 @@ if (existsSync(distServer)) {
   }
 }
 
-// ── Step 8: Compile + copy MITM cert utilities ─────────────
-const mitmSrc = join(ROOT, "src", "mitm");
-const mitmDest = join(DIST_DIR, "src", "mitm");
-if (existsSync(mitmSrc)) {
-  console.log("  🔨 Compiling MITM utilities (TypeScript → JavaScript)...");
-  mkdirSync(mitmDest, { recursive: true });
-
-  // Write a temporary tsconfig.json targeting the mitm directory
-  const mitmTsconfig = {
-    compilerOptions: {
-      target: "ES2022",
-      module: "NodeNext",
-      moduleResolution: "NodeNext",
-      outDir: mitmDest,
-      rootDir: mitmSrc,
-      strict: false,
-      noImplicitAny: false,
-      strictNullChecks: false,
-      noEmitOnError: true,
-      allowImportingTsExtensions: true,
-      rewriteRelativeImportExtensions: true,
-      ignoreDeprecations: "6.0",
-      resolveJsonModule: true,
-      esModuleInterop: true,
-      skipLibCheck: true,
-      types: ["node"],
-      baseUrl: ".",
-      paths: {
-        "@/*": ["src/*"],
-      },
-    },
-    include: [mitmSrc + "/**/*"],
-  };
-  const tmpTsconfigPath = join(ROOT, "tsconfig.mitm.tmp.json");
-  writeFileSync(tmpTsconfigPath, JSON.stringify(mitmTsconfig, null, 2));
-
-  try {
-    execFileSync(NPX_BIN, ["tsc", "-p", "tsconfig.mitm.tmp.json"], {
-      cwd: ROOT,
-      stdio: "inherit",
-    });
-    const mitmServerSrc = join(mitmSrc, "server.cjs");
-    if (existsSync(mitmServerSrc)) {
-      cpSync(mitmServerSrc, join(mitmDest, "server.cjs"));
-    }
-    console.log("  ✅ MITM utilities compiled to dist/src/mitm/");
-  } catch (err: any) {
-    console.warn("  ⚠️  MITM compile warning (non-fatal):", err.message);
-    // Fallback: copy source files so at least they are present
-    cpSync(mitmSrc, mitmDest, { recursive: true });
-  } finally {
-    // Cleanup temp tsconfig
-    try {
-      rmSync(tmpTsconfigPath);
-    } catch {}
-  }
-}
-
-// ── Step 8.5: Bundle MCP server ────────────────────────────
-const mcpSrcFile = join(ROOT, "open-sse", "mcp-server", "server.ts");
-const mcpDestDir = join(DIST_DIR, "open-sse", "mcp-server");
-const mcpDestFile = join(mcpDestDir, "server.js");
-
-if (existsSync(mcpSrcFile)) {
-  console.log("  🔨 Bundling MCP Server (TypeScript → JavaScript)...");
-  mkdirSync(mcpDestDir, { recursive: true });
-  try {
-    execFileSync(
-      NPX_BIN,
-      [
-        "esbuild",
-        "open-sse/mcp-server/server.ts",
-        "--bundle",
-        "--platform=node",
-        "--packages=external",
-        "--format=esm",
-        "--outfile=dist/open-sse/mcp-server/server.js",
-      ],
-      { cwd: ROOT, stdio: "inherit" }
-    );
-    console.log("  ✅ MCP Server bundled to dist/open-sse/mcp-server/server.js");
-  } catch (err: any) {
-    console.warn("  ⚠️  MCP Server bundle error:", err.message);
-  }
-}
-
-// ── Step 8.6: Bundle LLMLingua ONNX worker ────────────────────────────
-// The worker is spawned via worker_threads at a path the Next.js bundler cannot
-// statically trace, so it must ship as a standalone .js (mirrors the MCP-server
-// bundling above). Heavy deps (@atjsh/llmlingua-2 / @huggingface/transformers /
-// @tensorflow/tfjs / js-tiktoken) stay EXTERNAL — they are optionalDependencies,
-// dynamically imported at runtime, and the worker fail-opens if any is absent.
-const llmWorkerSrc = join(
-  ROOT,
-  "open-sse",
-  "services",
-  "compression",
-  "engines",
-  "llmlingua",
-  "onnxWorker.ts"
-);
-const llmWorkerDestDir = join(
-  DIST_DIR,
-  "open-sse",
-  "services",
-  "compression",
-  "engines",
-  "llmlingua"
-);
-if (existsSync(llmWorkerSrc)) {
-  console.log("  🔨 Bundling LLMLingua ONNX worker (TypeScript → JavaScript)...");
-  mkdirSync(llmWorkerDestDir, { recursive: true });
-  try {
-    execFileSync(
-      NPX_BIN,
-      [
-        "esbuild",
-        "open-sse/services/compression/engines/llmlingua/onnxWorker.ts",
-        "--bundle",
-        "--platform=node",
-        "--packages=external",
-        "--format=esm",
-        "--outfile=dist/open-sse/services/compression/engines/llmlingua/onnxWorker.js",
-      ],
-      { cwd: ROOT, stdio: "inherit" }
-    );
-    console.log(
-      "  ✅ LLMLingua worker bundled to dist/open-sse/services/compression/engines/llmlingua/onnxWorker.js"
-    );
-  } catch (err: any) {
-    console.warn("  ⚠️  LLMLingua worker bundle error:", err.message);
-  }
-}
-
-// ── Step 8.7: Bundle CLI Entrypoint ──────────────────────────
 const cliSrcFile = join(ROOT, "bin", "omniroute.ts");
 const cliDestFile = join(ROOT, "bin", "omniroute.mjs");
 
@@ -400,13 +265,6 @@ if (existsSync(envExampleSrc)) {
   cpSync(envExampleSrc, join(DIST_DIR, ".env.example"));
 }
 
-const openapiSpecSrc = join(ROOT, "docs", "openapi.yaml");
-if (existsSync(openapiSpecSrc)) {
-  const docsDest = join(DIST_DIR, "docs");
-  mkdirSync(docsDest, { recursive: true });
-  cpSync(openapiSpecSrc, join(docsDest, "openapi.yaml"));
-}
-
 const docsMarkdownSrc = join(ROOT, "docs");
 if (existsSync(docsMarkdownSrc)) {
   const docsDest = join(DIST_DIR, "docs");
@@ -434,23 +292,6 @@ if (existsSync(migrationsSrc)) {
   const migrationsDest = join(DIST_DIR, "src", "lib", "db", "migrations");
   mkdirSync(join(DIST_DIR, "src", "lib", "db"), { recursive: true });
   cpSync(migrationsSrc, migrationsDest, { recursive: true, force: true });
-}
-
-const runtimeAssetDirs = [
-  {
-    source: join(ROOT, "open-sse", "services", "compression", "engines", "rtk", "filters"),
-    destination: join(DIST_DIR, "open-sse", "services", "compression", "engines", "rtk", "filters"),
-  },
-  {
-    source: join(ROOT, "open-sse", "services", "compression", "rules"),
-    destination: join(DIST_DIR, "open-sse", "services", "compression", "rules"),
-  },
-];
-for (const assetDir of runtimeAssetDirs) {
-  if (existsSync(assetDir.source)) {
-    mkdirSync(dirname(assetDir.destination), { recursive: true });
-    cpSync(assetDir.source, assetDir.destination, { recursive: true, force: true });
-  }
 }
 
 // ── Step 10: Ensure data/ directory exists ──────────────────

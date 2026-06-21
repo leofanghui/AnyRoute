@@ -1,5 +1,3 @@
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 import { createPrompt, printHeading, printInfo, printSuccess } from "../io.mjs";
 import { openOmniRouteDb } from "../sqlite.mjs";
 import { getSettings, hashManagementPassword, updateSettings } from "../settings-store.mjs";
@@ -10,15 +8,7 @@ import {
   getProviderDisplayName,
   resolveProviderChoice,
 } from "../provider-catalog.mjs";
-import { registerSetupOpenCode } from "./setup-open-code.mjs";
 import { t } from "../i18n.mjs";
-
-const PROJECT_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-
-async function getListCliTools() {
-  const { listCliTools } = await import(`${PROJECT_ROOT}/src/shared/constants/cliTools.ts`);
-  return listCliTools;
-}
 
 function wantsProviderSetup(opts) {
   return opts.addProvider || Boolean(opts.provider) || Boolean(opts.apiKey);
@@ -145,36 +135,14 @@ export function registerSetup(program) {
     .option("--provider-base-url <url>", "Optional OpenAI-compatible base URL override")
     .option("--test-provider", "Test the provider after saving it")
     .option("--non-interactive", "Read all inputs from flags/env and do not prompt")
-    .option("--list", "List all supported CLI tools")
     .action(async (opts, cmd) => {
       const globalOpts = cmd.optsWithGlobals();
       const exitCode = await runSetupCommand({ ...opts, output: globalOpts.output });
       if (exitCode !== 0) process.exit(exitCode);
     });
-
-  // Wire up `omniroute setup opencode` subcommand. Kept inside registerSetup
-  // so it always travels with the parent command (avoids a separate register
-  // call in the registry that would silently break if the parent renames).
-  registerSetupOpenCode(program.commands.find((c) => c.name() === "setup"));
 }
 
 export async function runSetupCommand(opts = {}) {
-  if (opts.list) {
-    const listCliTools = await getListCliTools();
-    const tools = listCliTools();
-    if (opts.json || opts.output === "json") {
-      console.log(JSON.stringify(tools, null, 2));
-    } else {
-      printHeading("Supported CLI Tools");
-      for (const tool of tools) {
-        const cmd = tool.defaultCommand || tool.defaultCommands?.[0] || "";
-        const cmdStr = cmd ? `  \x1b[2m(${cmd})\x1b[0m` : "";
-        console.log(`  • ${tool.name}${cmdStr}`);
-      }
-    }
-    return 0;
-  }
-
   const nonInteractive = opts.nonInteractive ?? false;
   const prompt = createPrompt();
 

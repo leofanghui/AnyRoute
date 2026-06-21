@@ -177,7 +177,10 @@ test("AC-10c: BYPASS_PREFIX_NOT_ALLOWED failure writes settings.update_failed", 
     await makeManagementSessionRequest("http://localhost/api/settings", {
       method: "PATCH",
       body: {
-        localOnlyManageScopeBypassPrefixes: ["/api/mcp/", "/api/cli-tools/runtime/"],
+        localOnlyManageScopeBypassPrefixes: [
+          "/api/internal/codex-responses-ws/",
+          "/api/system/version",
+        ],
         currentPassword: "initial-pass-ac10c",
       },
     })
@@ -191,7 +194,7 @@ test("AC-10c: BYPASS_PREFIX_NOT_ALLOWED failure writes settings.update_failed", 
 
   // Snapshot untouched.
   const after = await settingsDb.getSettings();
-  assert.deepEqual(after.localOnlyManageScopeBypassPrefixes, ["/api/mcp/"]);
+  assert.deepEqual(after.localOnlyManageScopeBypassPrefixes, []);
 });
 
 test("AC-10d: zod validation failure (wrong type) writes settings.update_failed", async () => {

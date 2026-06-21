@@ -31,15 +31,6 @@ interface ProviderStats {
 
 const KIND_LABEL: Record<string, string> = {
   llm: "Chat",
-  embedding: "Embed",
-  image: "Image",
-  imageToText: "I→T",
-  tts: "TTS",
-  stt: "STT",
-  webSearch: "Search",
-  webFetch: "Fetch",
-  video: "Video",
-  music: "Music",
 };
 
 interface ProviderCardProps {
@@ -69,11 +60,8 @@ const DOT_COLORS: Record<string, string> = {
   apikey: "bg-amber-500",
   compatible: "bg-orange-500",
   "web-cookie": "bg-purple-500",
-  search: "bg-teal-500",
-  audio: "bg-rose-500",
   local: "bg-emerald-500",
   "upstream-proxy": "bg-indigo-500",
-  "cloud-agent": "bg-violet-500",
 };
 
 type ProviderMessageTranslator = ((key: string, values?: Record<string, unknown>) => string) & {
@@ -147,21 +135,14 @@ export default function ProviderCard({
 }: ProviderCardProps) {
   const t = useTranslations("providers");
   const tc = useTranslations("common");
-  const tp = useTranslations("miniPlayground");
+  const tt = useTranslations("providerTest");
   const [testExpanded, setTestExpanded] = useState<boolean>(false);
 
-  // Show the Test button for LLM providers (when serviceKinds includes "llm"
-  // OR when the provider has no explicit serviceKinds but is a regular LLM provider
-  // i.e. not a search/audio/cloud-agent type).
+  // Show the Test button for LLM providers.
   const serviceKinds = provider.serviceKinds ?? [];
   const isLlmProvider =
     serviceKinds.includes("llm") ||
-    (serviceKinds.length === 0 &&
-      authType !== "search" &&
-      authType !== "audio" &&
-      authType !== "cloud-agent" &&
-      authType !== "upstream-proxy" &&
-      authType !== "no-auth");
+    (serviceKinds.length === 0 && authType !== "upstream-proxy" && authType !== "no-auth");
 
   const handleTestClick = (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
@@ -205,11 +186,8 @@ export default function ProviderCard({
     apikey: t("apiKeyLabel"),
     compatible: t("compatibleLabel"),
     "web-cookie": t("webCookieProviders"),
-    search: t("searchProvidersHeading"),
-    audio: t("audioProvidersHeading"),
     local: t("localProviders"),
     "upstream-proxy": t("upstreamProxyProviders"),
-    "cloud-agent": t("cloudAgentProviders"),
   };
 
   const staticIconPath = (() => {
@@ -372,13 +350,13 @@ export default function ProviderCard({
                   <button
                     type="button"
                     onClick={handleTestClick}
-                    title={tp("expandTest")}
+                    title={tt("expandTest")}
                     className="inline-flex items-center gap-0.5 rounded-md border border-border bg-bg-subtle px-2 py-0.5 text-[11px] text-text-muted hover:text-text-primary hover:border-primary/30 transition-colors"
                   >
                     <span className="material-symbols-outlined text-[11px] leading-none">
                       play_arrow
                     </span>
-                    {tp("testLabel")}
+                    {tt("testLabel")}
                   </button>
                 )}
                 {!isLlmProvider && (

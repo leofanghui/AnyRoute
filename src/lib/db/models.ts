@@ -368,14 +368,7 @@ export async function addCustomModel(
   modelId: string,
   modelName?: string,
   source = "manual",
-  apiFormat:
-    | "chat-completions"
-    | "responses"
-    | "embeddings"
-    | "rerank"
-    | "audio-transcriptions"
-    | "audio-speech"
-    | "images-generations" = "chat-completions",
+  apiFormat: "chat-completions" | "responses" = "chat-completions",
   supportedEndpoints: string[] = ["chat"],
   // #2905: optional per-model wire format override (e.g. "claude" for an
   // opencode-go custom model). When unset, routing falls back to the provider

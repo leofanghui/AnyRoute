@@ -1,35 +1,33 @@
 import { NextResponse } from "next/server";
-import { getSettings, updateSettings } from "@/lib/localDb";
+
+import { getSettings, updateSettings } from "@/lib/db/settings";
 import {
   hasManagementPasswordConfigured,
   hashManagementPassword,
 } from "@/lib/auth/managementPassword";
-import { isAuthenticated } from "@/shared/utils/apiAuth";
-import { getNodeRuntimeSupport } from "@/shared/utils/nodeRuntimeSupport.ts";
 import { updateRequireLoginSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { isAuthenticated } from "@/shared/utils/apiAuth";
+import { getNodeRuntimeSupport } from "@/shared/utils/nodeRuntimeSupport.ts";
 
-// Node.js compatibility check — reflect the supported secure runtime floors used by CLI/CI.
 function getNodeCompatibility() {
   const { nodeVersion, nodeCompatible } = getNodeRuntimeSupport();
   return { nodeVersion, nodeCompatible };
 }
 
-function hasConfiguredPassword(settings: Record<string, unknown>) {
-  return hasManagementPasswordConfigured(settings);
-}
-
 function isBootstrapSecurityWindow(settings: Record<string, unknown>) {
-  return !hasConfiguredPassword(settings);
+  return !hasManagementPasswordConfigured(settings);
 }
 
 export async function GET() {
   const nodeInfo = getNodeCompatibility();
+
   try {
     const settings = await getSettings();
     const requireLogin = settings.requireLogin !== false;
     const hasPassword = hasManagementPasswordConfigured(settings);
-    const setupComplete = !!settings.setupComplete;
+    const setupComplete = settings.setupComplete === true;
+
     return NextResponse.json({ requireLogin, hasPassword, setupComplete, ...nodeInfo });
   } catch (error) {
     console.error("[API] Error fetching require-login settings:", error);
@@ -40,17 +38,13 @@ export async function GET() {
   }
 }
 
-/**
- * POST /api/settings/require-login — Set password and/or toggle requireLogin.
- * Unauthenticated writes are only allowed during the initial bootstrap window.
- */
 export async function POST(request: Request) {
   const settings = await getSettings();
   if (!isBootstrapSecurityWindow(settings) && !(await isAuthenticated(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let rawBody;
+  let rawBody: unknown;
   try {
     rawBody = await request.json();
   } catch {
@@ -70,18 +64,13 @@ export async function POST(request: Request) {
     if (isValidationFailure(validation)) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-    const body = validation.data;
-    const { requireLogin, password } = body;
 
-    const updates: Record<string, any> = {};
-
-    if (typeof requireLogin === "boolean") {
-      updates.requireLogin = requireLogin;
+    const updates: Record<string, unknown> = {};
+    if (typeof validation.data.requireLogin === "boolean") {
+      updates.requireLogin = validation.data.requireLogin;
     }
-
-    if (password) {
-      const hashedPassword = await hashManagementPassword(password);
-      updates.password = hashedPassword;
+    if (validation.data.password) {
+      updates.password = await hashManagementPassword(validation.data.password);
     }
 
     await updateSettings(updates);

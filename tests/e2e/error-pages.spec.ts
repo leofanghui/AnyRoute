@@ -5,7 +5,7 @@ const errorPages = [
     path: "/400",
     heading: "Bad Request",
     primaryHref: "/docs",
-    secondaryHref: "/dashboard/translator",
+    secondaryHref: "/dashboard/endpoint",
   },
   {
     path: "/401",
@@ -17,18 +17,18 @@ const errorPages = [
     path: "/403",
     heading: "Forbidden",
     primaryHref: "/forbidden",
-    secondaryHref: "/dashboard/settings?tab=security",
+    secondaryHref: "/dashboard/settings/general",
   },
   {
     path: "/408",
     heading: "Request Timeout",
     primaryHref: "/dashboard/endpoint",
-    secondaryHref: "/status",
+    secondaryHref: "/dashboard/health",
   },
   {
     path: "/429",
     heading: "Too Many Requests",
-    primaryHref: "/dashboard/settings?tab=resilience",
+    primaryHref: "/dashboard/health",
     secondaryHref: "/dashboard/combos",
   },
   {
@@ -41,13 +41,13 @@ const errorPages = [
     path: "/502",
     heading: "Bad Gateway",
     primaryHref: "/dashboard/providers",
-    secondaryHref: "/dashboard/translator",
+    secondaryHref: "/dashboard/health",
   },
   {
     path: "/503",
     heading: "Service Unavailable",
-    primaryHref: "/maintenance",
-    secondaryHref: "/status",
+    primaryHref: "/dashboard/health",
+    secondaryHref: "/dashboard/logs",
   },
 ];
 
@@ -70,32 +70,6 @@ test.describe("Error and Resilience Pages", () => {
 
     await expect(page.getByRole("heading", { name: /Page not found/i })).toBeVisible();
     await expect(page.locator('a[href="/dashboard"]')).toBeVisible();
-    await expect(page.locator('a[href="/status"]')).toBeVisible();
-  });
-
-  test("/offline explains connectivity and offers recovery actions", async ({ page }) => {
-    const response = await page.goto("/offline");
-    expect(response?.ok()).toBeTruthy();
-
-    await expect(page.getByRole("heading", { name: "Connectivity Issue" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Retry Connection" })).toBeVisible();
-    await expect(page.locator('a[href="/status"]')).toBeVisible();
-  });
-
-  test("/maintenance provides maintenance guidance and status action", async ({ page }) => {
-    const response = await page.goto("/maintenance");
-    expect(response?.ok()).toBeTruthy();
-
-    await expect(page.getByRole("heading", { name: "Scheduled Maintenance" })).toBeVisible();
-    await expect(page.locator('a[href="/status"]')).toBeVisible();
     await expect(page.locator('a[href="/dashboard/health"]')).toBeVisible();
-  });
-
-  test("/status shows monitoring shell and refresh control", async ({ page }) => {
-    const response = await page.goto("/status");
-    expect(response?.ok()).toBeTruthy();
-
-    await expect(page.getByRole("heading", { name: "System Status" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Refresh" })).toBeVisible();
   });
 });

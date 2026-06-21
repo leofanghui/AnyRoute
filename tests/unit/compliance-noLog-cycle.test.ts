@@ -2,9 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 // #2650: callLogs.ts ↔ compliance/index.ts had a circular import that
-// deadlocked the bundled MCP server under Node.js 24. The cycle was broken
-// by extracting noLog state to compliance/noLog.ts. These tests guard the
-// new boundary so the cycle does not regress.
+// exposed Node.js 24 ESM initialization issues. The cycle was broken by
+// extracting noLog state to compliance/noLog.ts. These tests guard the boundary
+// so the cycle does not regress.
 
 test("compliance/noLog can be imported without pulling callLogs (#2650)", async () => {
   const noLog = await import("../../src/lib/compliance/noLog.ts");

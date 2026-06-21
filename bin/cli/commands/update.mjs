@@ -55,7 +55,7 @@ export async function createBackup() {
     if (!existsSync(binPath)) return null;
 
     mkdirSync(backupDir, { recursive: true });
-    const files = ["omniroute.mjs", "cli", "nodeRuntimeSupport.mjs", "mcp-server.mjs"];
+    const files = ["omniroute.mjs", "cli", "nodeRuntimeSupport.mjs"];
     for (const f of files) {
       const src = path.join(binPath, f);
       if (existsSync(src)) {
@@ -174,8 +174,8 @@ export async function runUpdateCommand(opts = {}) {
   printInfo("Updating OmniRoute...");
   try {
     const { execSync } = await import("child_process");
-    // --include=optional keeps the optionalDependencies (better-sqlite3, keytar,
-    // tls-client, llmlingua SLM stack) on update so an omit=optional config can't drop them.
+    // --include=optional keeps runtime optionalDependencies on update so an
+    // omit=optional config can't drop them.
     execSync("npm install -g omniroute@latest --include=optional", { stdio: "inherit" });
     printSuccess(`Updated to version ${latest}`);
     printInfo("Run `omniroute --version` to verify.");

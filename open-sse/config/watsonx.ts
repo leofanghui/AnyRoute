@@ -10,10 +10,7 @@ export function normalizeWatsonxBaseUrl(value: string | null | undefined): strin
   const normalized = normalizeBaseUrl(value || WATSONX_DEFAULT_BASE_URL);
   if (!normalized) return WATSONX_DEFAULT_BASE_URL;
 
-  const stripped = normalized.replace(
-    /\/(?:chat\/completions|completions|embeddings|models)$/i,
-    ""
-  );
+  const stripped = normalized.replace(/\/(?:chat\/completions|completions|models)$/i, "");
 
   if (stripped.endsWith("/ml/gateway/v1")) {
     return stripped;

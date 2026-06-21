@@ -18,7 +18,7 @@ import {
 import type { KeyStatus, KeyType } from "./apiManagerPageUtils";
 import { readActiveOnlyPreference, writeActiveOnlyPreference } from "./apiManagerPageStorage";
 import { buildApiKeyCreateScopes, mergeApiKeyPermissionScopes } from "./apiManagerScopes";
-import { SELF_ACCOUNT_QUOTA_SCOPE, SELF_USAGE_SCOPE } from "@/shared/constants/selfServiceScopes";
+import { SELF_USAGE_SCOPE } from "@/shared/constants/selfServiceScopes";
 
 // Constants for validation
 const MAX_KEY_NAME_LENGTH = 200;
@@ -129,7 +129,6 @@ interface ApiKey {
   streamDefaultMode?: StreamDefaultMode;
   disableNonPublicModels?: boolean;
   allowUsageCommand?: boolean;
-  allowedQuotas?: string[] | null;
   createdAt: string;
 }
 
@@ -221,7 +220,6 @@ export default function ApiManagerPageClient() {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyManageEnabled, setNewKeyManageEnabled] = useState(false);
   const [newKeySelfUsageEnabled, setNewKeySelfUsageEnabled] = useState(true);
-  const [newKeyAccountQuotaEnabled, setNewKeyAccountQuotaEnabled] = useState(false);
   const [newKeyAllowUsageCommand, setNewKeyAllowUsageCommand] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<ApiKey | null>(null);
@@ -240,7 +238,6 @@ export default function ApiManagerPageClient() {
   const [activeOnly, setActiveOnly] = useState(false);
   const [statusFilter, setStatusFilter] = useState<KeyStatus | null>(null);
   const [typeFilter, setTypeFilter] = useState<KeyType | null>(null);
-  const [quotaPoolGroup, setQuotaPoolGroup] = useState<Record<string, string>>({});
 
   const { copied, copy } = useCopyToClipboard();
 
@@ -276,44 +273,6 @@ export default function ApiManagerPageClient() {
   useEffect(() => {
     writeActiveOnlyPreference(activeOnly);
   }, [activeOnly]);
-
-  useEffect(() => {
-    let cancelled = false;
-    const loadQuotaGroups = async () => {
-      try {
-        const [poolsRes, groupsRes] = await Promise.all([
-          fetch("/api/quota/pools"),
-          fetch("/api/quota/groups"),
-        ]);
-        if (!poolsRes.ok || !groupsRes.ok) return;
-        const poolsData = await poolsRes.json();
-        const groupsData = await groupsRes.json();
-        const pools: Array<{ id: string; groupId: string }> = Array.isArray(poolsData.pools)
-          ? poolsData.pools
-          : [];
-        const groups: Array<{ id: string; name: string }> = Array.isArray(groupsData.groups)
-          ? groupsData.groups
-          : [];
-        const groupNameById: Record<string, string> = {};
-        for (const g of groups) {
-          groupNameById[g.id] = g.name;
-        }
-        const map: Record<string, string> = {};
-        for (const p of pools) {
-          if (groupNameById[p.groupId]) {
-            map[p.id] = groupNameById[p.groupId];
-          }
-        }
-        if (!cancelled) setQuotaPoolGroup(map);
-      } catch {
-        // fail open — quota group chips simply won't render
-      }
-    };
-    loadQuotaGroups();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   useEffect(() => {
     if (!showAddModal || !nameError) return;
@@ -430,28 +389,7 @@ export default function ApiManagerPageClient() {
   };
 
   const fetchSessionCounts = async (apiKeys: ApiKey[]) => {
-    if (apiKeys.length === 0) {
-      setSessionCounts({});
-      return;
-    }
-    try {
-      const res = await fetch("/api/sessions");
-      if (!res.ok) return;
-      const data = await res.json();
-      const byApiKeyRaw =
-        data && typeof data.byApiKey === "object" && !Array.isArray(data.byApiKey)
-          ? data.byApiKey
-          : {};
-      const normalized: Record<string, number> = {};
-      for (const key of apiKeys) {
-        const value = byApiKeyRaw[key.id];
-        normalized[key.id] =
-          typeof value === "number" && Number.isFinite(value) && value > 0 ? value : 0;
-      }
-      setSessionCounts(normalized);
-    } catch (error) {
-      console.log("Error fetching session counts:", error);
-    }
+    setSessionCounts(Object.fromEntries(apiKeys.map((key) => [key.id, 0])));
   };
 
   const clearPageError = useCallback(() => setPageError(null), []);
@@ -492,25 +430,7 @@ export default function ApiManagerPageClient() {
   const isFiltered =
     activeOnly || statusFilter !== null || typeFilter !== null || searchQuery.trim() !== "";
 
-  const isQuotaKey = (k: ApiKey) => Array.isArray(k.allowedQuotas) && k.allowedQuotas.length > 0;
-
-  const quotaKeys = filteredKeys.filter(isQuotaKey);
-  const normalKeys = filteredKeys.filter((k) => !isQuotaKey(k));
   const permissionModels = useMemo(() => withClaudeCodeDefaultModel(allModels), [allModels]);
-
-  const quotaGroupsForKey = (k: ApiKey): string[] => {
-    if (!Array.isArray(k.allowedQuotas)) return [];
-    const seen = new Set<string>();
-    const result: string[] = [];
-    for (const poolId of k.allowedQuotas) {
-      const groupName = quotaPoolGroup[poolId];
-      if (groupName && !seen.has(groupName)) {
-        seen.add(groupName);
-        result.push(groupName);
-      }
-    }
-    return result;
-  };
 
   const handleClearFilters = () => {
     setSearchQuery("");
@@ -542,7 +462,6 @@ export default function ApiManagerPageClient() {
           scopes: buildApiKeyCreateScopes({
             manageEnabled: newKeyManageEnabled,
             selfUsageEnabled: newKeySelfUsageEnabled,
-            selfAccountQuotaEnabled: newKeyAccountQuotaEnabled,
           }),
           allowUsageCommand: newKeyAllowUsageCommand,
         }),
@@ -555,7 +474,6 @@ export default function ApiManagerPageClient() {
         setNewKeyName("");
         setNewKeyManageEnabled(false);
         setNewKeySelfUsageEnabled(true);
-        setNewKeyAccountQuotaEnabled(false);
         setNewKeyAllowUsageCommand(false);
         setShowAddModal(false);
       } else {
@@ -919,10 +837,6 @@ export default function ApiManagerPageClient() {
               const hasSessionLimit = maxSessions > 0;
               const activeSessions = sessionCounts[key.id] || 0;
               const hasSchedule = key.accessSchedule?.enabled === true;
-              const keyIsQuota = isQuotaKey(key);
-              const groups = quotaGroupsForKey(key);
-              const visibleGroups = groups.slice(0, 3);
-              const extraGroupCount = groups.length - visibleGroups.length;
               return (
                 <div
                   key={key.id}
@@ -962,27 +876,6 @@ export default function ApiManagerPageClient() {
                   </div>
                   <div className="col-span-2 flex items-center">
                     <div className="flex flex-col items-start gap-1">
-                      {/* QUOTA differentiation chips — prepended before existing badges */}
-                      {keyIsQuota && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[11px] font-medium">
-                          {t("quotaModeOnly")}
-                        </span>
-                      )}
-                      {keyIsQuota &&
-                        visibleGroups.map((groupName) => (
-                          <span
-                            key={groupName}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 text-[11px] font-medium truncate max-w-full"
-                          >
-                            {groupName}
-                          </span>
-                        ))}
-                      {keyIsQuota && extraGroupCount > 0 && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-600 dark:text-sky-400 text-[11px] font-medium">
-                          +{extraGroupCount}
-                        </span>
-                      )}
-                      {/* Existing badges */}
                       {isRestricted ? (
                         <button
                           onClick={() => handleOpenPermissions(key)}
@@ -1160,50 +1053,9 @@ export default function ApiManagerPageClient() {
             );
 
             return (
-              <div className="flex flex-col gap-4">
-                {normalKeys.length > 0 && (
-                  <div>
-                    {/* Normal keys section heading */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="material-symbols-outlined text-base text-text-muted">
-                        vpn_key
-                      </span>
-                      <span className="text-sm font-medium text-text-main">
-                        {t("normalKeysSection")}
-                      </span>
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-surface/80 border border-border text-[11px] font-semibold text-text-muted">
-                        {normalKeys.length}
-                      </span>
-                    </div>
-                    <div className="flex flex-col border border-border rounded-lg overflow-hidden">
-                      {tableHeader}
-                      {normalKeys.map(renderKeyRow)}
-                    </div>
-                  </div>
-                )}
-                {quotaKeys.length > 0 && (
-                  <div>
-                    {/* Quota keys section heading */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="material-symbols-outlined text-base text-violet-500">
-                        toll
-                      </span>
-                      <span className="text-sm font-medium text-text-main">
-                        {t("quotaKeysSection")}
-                      </span>
-                      <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-surface/80 border border-border text-[11px] font-semibold text-text-muted">
-                        {quotaKeys.length}
-                      </span>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 text-[11px] font-semibold">
-                        {t("quotaPill")}
-                      </span>
-                    </div>
-                    <div className="flex flex-col border border-border rounded-lg overflow-hidden">
-                      {tableHeader}
-                      {quotaKeys.map(renderKeyRow)}
-                    </div>
-                  </div>
-                )}
+              <div className="flex flex-col border border-border rounded-lg overflow-hidden">
+                {tableHeader}
+                {filteredKeys.map(renderKeyRow)}
               </div>
             );
           })()
@@ -1220,7 +1072,6 @@ export default function ApiManagerPageClient() {
           setNewKeyName("");
           setNewKeyManageEnabled(false);
           setNewKeySelfUsageEnabled(true);
-          setNewKeyAccountQuotaEnabled(false);
           setNewKeyAllowUsageCommand(false);
           setNameError(null);
           setCreateError(null);
@@ -1279,12 +1130,7 @@ export default function ApiManagerPageClient() {
                 type="button"
                 role="switch"
                 aria-checked={newKeySelfUsageEnabled}
-                onClick={() =>
-                  setNewKeySelfUsageEnabled((prev) => {
-                    if (prev) setNewKeyAccountQuotaEnabled(false);
-                    return !prev;
-                  })
-                }
+                onClick={() => setNewKeySelfUsageEnabled((prev) => !prev)}
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 ${
                   newKeySelfUsageEnabled
                     ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
@@ -1293,27 +1139,6 @@ export default function ApiManagerPageClient() {
               >
                 <span className="material-symbols-outlined text-[14px]">query_stats</span>
                 {newKeySelfUsageEnabled ? tc("enabled") : tc("disabled")}
-              </button>
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm text-text-main">{t("sharedAccountQuotaVisibility")}</p>
-                <p className="text-xs text-text-muted">{t("sharedAccountQuotaVisibilityDesc")}</p>
-              </div>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={newKeyAccountQuotaEnabled}
-                disabled={!newKeySelfUsageEnabled}
-                onClick={() => setNewKeyAccountQuotaEnabled((prev) => !prev)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors shrink-0 ${
-                  newKeyAccountQuotaEnabled
-                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                    : "bg-black/5 dark:bg-white/5 text-text-muted border border-border"
-                } ${!newKeySelfUsageEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
-              >
-                <span className="material-symbols-outlined text-[14px]">account_balance</span>
-                {newKeyAccountQuotaEnabled ? tc("enabled") : tc("disabled")}
               </button>
             </div>
             <div className="flex items-start justify-between gap-3">
@@ -1350,7 +1175,6 @@ export default function ApiManagerPageClient() {
                 setNewKeyName("");
                 setNewKeyManageEnabled(false);
                 setNewKeySelfUsageEnabled(true);
-                setNewKeyAccountQuotaEnabled(false);
                 setNewKeyAllowUsageCommand(false);
                 setNameError(null);
                 setCreateError(null);
@@ -1509,9 +1333,6 @@ const PermissionsModal = memo(function PermissionsModal({
   );
   const [selfUsageEnabled, setSelfUsageEnabled] = useState(
     Array.isArray(apiKey?.scopes) && apiKey.scopes.includes(SELF_USAGE_SCOPE)
-  );
-  const [selfAccountQuotaEnabled, setSelfAccountQuotaEnabled] = useState(
-    Array.isArray(apiKey?.scopes) && apiKey.scopes.includes(SELF_ACCOUNT_QUOTA_SCOPE)
   );
   const [maxSessions, setMaxSessions] = useState(
     typeof apiKey?.maxSessions === "number" && apiKey.maxSessions > 0 ? apiKey.maxSessions : 0
@@ -1730,7 +1551,6 @@ const PermissionsModal = memo(function PermissionsModal({
       mergeApiKeyPermissionScopes(apiKey?.scopes, {
         manageEnabled,
         selfUsageEnabled,
-        selfAccountQuotaEnabled,
       }),
       allowAllEndpoints ? [] : selectedEndpoints,
       streamDefaultMode,
@@ -1756,7 +1576,6 @@ const PermissionsModal = memo(function PermissionsModal({
     maxSessions,
     manageEnabled,
     selfUsageEnabled,
-    selfAccountQuotaEnabled,
     scheduleEnabled,
     scheduleFrom,
     scheduleUntil,
@@ -2293,12 +2112,7 @@ const PermissionsModal = memo(function PermissionsModal({
             type="button"
             role="switch"
             aria-checked={selfUsageEnabled}
-            onClick={() =>
-              setSelfUsageEnabled((prev) => {
-                if (prev) setSelfAccountQuotaEnabled(false);
-                return !prev;
-              })
-            }
+            onClick={() => setSelfUsageEnabled((prev) => !prev)}
             className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
               selfUsageEnabled
                 ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
@@ -2309,23 +2123,6 @@ const PermissionsModal = memo(function PermissionsModal({
             {t("ownUsageVisibility")} - {selfUsageEnabled ? tc("enabled") : tc("disabled")}
           </button>
           <p className="text-xs text-text-muted">{t("ownUsageVisibilityDesc")}</p>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={selfAccountQuotaEnabled}
-            disabled={!selfUsageEnabled}
-            onClick={() => setSelfAccountQuotaEnabled((prev) => !prev)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-              selfAccountQuotaEnabled
-                ? "bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
-                : "bg-black/5 dark:bg-white/5 text-text-muted border border-border"
-            } ${!selfUsageEnabled ? "opacity-50 cursor-not-allowed" : ""}`}
-          >
-            <span className="material-symbols-outlined text-[14px]">account_balance</span>
-            {t("sharedAccountQuotaVisibility")} -{" "}
-            {selfAccountQuotaEnabled ? tc("enabled") : tc("disabled")}
-          </button>
-          <p className="text-xs text-text-muted">{t("sharedAccountQuotaVisibilityDesc")}</p>
           <button
             type="button"
             role="switch"

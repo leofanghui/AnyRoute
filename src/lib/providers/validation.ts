@@ -1,6 +1,4 @@
 import { randomUUID } from "node:crypto";
-import { getEmbeddingProvider } from "@omniroute/open-sse/config/embeddingRegistry.ts";
-import { getRerankProvider } from "@omniroute/open-sse/config/rerankRegistry.ts";
 import { getRegistryEntry } from "@omniroute/open-sse/config/providerRegistry.ts";
 import { selectProxyForValidation } from "@omniroute/open-sse/services/proxyAutoSelector.ts";
 import {
@@ -35,7 +33,6 @@ import {
   extractQwenToken,
   normalizeSessionCookieHeader,
 } from "@/lib/providers/webCookieAuth";
-import { buildJulesApiUrl } from "@/lib/cloudAgent/julesApi.ts";
 import { resolveNvidiaValidationModel } from "@/lib/providers/nvidiaValidationModel";
 import { getGigachatAccessToken } from "@omniroute/open-sse/services/gigachatAuth.ts";
 import { validateQoderCliPat } from "@omniroute/open-sse/services/qoderCli.ts";
@@ -72,17 +69,17 @@ import {
   buildWatsonxChatUrl,
   buildWatsonxModelsUrl,
 } from "@omniroute/open-sse/config/watsonx.ts";
-import {
-  buildRunwayApiUrl,
-  buildRunwayHeaders,
-  normalizeRunwayBaseUrl,
-} from "@omniroute/open-sse/config/runway.ts";
+
+const JULES_API_BASE_URL = "https://jules.googleapis.com/v1alpha";
+
+function buildJulesApiUrl(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  return `${JULES_API_BASE_URL}${normalized}`;
+}
 import {
   buildMaritalkChatUrl,
   buildMaritalkModelsUrl,
 } from "@omniroute/open-sse/config/maritalk.ts";
-import { signAwsRequest } from "@omniroute/open-sse/utils/awsSigV4.ts";
-import { validateImageProviderApiKey } from "@/lib/providers/imageValidation";
 
 const OPENAI_LIKE_FORMATS = new Set(["openai", "openai-responses"]);
 const GEMINI_LIKE_FORMATS = new Set(["gemini", "gemini-cli"]);
@@ -693,90 +690,6 @@ async function validateClarifaiProvider({ apiKey, providerSpecificData = {} }: a
   }
 }
 
-async function validateEmbeddingApiProvider({
-  apiKey,
-  providerSpecificData = {},
-  url,
-  modelId,
-}: any) {
-  if (!url) {
-    return { valid: false, error: "Missing embedding endpoint" };
-  }
-
-  try {
-    const response = await validationWrite(url, {
-      method: "POST",
-      headers: buildBearerHeaders(apiKey, providerSpecificData),
-      body: JSON.stringify({
-        model: providerSpecificData?.validationModelId || modelId,
-        input: ["test"],
-      }),
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-
-    if (
-      response.ok ||
-      response.status === 400 ||
-      response.status === 422 ||
-      response.status === 429
-    ) {
-      return { valid: true, error: null };
-    }
-
-    if (response.status >= 500) {
-      return { valid: false, error: `Provider unavailable (${response.status})` };
-    }
-
-    return { valid: false, error: `Validation failed: ${response.status}` };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
-
-async function validateRerankApiProvider({ apiKey, providerSpecificData = {}, url, modelId }: any) {
-  if (!url) {
-    return { valid: false, error: "Missing rerank endpoint" };
-  }
-
-  try {
-    const response = await validationWrite(url, {
-      method: "POST",
-      headers: buildBearerHeaders(apiKey, providerSpecificData),
-      body: JSON.stringify({
-        model: providerSpecificData?.validationModelId || modelId,
-        query: "test",
-        documents: ["test"],
-        top_n: 1,
-        return_documents: false,
-      }),
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-
-    if (
-      response.ok ||
-      response.status === 400 ||
-      response.status === 422 ||
-      response.status === 429
-    ) {
-      return { valid: true, error: null };
-    }
-
-    if (response.status >= 500) {
-      return { valid: false, error: `Provider unavailable (${response.status})` };
-    }
-
-    return { valid: false, error: `Validation failed: ${response.status}` };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
-
 async function validateAnthropicLikeProvider({
   apiKey,
   baseUrl,
@@ -1025,216 +938,6 @@ async function validateGeminiLikeProvider({
 }
 
 // ── Specialty providers (non-standard APIs) ──
-
-async function validateDeepgramProvider({ apiKey, providerSpecificData = {} }: any) {
-  try {
-    const response = await validationRead("https://api.deepgram.com/v1/auth/token", {
-      method: "GET",
-      headers: applyCustomUserAgent({ Authorization: `Token ${apiKey}` }, providerSpecificData),
-    });
-    if (response.ok) return { valid: true, error: null };
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-    return { valid: false, error: `Validation failed: ${response.status}` };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
-
-async function validateAssemblyAIProvider({ apiKey, providerSpecificData = {} }: any) {
-  try {
-    const response = await validationRead("https://api.assemblyai.com/v2/transcript?limit=1", {
-      method: "GET",
-      headers: applyCustomUserAgent(
-        {
-          Authorization: apiKey,
-          "Content-Type": "application/json",
-        },
-        providerSpecificData
-      ),
-    });
-    if (response.ok) return { valid: true, error: null };
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-    return { valid: false, error: `Validation failed: ${response.status}` };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
-
-async function validateElevenLabsProvider({ apiKey, providerSpecificData = {} }: any) {
-  try {
-    // Lightweight auth check endpoint
-    const response = await validationRead("https://api.elevenlabs.io/v1/voices", {
-      method: "GET",
-      headers: applyCustomUserAgent(
-        {
-          "xi-api-key": apiKey,
-          "Content-Type": "application/json",
-        },
-        providerSpecificData
-      ),
-    });
-
-    if (response.ok) return { valid: true, error: null };
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-
-    return { valid: false, error: `Validation failed: ${response.status}` };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
-
-async function validateInworldProvider({ apiKey, providerSpecificData = {} }: any) {
-  try {
-    // Inworld TTS lacks a simple key-introspection endpoint.
-    // Send a minimal synth request and treat non-auth 4xx as auth-pass.
-    const response = await validationWrite("https://api.inworld.ai/tts/v1/voice", {
-      method: "POST",
-      headers: applyCustomUserAgent(
-        {
-          Authorization: `Basic ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        providerSpecificData
-      ),
-      body: JSON.stringify({
-        text: "test",
-        modelId: "inworld-tts-1.5-mini",
-        audioConfig: { audioEncoding: "MP3" },
-      }),
-    });
-
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-
-    // Any other response indicates auth is accepted (payload/model may still be wrong)
-    return { valid: true, error: null };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
-
-async function validateKieProvider({ apiKey, providerSpecificData = {} }: any) {
-  try {
-    // Use credit check endpoint as requested by user based on Kie.ai docs.
-    const response = await validationRead("https://api.kie.ai/api/v1/chat/credit", {
-      method: "GET",
-      headers: applyCustomUserAgent(
-        {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        providerSpecificData
-      ),
-    });
-
-    if (response.ok) {
-      return { valid: true, error: null };
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid Kie.ai API key" };
-    }
-
-    // Fallback: if credits endpoint is 404/not supported, try minimal chat probe.
-    const chatRes = await validationWrite("https://api.kie.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: buildBearerHeaders(apiKey, providerSpecificData),
-      body: JSON.stringify({
-        model: providerSpecificData.validationModelId || "gpt-4o-mini",
-        messages: [{ role: "user", content: "test" }],
-        max_tokens: 1,
-      }),
-    });
-
-    if (
-      chatRes.ok ||
-      (chatRes.status >= 400 &&
-        chatRes.status < 500 &&
-        chatRes.status !== 401 &&
-        chatRes.status !== 403)
-    ) {
-      return { valid: true, error: null };
-    }
-
-    return { valid: false, error: `Validation failed: ${chatRes.status}` };
-  } catch (error: unknown) {
-    return toValidationErrorResult(error);
-  }
-}
-
-function getAwsProviderString(value: unknown): string | null {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
-}
-
-function getAwsPollyRegion(providerSpecificData: any = {}) {
-  return (
-    getAwsProviderString(providerSpecificData.region) ||
-    getAwsProviderString(providerSpecificData.awsRegion) ||
-    process.env.AWS_REGION ||
-    process.env.AWS_DEFAULT_REGION ||
-    "us-east-1"
-  );
-}
-
-function getAwsPollyBaseUrl(providerSpecificData: any = {}, region: string) {
-  return (
-    getAwsProviderString(providerSpecificData.baseUrl) || `https://polly.${region}.amazonaws.com`
-  ).replace(/\/+$/, "");
-}
-
-async function validateAwsPollyProvider({ apiKey, providerSpecificData = {} }: any) {
-  const accessKeyId =
-    getAwsProviderString(providerSpecificData.accessKeyId) ||
-    getAwsProviderString(providerSpecificData.awsAccessKeyId);
-  const secretAccessKey = getAwsProviderString(apiKey);
-
-  if (!accessKeyId) {
-    return { valid: false, error: "Missing AWS accessKeyId" };
-  }
-  if (!secretAccessKey) {
-    return { valid: false, error: "Missing AWS Secret Access Key" };
-  }
-
-  const region = getAwsPollyRegion(providerSpecificData);
-  const baseUrl = getAwsPollyBaseUrl(providerSpecificData, region).replace(/\/v1\/voices$/i, "");
-  const url = `${baseUrl}/v1/voices?Engine=standard`;
-
-  try {
-    const signedHeaders = signAwsRequest({
-      method: "GET",
-      url,
-      region,
-      service: "polly",
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-        sessionToken:
-          getAwsProviderString(providerSpecificData.sessionToken) ||
-          getAwsProviderString(providerSpecificData.awsSessionToken),
-      },
-    });
-
-    const response = await validationRead(url, {
-      method: "GET",
-      headers: applyCustomUserAgent(signedHeaders, providerSpecificData),
-    });
-
-    if (response.ok) return { valid: true, error: null };
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-    return { valid: false, error: `Validation failed: ${response.status}` };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
 
 async function validateBailianCodingPlanProvider({ apiKey, providerSpecificData = {} }: any) {
   try {
@@ -2076,42 +1779,6 @@ async function validateNlpCloudProvider({ apiKey, providerSpecificData = {} }: a
   return { valid: false, error: "Connection failed while testing NLP Cloud" };
 }
 
-async function validateRunwayProvider({ apiKey, providerSpecificData = {} }: any) {
-  const baseUrl = normalizeRunwayBaseUrl(providerSpecificData.baseUrl);
-
-  try {
-    const response = await validationRead(buildRunwayApiUrl("/organization", baseUrl), {
-      method: "GET",
-      headers: buildRunwayHeaders(apiKey),
-    });
-
-    if (response.ok) {
-      return { valid: true, error: null, method: "runway_organization" };
-    }
-
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-
-    if (response.status === 429) {
-      return {
-        valid: true,
-        error: null,
-        method: "runway_organization",
-        warning: "Rate limited, but credentials are valid",
-      };
-    }
-
-    if (response.status >= 500) {
-      return { valid: false, error: `Provider unavailable (${response.status})` };
-    }
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-
-  return { valid: false, error: "Connection failed while testing Runway" };
-}
-
 async function validateNousResearchProvider({ apiKey, providerSpecificData = {} }: any) {
   const baseUrl =
     normalizeBaseUrl(providerSpecificData.baseUrl) || "https://inference-api.nousresearch.com/v1";
@@ -2500,185 +2167,6 @@ export async function validateClaudeCodeCompatibleProvider({
     return toValidationErrorResult(error);
   }
 }
-
-// ── Search provider validators (factored) ──
-
-async function validateGenericProvider(
-  baseUrl: string,
-  apiKey: string,
-  providerSpecificData: any = {},
-  provider: string,
-  isLocal: boolean = false
-) {
-  const config = SEARCH_VALIDATOR_CONFIGS[provider];
-  if (!config) {
-    return { valid: false, error: "Validator not found", unsupported: true };
-  }
-  const { url, init } = config(apiKey, providerSpecificData);
-  return validateSearchProvider(url, init, providerSpecificData, isLocal);
-}
-
-async function validateSearchProvider(
-  url: string,
-  init: RequestInit,
-  providerSpecificData: any = {},
-  isLocal: boolean = false
-): Promise<{ valid: boolean; error: string | null; unsupported: false }> {
-  try {
-    const response = await safeOutboundFetch(url, {
-      ...SAFE_OUTBOUND_FETCH_PRESETS.validationWrite,
-      guard: isLocal ? "none" : getProviderOutboundGuard(),
-      ...withCustomUserAgent(init, providerSpecificData),
-    });
-    if (response.ok) return { valid: true, error: null, unsupported: false };
-    if (response.status === 401 || response.status === 403) {
-      return { valid: false, error: "Invalid API key", unsupported: false };
-    }
-    // For provider setup we only need to confirm authentication passed.
-    // Search providers may return non-auth statuses for exhausted credits,
-    // rate limiting, or request-shape quirks while still accepting the key.
-    if (response.status < 500) {
-      return { valid: true, error: null, unsupported: false };
-    }
-    return { valid: false, error: `Validation failed: ${response.status}`, unsupported: false };
-  } catch (error: any) {
-    return toValidationErrorResult(error);
-  }
-}
-
-const SEARCH_VALIDATOR_CONFIGS: Record<
-  string,
-  (apiKey: string, providerSpecificData?: any) => { url: string; init: RequestInit }
-> = {
-  "serper-search": (apiKey) => ({
-    url: "https://google.serper.dev/search",
-    init: {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-API-Key": apiKey },
-      body: JSON.stringify({ q: "test", num: 1 }),
-    },
-  }),
-  "brave-search": (apiKey) => ({
-    url: "https://api.search.brave.com/res/v1/web/search?q=test&count=1",
-    init: {
-      method: "GET",
-      headers: { Accept: "application/json", "X-Subscription-Token": apiKey },
-    },
-  }),
-  "perplexity-search": (apiKey) => ({
-    url: "https://api.perplexity.ai/search",
-    init: {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ query: "test", max_results: 1 }),
-    },
-  }),
-  "exa-search": (apiKey) => ({
-    url: "https://api.exa.ai/search",
-    init: {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": apiKey },
-      body: JSON.stringify({ query: "test", numResults: 1 }),
-    },
-  }),
-  "tavily-search": (apiKey) => ({
-    url: "https://api.tavily.com/search",
-    init: {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ query: "test", max_results: 1 }),
-    },
-  }),
-  "google-pse-search": (apiKey, providerSpecificData = {}) => {
-    const cx = providerSpecificData?.cx;
-    if (!cx || typeof cx !== "string") {
-      throw new Error("Programmable Search Engine ID (cx) is required");
-    }
-    return {
-      url: `https://www.googleapis.com/customsearch/v1?key=${encodeURIComponent(apiKey)}&cx=${encodeURIComponent(
-        cx
-      )}&q=test&num=1`,
-      init: {
-        method: "GET",
-        headers: { Accept: "application/json" },
-      },
-    };
-  },
-  "linkup-search": (apiKey) => ({
-    url: "https://api.linkup.so/v1/search",
-    init: {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        q: "test",
-        depth: "standard",
-        outputType: "searchResults",
-        maxResults: 1,
-      }),
-    },
-  }),
-  "searchapi-search": (apiKey) => ({
-    url: `https://www.searchapi.io/api/v1/search?engine=google&q=test&api_key=${encodeURIComponent(
-      apiKey
-    )}`,
-    init: {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    },
-  }),
-  "youcom-search": (apiKey) => ({
-    url: "https://ydc-index.io/v1/search?query=test&count=1",
-    init: {
-      method: "GET",
-      headers: { Accept: "application/json", "X-API-Key": apiKey },
-    },
-  }),
-  "searxng-search": (apiKey, providerSpecificData = {}) => {
-    const baseUrl =
-      typeof providerSpecificData?.baseUrl === "string" && providerSpecificData.baseUrl.trim()
-        ? providerSpecificData.baseUrl.trim().replace(/\/+$/, "")
-        : "http://localhost:8888/search";
-    const searchUrl = baseUrl.endsWith("/search") ? baseUrl : `${baseUrl}/search`;
-    const headers: Record<string, string> = { Accept: "application/json" };
-    if (apiKey) {
-      headers["Authorization"] = `Bearer ${apiKey}`;
-    }
-    return {
-      url: `${searchUrl}?q=test&format=json`,
-      init: {
-        method: "GET",
-        headers,
-      },
-    };
-  },
-  "ollama-search": (apiKey) => ({
-    url: "https://ollama.com/api/web_search",
-    init: {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ query: "test", max_results: 1 }),
-    },
-  }),
-  "zai-search": (apiKey, providerSpecificData = {}) => {
-    const baseUrl =
-      typeof providerSpecificData?.baseUrl === "string" && providerSpecificData.baseUrl.trim()
-        ? providerSpecificData.baseUrl.trim().replace(/\/+$/, "")
-        : "https://api.z.ai/api/mcp/web_search_prime/mcp";
-    return {
-      url: baseUrl,
-      init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          method: "tools/call",
-          params: { name: "web_search_prime", arguments: { search_query: "test" } },
-          id: 1,
-        }),
-      },
-    };
-  },
-};
 
 // See open-sse/executors/muse-spark-web.ts for the rationale: Meta migrated
 // from the "Abra" mutation (doc_id 078dfdff…, type RewriteOptionsInput now
@@ -4026,22 +3514,6 @@ export async function validateProviderApiKey({ provider, apiKey, providerSpecifi
       }
     },
     "command-code": validateCommandCodeProvider,
-    deepgram: validateDeepgramProvider,
-    assemblyai: validateAssemblyAIProvider,
-    "fal-ai": ({ apiKey, providerSpecificData }: any) =>
-      validateImageProviderApiKey({ provider: "fal-ai", apiKey, providerSpecificData }),
-    "stability-ai": ({ apiKey, providerSpecificData }: any) =>
-      validateImageProviderApiKey({ provider: "stability-ai", apiKey, providerSpecificData }),
-    "black-forest-labs": ({ apiKey, providerSpecificData }: any) =>
-      validateImageProviderApiKey({ provider: "black-forest-labs", apiKey, providerSpecificData }),
-    recraft: ({ apiKey, providerSpecificData }: any) =>
-      validateImageProviderApiKey({ provider: "recraft", apiKey, providerSpecificData }),
-    topaz: ({ apiKey, providerSpecificData }: any) =>
-      validateImageProviderApiKey({ provider: "topaz", apiKey, providerSpecificData }),
-    elevenlabs: validateElevenLabsProvider,
-    inworld: validateInworldProvider,
-    kie: validateKieProvider,
-    "aws-polly": validateAwsPollyProvider,
     "bailian-coding-plan": validateBailianCodingPlanProvider,
     heroku: validateHerokuProvider,
     databricks: validateDatabricksProvider,
@@ -4065,7 +3537,6 @@ export async function validateProviderApiKey({ provider, apiKey, providerSpecifi
     reka: validateRekaProvider,
     maritalk: validateMaritalkProvider,
     nlpcloud: validateNlpCloudProvider,
-    runwayml: validateRunwayProvider,
     snowflake: validateSnowflakeProvider,
     gigachat: validateGigachatProvider,
     "deepseek-web": validateDeepSeekWebProvider,
@@ -4083,24 +3554,6 @@ export async function validateProviderApiKey({ provider, apiKey, providerSpecifi
     "t3-web": validateT3WebProvider,
     "azure-openai": validateAzureOpenAIProvider,
     "azure-ai": validateAzureAiProvider,
-    "voyage-ai": ({ apiKey, providerSpecificData }: any) => {
-      const embeddingProvider = getEmbeddingProvider("voyage-ai");
-      return validateEmbeddingApiProvider({
-        apiKey,
-        providerSpecificData,
-        url: embeddingProvider?.baseUrl,
-        modelId: embeddingProvider?.models?.[0]?.id || "voyage-4-lite",
-      });
-    },
-    "jina-ai": ({ apiKey, providerSpecificData }: any) => {
-      const rerankProvider = getRerankProvider("jina-ai");
-      return validateRerankApiProvider({
-        apiKey,
-        providerSpecificData,
-        url: rerankProvider?.baseUrl,
-        modelId: rerankProvider?.models?.[0]?.id || "jina-reranker-v3",
-      });
-    },
     gitlab: async ({ apiKey, providerSpecificData }: any) => {
       try {
         const configuredBaseUrl =
@@ -4307,16 +3760,6 @@ export async function validateProviderApiKey({ provider, apiKey, providerSpecifi
       ["gitlawb", "https://opengateway.gitlawb.com/v1/xiaomi-mimo", "mimo-v2.5-pro"],
       ["gitlawb-gmi", "https://opengateway.gitlawb.com/v1/gmi-cloud", "XiaomiMiMo/MiMo-V2.5-Pro"],
     ]),
-    // Search providers — use factored validator
-    ...Object.fromEntries(
-      Object.entries(SEARCH_VALIDATOR_CONFIGS).map(([id, configFn]) => [
-        id,
-        ({ apiKey, providerSpecificData }: any) => {
-          const { url, init } = configFn(apiKey, providerSpecificData);
-          return validateSearchProvider(url, init, providerSpecificData, isLocal);
-        },
-      ])
-    ),
   };
 
   if (SPECIALTY_VALIDATORS[provider]) {

@@ -45,9 +45,6 @@ const DEFAULT_COMBO_CONFIG = {
   // Hedging (Speculative Execution) defaults
   hedging: false,
   hedgeDelayMs: 500,
-  // Mid-Stream Fallback Compression defaults
-  fallbackCompressionMode: "lite",
-  fallbackCompressionThreshold: 1000,
   // Predictive TTFT Circuit Breaker defaults
   predictiveTtftMs: 0,
   // Pipeline defaults
@@ -64,15 +61,6 @@ const DEFAULT_COMBO_CONFIG = {
     sampleRate: 1,
     maxTargets: 2,
     timeoutMs: 30000,
-  },
-  evalRouting: {
-    enabled: false,
-    suiteIds: [],
-    maxAgeHours: 720,
-    minCases: 1,
-    qualityWeight: 0.85,
-    latencyWeight: 0.15,
-    cacheTtlMs: 60000,
   },
 };
 
@@ -164,12 +152,6 @@ export function resolveComboConfig(
       ...(isRecord(global.shadowRouting) ? clean(global.shadowRouting) : {}),
       ...(isRecord(providerOverride.shadowRouting) ? clean(providerOverride.shadowRouting) : {}),
       ...(isRecord(comboConfig.shadowRouting) ? clean(comboConfig.shadowRouting) : {}),
-    },
-    evalRouting: {
-      ...DEFAULT_COMBO_CONFIG.evalRouting,
-      ...(isRecord(global.evalRouting) ? clean(global.evalRouting) : {}),
-      ...(isRecord(providerOverride.evalRouting) ? clean(providerOverride.evalRouting) : {}),
-      ...(isRecord(comboConfig.evalRouting) ? clean(comboConfig.evalRouting) : {}),
     },
   };
 }

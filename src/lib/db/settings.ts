@@ -1,5 +1,5 @@
 /**
- * db/settings.js — Settings, pricing, and proxy config.
+ * db/settings.js - Settings, pricing, and proxy config.
  */
 
 import { getDbInstance } from "./core";
@@ -10,6 +10,11 @@ import { getProxyRegistryGeneration, resolveProxyForScopeFromRegistry } from "./
 import { getComboModelProvider as getComboEntryProvider } from "@/lib/combos/steps";
 import { requestBodyLimitMbFromEnv } from "@/shared/constants/bodySize";
 import { DEFAULT_RESPONSES_PREVIOUS_RESPONSE_ID_MODE } from "@/shared/constants/responsesPreviousResponseId";
+import {
+  normalizeHiddenSidebarItems,
+  normalizeSidebarPresetId,
+} from "@/shared/constants/sidebarVisibility";
+import { normalizeHiddenSidebarGroupLabels } from "@/shared/constants/sidebarGroupVisibility";
 
 type JsonRecord = Record<string, unknown>;
 type PricingModels = Record<string, JsonRecord>;
@@ -30,6 +35,14 @@ type ProxyResolutionCacheEntry = {
 };
 
 const PROXY_RESOLUTION_CACHE_MAX_ENTRIES = 100;
+const REMOVED_SETTINGS_KEYS = new Set([
+  "cloudEnabled",
+  "tailscaleEnabled",
+  "tailscaleUrl",
+  "hideEndpointCloudflaredTunnel",
+  "hideEndpointTailscaleFunnel",
+  "hideEndpointNgrokTunnel",
+]);
 
 function isTruthyEnvFlag(value: string | undefined): boolean {
   return typeof value === "string" && /^(1|true|yes|on)$/i.test(value.trim());
@@ -94,30 +107,22 @@ function withFamilyDefault(value: ProxyValue): ProxyValue {
   return value;
 }
 
-// ──────────────── Settings ────────────────
+// Settings
 
 export async function getSettings() {
   const db = getDbInstance();
   const rows = db.prepare("SELECT key, value FROM key_value WHERE namespace = 'settings'").all();
   const settings: Record<string, unknown> = {
-    cloudEnabled: true,
-    tailscaleEnabled: false,
-    tailscaleUrl: "",
     stickyRoundRobinLimit: 3,
     requestRetry: 3,
     maxRetryIntervalSec: 30,
     antigravitySignatureCacheMode: "enabled",
     requireLogin: true,
-    mcpEnabled: false,
-    a2aEnabled: false,
     hiddenSidebarItems: [],
     hiddenSidebarGroupLabels: [],
     sidebarSectionOrder: [],
     sidebarItemOrder: {},
     sidebarActivePreset: null,
-    hideEndpointCloudflaredTunnel: false,
-    hideEndpointTailscaleFunnel: false,
-    hideEndpointNgrokTunnel: false,
     preferClaudeCodeForUnprefixedClaudeModels: isTruthyEnvFlag(
       process.env.OMNIROUTE_PREFER_CLAUDE_CODE_FOR_UNPREFIXED_CLAUDE_MODELS
     ),
@@ -136,14 +141,10 @@ export async function getSettings() {
     wsAuth: false,
     maxBodySizeMb: requestBodyLimitMbFromEnv(process.env.MAX_BODY_SIZE_BYTES),
     debugMode: true,
-    // LOCAL_ONLY manage-scope bypass policy defaults (T-011 / spec §Data Model).
-    // Preserves PR #2473 behaviour on migration — the bypass starts ENABLED
-    // for `/api/mcp/` so existing manage-scope Bearer clients keep working.
-    // Operators flip the kill-switch to false (or drop the prefix) via the
-    // Settings UI; the change hot-reloads through `applyRuntimeSettings` →
-    // `applyAuthzBypassSection` → `getAuthzBypassSnapshot()`.
+    // LOCAL_ONLY manage-scope bypass policy defaults. Minimal builds keep the
+    // bypass switch available but ship with no bypass prefixes.
     localOnlyManageScopeBypassEnabled: true,
-    localOnlyManageScopeBypassPrefixes: ["/api/mcp/"],
+    localOnlyManageScopeBypassPrefixes: [],
     customBannedSignals: [],
     proxyEnabled: true,
     perKeyProxyEnabled: false,
@@ -153,11 +154,18 @@ export async function getSettings() {
     const key = typeof record.key === "string" ? record.key : null;
     const rawValue = typeof record.value === "string" ? record.value : null;
     if (!key || rawValue === null) continue;
+    if (REMOVED_SETTINGS_KEYS.has(key)) continue;
     settings[key] = JSON.parse(rawValue);
   }
 
+  settings.hiddenSidebarItems = normalizeHiddenSidebarItems(settings.hiddenSidebarItems);
+  settings.hiddenSidebarGroupLabels = normalizeHiddenSidebarGroupLabels(
+    settings.hiddenSidebarGroupLabels
+  );
+  settings.sidebarActivePreset = normalizeSidebarPresetId(settings.sidebarActivePreset);
+
   // Auto-complete onboarding for pre-configured deployments (Docker/VM)
-  // If INITIAL_PASSWORD is set via env, this is a headless deploy — skip the wizard
+  // If INITIAL_PASSWORD is set via env, this is a headless deploy - skip the wizard
   if (!settings.setupComplete && process.env.INITIAL_PASSWORD) {
     settings.setupComplete = true;
     settings.requireLogin = true;
@@ -179,6 +187,7 @@ export async function updateSettings(updates: Record<string, unknown>) {
   );
   const tx = db.transaction(() => {
     for (const [key, value] of Object.entries(updates)) {
+      if (REMOVED_SETTINGS_KEYS.has(key)) continue;
       insert.run(key, JSON.stringify(value));
     }
   });
@@ -207,12 +216,7 @@ export async function updateSettings(updates: Record<string, unknown>) {
   return nextSettings;
 }
 
-export async function isCloudEnabled() {
-  const settings = await getSettings();
-  return settings.cloudEnabled === true;
-}
-
-// ──────────────── Pricing ────────────────
+// Pricing
 
 function readPricingNamespace(
   db: ReturnType<typeof getDbInstance>,
@@ -230,7 +234,7 @@ function readPricingNamespace(
     try {
       pricing[key] = toRecord(JSON.parse(rawValue)) as PricingModels;
     } catch {
-      // Corrupted data — skip silently, fallback to lower layers
+      // Corrupted data - skip silently, fallback to lower layers
     }
   }
 
@@ -306,7 +310,7 @@ async function getPricingLayers() {
 
 export async function getPricing() {
   const layers = await getPricingLayers();
-  // Merge: defaults → LiteLLM → models.dev → user (each layer overrides the previous)
+  // Merge: defaults -> LiteLLM -> models.dev -> user (each layer overrides the previous)
   return mergePricingLayers([layers.defaults, layers.litellm, layers.modelsDev, layers.user]);
 }
 
@@ -454,7 +458,7 @@ export async function resetAllPricing() {
   return {};
 }
 
-// ──────────────── LKGP (Last Known Good Provider) ────────────────
+// LKGP (Last Known Good Provider)
 
 export interface LKGPRecord {
   provider: string;
@@ -500,7 +504,7 @@ export function clearAllLKGP(): void {
   db.prepare("DELETE FROM key_value WHERE namespace = 'lkgp'").run();
 }
 
-// ──────────────── Proxy Config ────────────────
+// Proxy Config
 
 const DEFAULT_PROXY_CONFIG: ProxyConfig = { global: null, providers: {}, combos: {}, keys: {} };
 const ALIAS_TO_PROVIDER_ID = Object.entries(PROVIDER_ID_TO_ALIAS).reduce(
@@ -913,7 +917,7 @@ export async function setProxyConfig(config: Record<string, unknown>) {
   return current;
 }
 
-// ──────────────── Cache Control Metrics ────────────────
+// Cache Control Metrics
 // Cache metrics are now computed from usage_history table on-the-fly
 // This avoids race conditions and keeps a single source of truth for token data
 

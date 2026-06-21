@@ -10,9 +10,8 @@
  * 3. disableNonPublicModels=true, non-discovered model → REJECTED 403.
  * 4. disableNonPublicModels=true, auto/<group> → NOT rejected by published gate (combo-routed).
  * 5. disableNonPublicModels=true, existing combo name → NOT rejected by published gate.
- * 6. disableNonPublicModels=true, qtSd/<slug>/... virtual model → NOT rejected by published gate.
- * 7. disableNonPublicModels=false + no allowedModels → all models ALLOWED (no restriction).
- * 8. Custom model (getCustomModels) → treated as discovered + public → ALLOWED.
+ * 6. disableNonPublicModels=false + no allowedModels → all models ALLOWED (no restriction).
+ * 7. Custom model (getCustomModels) → treated as discovered + public → ALLOWED.
  */
 
 import test from "node:test";
@@ -148,25 +147,6 @@ test("disableNonPublicModels=true + auto/<group> request → not rejected by pub
   }
 });
 
-test("disableNonPublicModels=true + qtSd/ virtual model → not rejected by published-model gate", async () => {
-  const created = await apiKeysDb.createApiKey("DNP QtSd Key", "machine-dnp-qtsd");
-  await apiKeysDb.updateApiKeyPermissions(created.id, { disableNonPublicModels: true });
-  apiKeysDb.clearApiKeyCaches();
-
-  const policy = await loadPolicy("dnp-qtsd");
-  const result = await policy.enforceApiKeyPolicy(
-    makeRequest(created.key),
-    "qtSd/mygroup/codex/gpt-5.5"
-  );
-  if (result.rejection) {
-    const body = (await result.rejection.clone().json()) as { error: { message: string } };
-    assert.ok(
-      !body.error.message.includes("not allowed for this API key"),
-      `qtSd/ model must not be blocked by published-model gate; got: ${body.error.message}`
-    );
-  }
-});
-
 test("disableNonPublicModels=true + cc wildcard allows unprefixed Claude Code models", async () => {
   await settingsDb.updateSettings({ preferClaudeCodeForUnprefixedClaudeModels: true });
   const created = await apiKeysDb.createApiKey(
@@ -250,7 +230,7 @@ test("disableNonPublicModels=true + existing combo name → not rejected by publ
   const policy = await loadPolicy("dnp-combo");
   // "combo/mycombo" prefix — resolveRequestedComboName strips "combo/" and looks up "mycombo".
   // Even if not found, the combo-prefix path returns null → resolveRequestedComboName null →
-  // but the key fix is that auto/* / qtSd/* are caught before that lookup.
+  // but the key fix is that auto/* is caught before that lookup.
   // For a "combo/" prefix that doesn't exist in DB, the policy falls through to
   // isModelAllowedForKey. We need to test an EXISTING combo.
   // Create a combo via the DB helper if available:

@@ -261,27 +261,6 @@ test("provider models route returns static catalog entries for providers with ha
   );
 });
 
-test("provider models route returns AWS Polly speech engines from the audio registry", async () => {
-  const connection = await seedConnection("aws-polly", {
-    apiKey: "aws-secret-key",
-    providerSpecificData: {
-      accessKeyId: "AKIA_TEST",
-      region: "us-east-1",
-    },
-  });
-
-  const response = await callRoute(connection.id);
-  const body = (await response.json()) as any;
-
-  assert.equal(response.status, 200);
-  assert.equal(body.provider, "aws-polly");
-  assert.equal(body.source, "local_catalog");
-  assert.deepEqual(
-    body.models.map((model) => model.id),
-    ["standard", "neural", "long-form", "generative"]
-  );
-});
-
 test("provider models route returns the local catalog for GitLab Duo fallback models", async () => {
   const connection = await seedConnection("gitlab", {
     apiKey: "glpat-test",
@@ -346,20 +325,6 @@ test("provider models route discovers local OpenAI-style models without requirin
   ]);
 });
 
-test("provider models route returns the local catalog for built-in image providers", async () => {
-  const connection = await seedConnection("topaz", {
-    apiKey: "topaz-key",
-  });
-
-  const response = await callRoute(connection.id);
-  const body = (await response.json()) as any;
-
-  assert.equal(response.status, 200);
-  assert.equal(body.provider, "topaz");
-  assert.ok(Array.isArray(body.models));
-  assert.deepEqual(body.models, [{ id: "topaz-enhance", name: "topaz-enhance" }]);
-});
-
 test("provider models route prefers the remote OpenRouter /models API over static image models", async () => {
   const connection = await seedConnection("openrouter", {
     apiKey: "openrouter-key",
@@ -382,66 +347,6 @@ test("provider models route prefers the remote OpenRouter /models API over stati
   assert.equal(body.source, "api");
   assert.deepEqual(seenUrls, ["https://openrouter.ai/api/v1/models"]);
   assert.deepEqual(body.models, [{ id: "openai/gpt-4.1", name: "GPT-4.1 via OpenRouter" }]);
-});
-
-test("provider models route returns the local catalog for embedding and rerank providers", async () => {
-  const voyage = await seedConnection("voyage-ai", {
-    apiKey: "voyage-key",
-  });
-  const jina = await seedConnection("jina-ai", {
-    apiKey: "jina-key",
-  });
-
-  const [voyageResponse, jinaResponse] = await Promise.all([
-    callRoute(voyage.id),
-    callRoute(jina.id),
-  ]);
-  const voyageBody = (await voyageResponse.json()) as any;
-  const jinaBody = (await jinaResponse.json()) as any;
-
-  assert.equal(voyageResponse.status, 200);
-  assert.equal(voyageBody.provider, "voyage-ai");
-  assert.equal(voyageBody.source, "local_catalog");
-  assert.ok(voyageBody.models.some((model) => model.id === "voyage-4-large"));
-  assert.ok(voyageBody.models.some((model) => model.id === "voyage-code-3"));
-  assert.ok(voyageBody.models.some((model) => model.id === "voyage-4-lite"));
-
-  assert.equal(jinaResponse.status, 200);
-  assert.equal(jinaBody.provider, "jina-ai");
-  assert.equal(jinaBody.source, "local_catalog");
-  assert.ok(
-    jinaBody.models.some(
-      (model) =>
-        model.id === "jina-embeddings-v5-text-small" &&
-        model.apiFormat === "embeddings" &&
-        model.supportedEndpoints?.includes("embeddings")
-    )
-  );
-  assert.ok(
-    jinaBody.models.some(
-      (model) =>
-        model.id === "jina-reranker-v3" &&
-        model.apiFormat === "rerank" &&
-        model.supportedEndpoints?.includes("rerank")
-    )
-  );
-  assert.ok(jinaBody.models.some((model) => model.id === "jina-reranker-m0"));
-});
-
-test("provider models route returns the local catalog for Runway video models", async () => {
-  const connection = await seedConnection("runwayml", {
-    apiKey: "runway-key",
-  });
-
-  const response = await callRoute(connection.id);
-  const body = (await response.json()) as any;
-
-  assert.equal(response.status, 200);
-  assert.equal(body.provider, "runwayml");
-  assert.equal(body.source, "local_catalog");
-  assert.ok(body.models.some((model) => model.id === "gen4.5"));
-  assert.ok(body.models.some((model) => model.id === "veo3.1"));
-  assert.ok(body.models.some((model) => model.id === "gen3a_turbo"));
 });
 
 test("provider models route returns the updated local catalog for GitHub Copilot", async () => {

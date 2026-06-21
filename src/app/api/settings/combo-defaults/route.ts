@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSettings, updateSettings } from "@/lib/localDb";
-import { updateComboDefaultsSchema } from "@/shared/validation/schemas";
-import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { updateComboDefaultsSchema } from "@/shared/validation/schemas";
 
 const LEGACY_COMBO_RESILIENCE_KEYS = new Set([
   "timeoutMs",
@@ -30,13 +30,10 @@ function sanitizeProviderOverrides(overrides?: Record<string, any> | null) {
   );
 }
 
-/**
- * GET /api/settings/combo-defaults
- * Returns the current combo global defaults and provider overrides
- */
 export async function GET(request: Request) {
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
+
   try {
     const settings: any = await getSettings();
     const comboDefaults = sanitizeComboRuntimeConfig(settings.comboDefaults);
@@ -60,20 +57,15 @@ export async function GET(request: Request) {
             },
       providerOverrides,
     });
-  } catch (error) {
-    console.log("Error fetching combo defaults:", error);
+  } catch {
     return NextResponse.json({ error: "Failed to fetch combo defaults" }, { status: 500 });
   }
 }
 
-/**
- * PATCH /api/settings/combo-defaults
- * Update combo global defaults and/or provider overrides
- * Body: { comboDefaults?: {...}, providerOverrides?: {...} }
- */
 export async function PATCH(request: Request) {
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
+
   let rawBody;
   try {
     rawBody = await request.json();
@@ -94,10 +86,9 @@ export async function PATCH(request: Request) {
     if (isValidationFailure(validation)) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
+
     const body = validation.data;
-
     const updates: Record<string, any> = {};
-
     if (body.comboDefaults) {
       updates.comboDefaults = sanitizeComboRuntimeConfig(body.comboDefaults);
     }
@@ -110,8 +101,7 @@ export async function PATCH(request: Request) {
       comboDefaults: sanitizeComboRuntimeConfig(settings.comboDefaults),
       providerOverrides: sanitizeProviderOverrides(settings.providerOverrides),
     });
-  } catch (error) {
-    console.log("Error updating combo defaults:", error);
+  } catch {
     return NextResponse.json({ error: "Failed to update combo defaults" }, { status: 500 });
   }
 }

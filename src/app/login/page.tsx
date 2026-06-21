@@ -73,9 +73,9 @@ export default function LoginPage() {
         router.refresh();
       } else {
         const data = await res.json();
-        // (#521) If no password is set, redirect to onboarding instead of showing an error
+        // (#521) If no password is set, redirect to bootstrap settings instead of showing an error
         if (data.needsSetup) {
-          router.push("/dashboard/onboarding");
+          router.push("/dashboard/settings/general");
           return;
         }
         setError(data.error || t("invalidPassword"));
@@ -157,7 +157,7 @@ export default function LoginPage() {
               <Button
                 variant="primary"
                 className="w-full h-11 text-sm font-medium"
-                onClick={() => router.push("/dashboard/onboarding")}
+                onClick={() => router.push("/dashboard/settings/general")}
               >
                 {t("startOnboarding")}
               </Button>
@@ -197,7 +197,7 @@ export default function LoginPage() {
               <Button
                 variant="primary"
                 className="w-full h-11 text-sm font-medium"
-                onClick={() => router.push("/dashboard/onboarding")}
+                onClick={() => router.push("/dashboard/settings/general")}
               >
                 {t("configurePassword")}
               </Button>
@@ -265,15 +265,6 @@ export default function LoginPage() {
                 {t("continue")}
               </Button>
             </form>
-
-            <div className="mt-6 pt-6 border-t border-border">
-              <a
-                href="/forgot-password"
-                className="text-sm text-text-muted hover:text-primary transition-colors"
-              >
-                {t("forgotPassword")}
-              </a>
-            </div>
           </div>
         </div>
 

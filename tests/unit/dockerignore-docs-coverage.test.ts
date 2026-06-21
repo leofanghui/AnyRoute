@@ -1,10 +1,10 @@
 /**
  * Issue #2348 — Regression guard for the Docker image documentation bundle.
  *
- * The Dashboard Docs viewer at `src/app/docs/[slug]/page.tsx` reads markdown
+ * The Dashboard Docs viewer at `src/app/docs/[...slug]/page.tsx` reads markdown
  * from `process.cwd()/docs/<file>` at runtime. The previous `.dockerignore`
- * shipped only `docs/openapi.yaml` to the container, so every help screen
- * threw ENOENT.
+ * filtered out the docs tree too aggressively, so the in-product help screen
+ * could throw ENOENT.
  *
  * This test parses `.dockerignore`, applies it against the working tree,
  * and asserts that the critical English markdown files are still in the
@@ -21,29 +21,12 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const DOCKERIGNORE = path.resolve(REPO_ROOT, ".dockerignore");
 
 // Subset of the docs viewer's catalog that MUST survive the docker filter.
-// Sourced from src/app/docs/lib/docs-auto-generated.ts.
 const REQUIRED_DOCS = [
   "docs/README.md",
-  "docs/PROVIDERS.md",
+  "docs/getting-started/QUICK-START.md",
+  "docs/getting-started/TROUBLESHOOTING.md",
   "docs/routing/AUTO-COMBO.md",
-  "docs/guides/SETUP_GUIDE.md",
-  "docs/guides/TROUBLESHOOTING.md",
-  "docs/reference/API_REFERENCE.md",
-  "docs/reference/PROVIDER_REFERENCE.md",
-  "docs/reference/ENVIRONMENT.md",
-];
-
-// Referenced from docs/**/*.md — fumadocs-mdx webpack build fails if missing.
-const REQUIRED_DOC_DIAGRAMS = [
-  "docs/diagrams/exported/request-pipeline.svg",
-  "docs/diagrams/exported/resilience-3layers.svg",
-  "docs/diagrams/exported/authz-pipeline.svg",
-  "docs/diagrams/exported/db-schema-overview.svg",
-];
-
-const REQUIRED_DOC_SCREENSHOTS = [
-  "docs/screenshots/01-providers.png",
-  "docs/screenshots/05-translator.png",
+  "docs/security/ERROR_SANITIZATION.md",
 ];
 
 // Compile .dockerignore patterns into a simple matcher.
@@ -133,7 +116,7 @@ test("#2348 .dockerignore keeps every doc the in-product viewer needs", () => {
   const missing: string[] = [];
   const ignored: string[] = [];
 
-  for (const docPath of [...REQUIRED_DOCS, ...REQUIRED_DOC_DIAGRAMS, ...REQUIRED_DOC_SCREENSHOTS]) {
+  for (const docPath of REQUIRED_DOCS) {
     const absPath = path.resolve(REPO_ROOT, docPath);
     if (!fs.existsSync(absPath)) {
       missing.push(docPath);
@@ -154,7 +137,7 @@ test("#2348 .dockerignore keeps every doc the in-product viewer needs", () => {
 
 test("#2348 .dockerignore still excludes the heavy i18n tree", () => {
   const parsed = parseDockerignore(fs.readFileSync(DOCKERIGNORE, "utf8"));
-  const heavy = "docs/i18n/pt-BR/docs/routing/AUTO-COMBO.md";
+  const heavy = "docs/i18n/fr/docs/routing/AUTO-COMBO.md";
   assert.ok(
     isIgnored(heavy, parsed),
     `${heavy} should be excluded from Docker context but is not — image size will balloon`

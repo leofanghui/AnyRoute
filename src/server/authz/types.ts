@@ -31,7 +31,6 @@ export type ClassificationReason =
   | "setup_wizard"
   | "public_connect_page"
   | "client_api_v1"
-  | "client_api_mcp"
   | "client_api_alias"
   | "client_api_codex_alias"
   | "client_api_double_prefix"
@@ -53,8 +52,8 @@ export interface RouteClassification {
 
 /**
  * Identity of the authenticated principal once a policy has accepted the
- * request. Populated by the policy layer (Phase 2) and consumed by route
- * handlers via assertAuth().
+ * request. Populated by the policy layer and propagated through trusted
+ * authz headers.
  */
 export interface AuthSubject {
   kind: "client_api_key" | "dashboard_session" | "management_key" | "anonymous";

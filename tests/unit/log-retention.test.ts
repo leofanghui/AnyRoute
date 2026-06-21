@@ -106,17 +106,6 @@ test("cleanupExpiredLogs uses separate APP and CALL retention windows", async ()
     "system"
   );
 
-  db.prepare("INSERT INTO mcp_tool_audit (tool_name, success, created_at) VALUES (?, ?, ?)").run(
-    "old-tool",
-    1,
-    oldAppTs
-  );
-  db.prepare("INSERT INTO mcp_tool_audit (tool_name, success, created_at) VALUES (?, ?, ?)").run(
-    "fresh-tool",
-    1,
-    freshAppTs
-  );
-
   const result = await compliance.cleanupExpiredLogs();
 
   assert.equal(result.deletedUsage, 1);
@@ -124,7 +113,6 @@ test("cleanupExpiredLogs uses separate APP and CALL retention windows", async ()
   assert.equal(result.deletedProxyLogs, 1);
   assert.equal(result.deletedRequestDetailLogs, 1);
   assert.equal(result.deletedAuditLogs, 1);
-  assert.equal(result.deletedMcpAuditLogs, 1);
   assert.deepEqual(compliance.getRetentionDays(), { app: 2, call: 1 });
 
   assert.equal((db.prepare("SELECT COUNT(*) AS cnt FROM usage_history").get() as any).cnt, 1);
@@ -132,7 +120,6 @@ test("cleanupExpiredLogs uses separate APP and CALL retention windows", async ()
   assert.equal((db.prepare("SELECT COUNT(*) AS cnt FROM proxy_logs").get() as any).cnt, 1);
   assert.equal((db.prepare("SELECT COUNT(*) AS cnt FROM request_detail_logs").get() as any).cnt, 1);
   assert.equal((db.prepare("SELECT COUNT(*) AS cnt FROM audit_log").get() as any).cnt, 2);
-  assert.equal((db.prepare("SELECT COUNT(*) AS cnt FROM mcp_tool_audit").get() as any).cnt, 1);
 });
 
 test("cleanupExpiredLogs enforces row count limits", async () => {

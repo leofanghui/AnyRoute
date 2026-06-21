@@ -56,7 +56,6 @@ export async function POST(request) {
       customUserAgent,
       baseUrl: bodyBaseUrl,
       region,
-      cx,
     } = validation.data;
 
     let providerSpecificData: any = { validationModelId };
@@ -68,9 +67,6 @@ export async function POST(request) {
     }
     if (region) {
       providerSpecificData.region = region;
-    }
-    if (cx) {
-      providerSpecificData.cx = cx;
     }
 
     if (isOpenAICompatibleProvider(provider) || isAnthropicCompatibleProvider(provider)) {

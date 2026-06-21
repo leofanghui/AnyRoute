@@ -10,13 +10,6 @@ import {
   getModelIsHidden,
 } from "@/lib/localDb";
 import { appendNoThinkingVariants } from "@omniroute/open-sse/utils/noThinkingAlias";
-import { getAllEmbeddingModels } from "@omniroute/open-sse/config/embeddingRegistry";
-import { getAllImageModels } from "@omniroute/open-sse/config/imageRegistry";
-import { getAllRerankModels } from "@omniroute/open-sse/config/rerankRegistry";
-import { getAllAudioModels } from "@omniroute/open-sse/config/audioRegistry";
-import { getAllModerationModels } from "@omniroute/open-sse/config/moderationRegistry";
-import { getAllVideoModels } from "@omniroute/open-sse/config/videoRegistry";
-import { getAllMusicModels } from "@omniroute/open-sse/config/musicRegistry";
 import { REGISTRY } from "@omniroute/open-sse/config/providerRegistry";
 import { CODEX_NATIVE_UNPREFIXED_MODELS } from "@omniroute/open-sse/services/model";
 import { resolveNestedComboTargets } from "@omniroute/open-sse/services/combo";
@@ -155,10 +148,16 @@ function normalizeOpenRouterModalities(value: unknown): string[] {
 }
 
 function getOpenRouterModelType(inputModalities: string[], outputModalities: string[]) {
-  if (outputModalities.includes("image")) return "image";
-  if (outputModalities.includes("audio")) return "audio";
-  if (outputModalities.includes("video")) return "video";
-  if (outputModalities.includes("embedding")) return "embedding";
+  void inputModalities;
+  if (outputModalities.includes("embedding")) return null;
+  if (
+    (outputModalities.includes("image") ||
+      outputModalities.includes("audio") ||
+      outputModalities.includes("video")) &&
+    !outputModalities.includes("text")
+  ) {
+    return null;
+  }
   return "chat";
 }
 
@@ -881,21 +880,19 @@ export async function getUnifiedModelsResponse(
           const aliasId = `${alias}/${displayModelId}`;
           const endpoints = Array.isArray(sm.supportedEndpoints) ? sm.supportedEndpoints : ["chat"];
           const apiFormat = typeof sm.apiFormat === "string" ? sm.apiFormat : "chat-completions";
-          let modelType: string | undefined;
-          if (endpoints.includes("embeddings")) modelType = "embedding";
-          else if (endpoints.includes("rerank")) modelType = "rerank";
-          else if (endpoints.includes("images")) modelType = "image";
-          else if (endpoints.includes("audio")) modelType = "audio";
+          const chatEndpoints = endpoints.filter((endpoint) =>
+            ["chat", "chat/completions", "responses"].includes(endpoint)
+          );
+          if (chatEndpoints.length === 0) continue;
+          if (["embeddings", "rerank", "images", "audio"].includes(apiFormat)) continue;
           const syncedFields = {
-            ...(modelType ? { type: modelType } : {}),
             ...(apiFormat !== "chat-completions" ? { api_format: apiFormat } : {}),
-            ...(modelType === "audio" ? { subtype: "transcription" } : {}),
             ...(sm.inputTokenLimit ? { context_length: sm.inputTokenLimit } : {}),
             ...(typeof sm.outputTokenLimit === "number"
               ? { max_output_tokens: sm.outputTokenLimit }
               : {}),
-            ...(endpoints.length > 1 || !endpoints.includes("chat")
-              ? { supported_endpoints: endpoints }
+            ...(chatEndpoints.length > 1 || !chatEndpoints.includes("chat")
+              ? { supported_endpoints: chatEndpoints }
               : {}),
           };
 
@@ -915,27 +912,6 @@ export async function getUnifiedModelsResponse(
             parent: null,
             ...syncedFields,
           });
-
-          if (modelType === "audio") {
-            models.push({
-              id: aliasId,
-              object: "model",
-              created: timestamp,
-              owned_by: canonicalProviderId,
-              permission: [],
-              root: sm.id,
-              parent: null,
-              type: "audio",
-              subtype: "speech",
-              ...(sm.inputTokenLimit ? { context_length: sm.inputTokenLimit } : {}),
-              ...(typeof sm.outputTokenLimit === "number"
-                ? { max_output_tokens: sm.outputTokenLimit }
-                : {}),
-              ...(endpoints.length > 1 || !endpoints.includes("chat")
-                ? { supported_endpoints: endpoints }
-                : {}),
-            });
-          }
 
           if (canonicalProviderId !== alias && !prefix) {
             const providerPrefixedId = `${canonicalProviderId}/${displayModelId}`;
@@ -977,6 +953,7 @@ export async function getUnifiedModelsResponse(
             openRouterModel.architecture?.output_modalities
           );
           const modelType = getOpenRouterModelType(inputModalities, outputModalities);
+          if (!modelType) continue;
           const isFree = isOpenRouterFreeModel(openRouterModel);
           const supportedParameters = Array.isArray(openRouterModel.supported_parameters)
             ? openRouterModel.supported_parameters
@@ -1042,143 +1019,6 @@ export async function getUnifiedModelsResponse(
       return activeAliases.has(alias) || activeAliases.has(provider);
     };
 
-    const hasEquivalentSpecialtyModel = (
-      providerId: string,
-      rawModelId: string,
-      type: string,
-      scopedModelId: string
-    ) =>
-      models.some((model: any) => {
-        if (model?.id === scopedModelId) return true;
-        if (model?.owned_by !== providerId || model?.type !== type) return false;
-        const existingRoot =
-          typeof model?.root === "string"
-            ? model.root
-            : typeof model?.id === "string"
-              ? model.id.split("/").pop()
-              : null;
-        return existingRoot === rawModelId;
-      });
-
-    // Add embedding models (filtered by active providers)
-    for (const embModel of getAllEmbeddingModels()) {
-      if (!isProviderActive(embModel.provider)) continue;
-      const rawModelId = embModel.id.split("/").pop() || embModel.id;
-      if (!providerSupportsModel(embModel.provider, rawModelId)) continue;
-      if (getModelIsHidden(embModel.provider, rawModelId)) continue;
-      if (hasEquivalentSpecialtyModel(embModel.provider, rawModelId, "embedding", embModel.id)) {
-        continue;
-      }
-      models.push({
-        id: embModel.id,
-        object: "model",
-        created: timestamp,
-        owned_by: embModel.provider,
-        root: rawModelId,
-        type: "embedding",
-        dimensions: embModel.dimensions,
-      });
-    }
-
-    // Add image models (filtered by active providers)
-    for (const imgModel of getAllImageModels()) {
-      if (!isProviderActive(imgModel.provider)) continue;
-      const rawModelId = imgModel.id.split("/").pop() || imgModel.id;
-      if (!providerSupportsModel(imgModel.provider, rawModelId)) continue;
-      if (getModelIsHidden(imgModel.provider, rawModelId)) continue;
-      models.push({
-        id: imgModel.id,
-        object: "model",
-        created: timestamp,
-        owned_by: imgModel.provider,
-        type: "image",
-        supported_sizes: imgModel.supportedSizes,
-        input_modalities: imgModel.inputModalities || ["text"],
-        output_modalities: ["image"],
-        ...(imgModel.description ? { description: imgModel.description } : {}),
-      });
-    }
-
-    // Add rerank models (filtered by active providers)
-    for (const rerankModel of getAllRerankModels()) {
-      if (!isProviderActive(rerankModel.provider)) continue;
-      const rawModelId = rerankModel.id.split("/").pop() || rerankModel.id;
-      if (!providerSupportsModel(rerankModel.provider, rawModelId)) continue;
-      if (getModelIsHidden(rerankModel.provider, rawModelId)) continue;
-      if (hasEquivalentSpecialtyModel(rerankModel.provider, rawModelId, "rerank", rerankModel.id)) {
-        continue;
-      }
-      models.push({
-        id: rerankModel.id,
-        object: "model",
-        created: timestamp,
-        owned_by: rerankModel.provider,
-        root: rawModelId,
-        type: "rerank",
-      });
-    }
-
-    // Add audio models (filtered by active providers)
-    for (const audioModel of getAllAudioModels()) {
-      if (!isProviderActive(audioModel.provider)) continue;
-      const rawModelId = audioModel.id.split("/").pop() || audioModel.id;
-      if (!providerSupportsModel(audioModel.provider, rawModelId)) continue;
-      if (getModelIsHidden(audioModel.provider, rawModelId)) continue;
-      models.push({
-        id: audioModel.id,
-        object: "model",
-        created: timestamp,
-        owned_by: audioModel.provider,
-        type: "audio",
-        subtype: audioModel.subtype,
-      });
-    }
-
-    // Add moderation models (filtered by active providers)
-    for (const modModel of getAllModerationModels()) {
-      if (!isProviderActive(modModel.provider)) continue;
-      const rawModelId = modModel.id.split("/").pop() || modModel.id;
-      if (!providerSupportsModel(modModel.provider, rawModelId)) continue;
-      if (getModelIsHidden(modModel.provider, rawModelId)) continue;
-      models.push({
-        id: modModel.id,
-        object: "model",
-        created: timestamp,
-        owned_by: modModel.provider,
-        type: "moderation",
-      });
-    }
-
-    // Add video models (filtered by active providers)
-    for (const videoModel of getAllVideoModels()) {
-      if (!isProviderActive(videoModel.provider)) continue;
-      const rawModelId = videoModel.id.split("/").pop() || videoModel.id;
-      if (!providerSupportsModel(videoModel.provider, rawModelId)) continue;
-      if (getModelIsHidden(videoModel.provider, rawModelId)) continue;
-      models.push({
-        id: videoModel.id,
-        object: "model",
-        created: timestamp,
-        owned_by: videoModel.provider,
-        type: "video",
-      });
-    }
-
-    // Add music models (filtered by active providers)
-    for (const musicModel of getAllMusicModels()) {
-      if (!isProviderActive(musicModel.provider)) continue;
-      const rawModelId = musicModel.id.split("/").pop() || musicModel.id;
-      if (!providerSupportsModel(musicModel.provider, rawModelId)) continue;
-      if (getModelIsHidden(musicModel.provider, rawModelId)) continue;
-      models.push({
-        id: musicModel.id,
-        object: "model",
-        created: timestamp,
-        owned_by: musicModel.provider,
-        type: "music",
-      });
-    }
-
     // Add custom models (user-defined)
     try {
       const customModelsMap = (await getAllCustomModels()) as Record<string, unknown>;
@@ -1230,27 +1070,18 @@ export async function getUnifiedModelsResponse(
           const aliasId = `${alias}/${modelId}`;
           if (models.some((m) => m.id === aliasId)) continue;
 
-          // Determine type from supportedEndpoints
           const endpoints = Array.isArray(model.supportedEndpoints)
             ? model.supportedEndpoints
             : ["chat"];
           const apiFormat =
             typeof model.apiFormat === "string" ? model.apiFormat : "chat-completions";
-          let modelType: string | undefined;
-          if (endpoints.includes("embeddings")) modelType = "embedding";
-          else if (endpoints.includes("rerank")) modelType = "rerank";
-          else if (endpoints.includes("images")) modelType = "image";
-          else if (endpoints.includes("audio")) modelType = "audio";
-          if (
-            modelType &&
-            hasEquivalentSpecialtyModel(canonicalProviderId, modelId, modelType, aliasId)
-          ) {
-            continue;
-          }
+          if (!["chat-completions", "responses"].includes(apiFormat)) continue;
+          const chatEndpoints = endpoints.filter((endpoint) =>
+            ["chat", "chat/completions", "responses"].includes(endpoint)
+          );
+          if (chatEndpoints.length === 0) continue;
           const visionFields =
-            modelType === "chat"
-              ? getVisionCapabilityFields(aliasId) || getVisionCapabilityFields(modelId)
-              : null;
+            getVisionCapabilityFields(aliasId) || getVisionCapabilityFields(modelId);
 
           models.push({
             id: aliasId,
@@ -1261,10 +1092,9 @@ export async function getUnifiedModelsResponse(
             root: modelId,
             parent: null,
             custom: true,
-            ...(modelType ? { type: modelType } : {}),
             ...(apiFormat !== "chat-completions" ? { api_format: apiFormat } : {}),
-            ...(endpoints.length > 1 || !endpoints.includes("chat")
-              ? { supported_endpoints: endpoints }
+            ...(chatEndpoints.length > 1 || !chatEndpoints.includes("chat")
+              ? { supported_endpoints: chatEndpoints }
               : {}),
             ...(typeof model.inputTokenLimit === "number"
               ? { context_length: model.inputTokenLimit }
@@ -1279,10 +1109,7 @@ export async function getUnifiedModelsResponse(
             const providerPrefixedId = `${canonicalProviderId}/${modelId}`;
             if (models.some((m) => m.id === providerPrefixedId)) continue;
             const providerVisionFields =
-              modelType === "chat"
-                ? getVisionCapabilityFields(providerPrefixedId) ||
-                  getVisionCapabilityFields(modelId)
-                : null;
+              getVisionCapabilityFields(providerPrefixedId) || getVisionCapabilityFields(modelId);
             models.push({
               id: providerPrefixedId,
               object: "model",
@@ -1292,7 +1119,10 @@ export async function getUnifiedModelsResponse(
               root: modelId,
               parent: aliasId,
               custom: true,
-              ...(modelType ? { type: modelType } : {}),
+              ...(apiFormat !== "chat-completions" ? { api_format: apiFormat } : {}),
+              ...(chatEndpoints.length > 1 || !chatEndpoints.includes("chat")
+                ? { supported_endpoints: chatEndpoints }
+                : {}),
               ...(typeof model.inputTokenLimit === "number"
                 ? { context_length: model.inputTokenLimit }
                 : {}),
@@ -1353,31 +1183,19 @@ export async function getUnifiedModelsResponse(
     const apiKey = extractApiKey(request);
     let finalModels = models;
     if (apiKey) {
-      const { isModelAllowedForKey, getApiKeyMetadata } = await import("@/lib/db/apiKeys");
-
-      // Quota-exclusive keys (allowedQuotas non-empty): show only the
-      // quotaShared-* virtual models for the key's assigned pools (Phase B3).
-      // This takes precedence over the normal allowedModels filter.
-      const keyMeta = await getApiKeyMetadata(apiKey);
-      if (keyMeta && keyMeta.allowedQuotas && keyMeta.allowedQuotas.length > 0) {
-        const { resolveQuotaKeyScope } = await import("@/lib/quota/quotaKey");
-        const { filterModelsToQuotaPools } = await import("@/lib/quota/quotaCombos");
-        const scope = await resolveQuotaKeyScope(keyMeta.allowedQuotas);
-        finalModels = filterModelsToQuotaPools(models, scope.poolSlugs);
-      } else {
-        const filtered = [];
-        for (const m of models) {
-          // m.id is the full identifier (e.g. openai/gpt-4o), m.root is the raw model string
-          // check either one as the config could use either patterns
-          if (
-            (await isModelAllowedForKey(apiKey, m.id)) ||
-            (await isModelAllowedForKey(apiKey, m.root))
-          ) {
-            filtered.push(m);
-          }
+      const { isModelAllowedForKey } = await import("@/lib/db/apiKeys");
+      const filtered = [];
+      for (const m of models) {
+        // m.id is the full identifier (e.g. openai/gpt-4o), m.root is the raw model string
+        // check either one as the config could use either patterns
+        if (
+          (await isModelAllowedForKey(apiKey, m.id)) ||
+          (await isModelAllowedForKey(apiKey, m.root))
+        ) {
+          filtered.push(m);
         }
-        finalModels = filtered;
       }
+      finalModels = filtered;
     }
 
     // Advertise no-thinking gateway variants (Fase 8.1). Derived from the already

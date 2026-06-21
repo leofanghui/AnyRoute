@@ -3,7 +3,6 @@ import { getProviderConnections, getSettings } from "@/lib/localDb";
 import { buildHealthPayload } from "@/lib/monitoring/observability";
 import { APP_CONFIG } from "@/shared/constants/config";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
-import { isAuthenticated } from "@/shared/utils/apiAuth";
 
 /**
  * GET /api/monitoring/health — System health overview
@@ -174,38 +173,5 @@ export async function GET() {
       sessions: { activeCount: 0, stickyBoundCount: 0, byApiKey: {}, top: [] },
       dedup: { inflightRequests: 0 },
     });
-  }
-}
-
-/**
- * DELETE /api/monitoring/health — Reset all circuit breakers
- *
- * Resets all provider circuit breakers to CLOSED state,
- * clearing failure counts and persisted state.
- */
-export async function DELETE(request: Request) {
-  if (!(await isAuthenticated(request))) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const { resetAllCircuitBreakers, getAllCircuitBreakerStatuses } =
-      await import("@/shared/utils/circuitBreaker");
-
-    const before = getAllCircuitBreakerStatuses();
-    const resetCount = before.length;
-
-    resetAllCircuitBreakers();
-
-    console.log(`[API] DELETE /api/monitoring/health — Reset ${resetCount} circuit breakers`);
-
-    return NextResponse.json({
-      success: true,
-      message: `Reset ${resetCount} circuit breaker(s) to healthy state`,
-      resetCount,
-    });
-  } catch (error) {
-    console.error("[API] DELETE /api/monitoring/health error:", error);
-    return NextResponse.json({ error: "Failed to reset circuit breakers" }, { status: 500 });
   }
 }

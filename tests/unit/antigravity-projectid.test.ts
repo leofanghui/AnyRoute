@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { updateProviderConnectionSchema } from "../../src/shared/validation/schemas.js";
+import { updateProviderConnectionSchema } from "../../src/shared/validation/schemas.ts";
 
 describe("Antigravity Project ID Schema Validation", () => {
   it("should accept projectId and providerSpecificData.projectId", () => {

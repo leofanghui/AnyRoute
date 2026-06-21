@@ -1,15 +1,6 @@
-export const HIDEABLE_SIDEBAR_GROUP_IDS = [
-  "compression-context",
-  "tools",
-  "integrations",
-  "logs",
-  "audit",
-  "system",
-  "gamification",
-  "batch",
-] as const;
+export const HIDEABLE_SIDEBAR_GROUP_IDS: readonly string[] = [];
 
-export type HideableSidebarGroupId = (typeof HIDEABLE_SIDEBAR_GROUP_IDS)[number];
+export type HideableSidebarGroupId = string;
 
 export const HIDDEN_SIDEBAR_GROUP_LABELS_SETTING_KEY = "hiddenSidebarGroupLabels";
 

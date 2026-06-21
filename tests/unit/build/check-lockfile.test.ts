@@ -1,7 +1,7 @@
 // tests/unit/build/check-lockfile.test.ts
 // TDD tests for check-lockfile.mjs — lockfile policy gate (Task 7.7).
 //
-// Strategy: the lockfile-lint binary is an external CLI tool; we do not spawn it
+// Strategy: the lockfile-lint entrypoint is an external CLI tool; we do not spawn it
 // in unit tests. Instead, we test the two exported pure functions:
 //   - getLockfileLintConfig() — returns the policy configuration object
 //   - buildLockfileLintArgs()  — maps a config object to the argv array

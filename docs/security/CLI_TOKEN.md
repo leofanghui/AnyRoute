@@ -28,13 +28,13 @@ password on every invocation.
 
 ## Security properties
 
-| Property                         | Detail                                                                                                                              |
-| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **Loopback-only**                | Accepted only when `Host` is `localhost`, `127.0.0.1`, or `::1`.                                                                    |
-| **Constant-time compare**        | `crypto.timingSafeEqual` prevents timing attacks.                                                                                   |
-| **Non-reversible**               | HMAC output cannot recover the machine-id.                                                                                          |
-| **No `always`-protected bypass** | `isAlwaysProtectedPath()` is evaluated before the CLI token check. `/api/shutdown` and `/api/settings/database` always require JWT. |
-| **Non-exportable**               | Token is never written to disk or logged.                                                                                           |
+| Property                         | Detail                                                                                                                                    |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| **Loopback-only**                | Accepted only when `Host` is `localhost`, `127.0.0.1`, or `::1`.                                                                          |
+| **Constant-time compare**        | `crypto.timingSafeEqual` prevents timing attacks.                                                                                         |
+| **Non-reversible**               | HMAC output cannot recover the machine-id.                                                                                                |
+| **No `always`-protected bypass** | `isAlwaysProtectedPath()` is evaluated before the CLI token check, so explicitly protected management routes still require stronger auth. |
+| **Non-exportable**               | Token is never written to disk or logged.                                                                                                 |
 
 ## Salt rotation
 
@@ -64,5 +64,5 @@ Default salt: `omniroute-cli-auth-v1`
 
 ## See also
 
-- `docs/security/ROUTE_GUARD_TIERS.md` — route protection tiers
-- `docs/architecture/AUTHZ_GUIDE.md` — full authorization pipeline
+- `docs/security/CLI_TOKEN_AUTH.md` - CLI token threat model and opt-out setting
+- `docs/security/ERROR_SANITIZATION.md` - safe error responses

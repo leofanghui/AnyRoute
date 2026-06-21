@@ -142,12 +142,6 @@ test("bumpProxyConfigGeneration does not throw", () => {
   assert.doesNotThrow(() => settings.bumpProxyConfigGeneration());
 });
 
-test("isCloudEnabled returns boolean", async () => {
-  await resetStorage();
-  const result = await settings.isCloudEnabled();
-  assert.ok(typeof result === "boolean");
-});
-
 test("getCacheMetrics returns an object", async () => {
   await resetStorage();
   const result = await settings.getCacheMetrics();

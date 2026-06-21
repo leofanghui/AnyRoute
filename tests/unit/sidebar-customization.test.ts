@@ -7,9 +7,11 @@ const {
   HIDEABLE_SIDEBAR_ITEM_IDS,
   SIDEBAR_SECTIONS,
   SIDEBAR_PRESETS,
+  ACCEPTED_SIDEBAR_PRESET_IDS,
   applySectionOrder,
   applyItemOrder,
   normalizeHiddenSidebarItems,
+  normalizeSidebarPresetId,
 } = sidebarVisibility;
 
 // ─── applySectionOrder ────────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ test("applyItemOrder reorders items by provided list", () => {
 });
 
 test("applyItemOrder ignores unknown IDs in order list", () => {
-  const section = SIDEBAR_SECTIONS.find((s) => s.id === "help")!;
+  const section = SIDEBAR_SECTIONS.find((s) => s.id === "omni-proxy")!;
   const children = [...section.children] as any[];
   const ids = children.map((c) => c.id);
   const orderWithUnknown = ["ghost-item", ids[1], ids[0], ids[2]];
@@ -89,12 +91,9 @@ test("applyItemOrder ignores unknown IDs in order list", () => {
 
 // ─── SIDEBAR_PRESETS ──────────────────────────────────────────────────────────
 
-test("SIDEBAR_PRESETS contains all four preset IDs", () => {
+test("SIDEBAR_PRESETS exposes only the minimal profile preset", () => {
   const ids = SIDEBAR_PRESETS.map((p) => p.id);
-  assert.ok(ids.includes("all"), "expected 'all' preset");
-  assert.ok(ids.includes("minimal"), "expected 'minimal' preset");
-  assert.ok(ids.includes("developer"), "expected 'developer' preset");
-  assert.ok(ids.includes("admin"), "expected 'admin' preset");
+  assert.deepEqual(ids, ["minimal"]);
 });
 
 test("SIDEBAR_PRESETS all preset hiddenItems are valid HIDEABLE_SIDEBAR_ITEM_IDS", () => {
@@ -106,15 +105,15 @@ test("SIDEBAR_PRESETS all preset hiddenItems are valid HIDEABLE_SIDEBAR_ITEM_IDS
   }
 });
 
-test("SIDEBAR_PRESETS 'all' preset has no hidden items", () => {
-  const allPreset = SIDEBAR_PRESETS.find((p) => p.id === "all");
-  assert.ok(allPreset, "expected 'all' preset to exist");
-  assert.deepEqual(allPreset.hiddenItems, []);
+test("minimal preset has no hidden items after source pruning", () => {
+  const minimalPreset = SIDEBAR_PRESETS.find((p) => p.id === "minimal");
+  assert.ok(minimalPreset, "expected 'minimal' preset to exist");
+  assert.deepEqual(minimalPreset.hiddenItems, []);
 });
 
-test("SIDEBAR_PRESETS non-all presets have at least one hidden item", () => {
-  for (const preset of SIDEBAR_PRESETS.filter((p) => p.id !== "all")) {
-    assert.ok(preset.hiddenItems.length > 0, `Preset '${preset.id}' should hide at least one item`);
+test("legacy preset IDs normalize to minimal for old settings rows", () => {
+  for (const id of ACCEPTED_SIDEBAR_PRESET_IDS) {
+    assert.equal(normalizeSidebarPresetId(id), "minimal");
   }
 });
 

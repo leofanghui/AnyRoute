@@ -5,7 +5,6 @@ export async function POST(request: Request) {
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
-  // Graceful restart: SIGTERM flows through the shutdown handler before the process manager restarts
   setTimeout(() => {
     process.kill(process.pid, "SIGTERM");
   }, 500);

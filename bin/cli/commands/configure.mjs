@@ -9,9 +9,8 @@ import { t } from "../i18n.mjs";
  * `omniroute configure <cli>` — interactive provider+model picker that writes a
  * local CLI config pointed at the ACTIVE OmniRoute context (local or remote).
  *
- * The model catalog comes from the active context's GET /v1/models, so when you
- * are in remote mode (`omniroute connect ...`) you pick from the remote server's
- * live models and the profile is written on THIS machine.
+ * The model catalog comes from the active context's GET /v1/models, so the
+ * selected model reflects the server context currently in use.
  *
  * v1 targets the Codex CLI (writes ~/.codex/<name>.config.toml). The credential
  * is referenced by env var (OMNIROUTE_API_KEY) — never written to disk.
@@ -130,7 +129,9 @@ export async function runConfigureCommand(cli, opts = {}, cmd) {
       }
       const inProvider = ids.filter((id) => providerList.includes(providerOf(byId(models, id))));
       const candidates = inProvider.length ? inProvider : ids;
-      printInfo(`Models: ${candidates.slice(0, 40).join(", ")}${candidates.length > 40 ? " …" : ""}`);
+      printInfo(
+        `Models: ${candidates.slice(0, 40).join(", ")}${candidates.length > 40 ? " …" : ""}`
+      );
       chosenId = await prompt.ask("Model id");
     } finally {
       prompt.close();

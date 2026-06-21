@@ -679,10 +679,10 @@ export function ApplyClaudeAuthModal({
       : "I confirm I want to replace the existing claudeAiOauth section";
   const applyText =
     typeof t.has === "function" && t.has("claudeApply") ? t("claudeApply") : "Apply";
-  const mcpHint =
-    typeof t.has === "function" && t.has("claudeApplyMcpHint")
-      ? t("claudeApplyMcpHint")
-      : "Existing MCP OAuth state will be preserved.";
+  const oauthHint =
+    typeof t.has === "function" && t.has("claudeApplyOAuthHint")
+      ? t("claudeApplyOAuthHint")
+      : "Existing Claude OAuth state will be preserved.";
 
   return (
     <Modal isOpen={isOpen} title={title} onClose={onClose}>
@@ -701,7 +701,7 @@ export function ApplyClaudeAuthModal({
           </code>
         </div>
         <div className="rounded bg-sky-500/10 border border-sky-500/20 px-3 py-2 text-xs text-sky-400">
-          {mcpHint}
+          {oauthHint}
         </div>
         <p className="text-sm text-text-muted">{warning}</p>
         <label className="flex items-center gap-2 text-sm">

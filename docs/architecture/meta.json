@@ -1,11 +1,4 @@
 {
   "title": "Architecture",
-  "pages": [
-    "ARCHITECTURE",
-    "AUTHZ_GUIDE",
-    "CODEBASE_DOCUMENTATION",
-    "REPOSITORY_MAP",
-    "RESILIENCE_GUIDE",
-    "QUALITY_GATES"
-  ]
+  "pages": ["RESILIENCE_GUIDE"]
 }

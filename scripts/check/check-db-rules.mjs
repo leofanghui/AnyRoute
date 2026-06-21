@@ -38,29 +38,15 @@ const HANDLERS_DIR = path.join(cwd, "open-sse/handlers");
 //   DEAD?              = zero importers encontrados na auditoria de 2026-06-11; não deletar
 //                        sem investigação — pode ser reserva de schema ou F2 pendente
 export const INTENTIONALLY_INTERNAL = new Set([
-  "_rowTypes", // type-only: 5 importers internos em db/ (AgentBridge/Inspector row types)
-  "accessTokens", // intentionally-internal: 4 rotas /api/cli/* (connect, whoami, tokens, tokens/[id]) + server/authz/accessTokenAuth.ts via import direto "@/lib/db/accessTokens" (Rule #2)
-  "cleanup", // intentionally-internal: 3 API routes (purge-quota-snapshots, purge-call-logs, purge-detailed-logs)
-  "cliToolState", // intentionally-internal: 14+ API routes em /api/cli-tools/*-settings
-  "comboForecast", // intentionally-internal: src/lib/usage/comboForecast.ts
   "commandCodeAuth", // intentionally-internal: 5 API routes em /api/providers/command-code/auth/*
-  "compression", // intentionally-internal: 2 API routes (settings/compression, context/rtk/config)
-  "compressionScheduler", // DEAD?: 0 importers na auditoria de 2026-06-11; mantido para schema reservation
   "detailedLogs", // intentionally-internal: 3 callers (callLogs.ts, logs/detail route, embeddings handler)
-  "discovery", // DEAD?: 0 importers na auditoria de 2026-06-11; lib/discovery/index.ts não usa db/discovery
   "domainState", // intentionally-internal: 5 callers (batchWriter, circuitBreaker, costRules, fallbackPolicy, lockoutPolicy)
   "encryption", // intentionally-internal: 8+ callers (container, webhookDispatcher, cloudAgent/credentials, services/apiKey, 4+ routes, open-sse)
   "healthCheck", // db-internal: importado por db/core.ts (runDbHealthCheck)
-  "jsonMigration", // intentionally-internal: src/app/api/settings/import-json/route.ts
   "migrationRunner", // db-internal: importado por db/core.ts (runMigrations ao inicializar o DB)
-  "notion", // intentionally-internal: settings/notion API route + open-sse/mcp-server/tools/notionTools.ts
-  "obsidian", // intentionally-internal: src/lib/obsidianSync.ts + settings/obsidian route + MCP obsidianTools.ts
-  "pluginMetrics", // DEAD? (production): write path não foi conectado ainda (documentado no cabeçalho do módulo); testado por tests/unit/plugins-metrics.test.ts
   "prompts", // DEAD? (production): zero callers de produção encontrados; domínio domain/prompts.ts é independente; testado por tests/integration/proxy-pipeline.test.ts
-  "providerStats", // intentionally-internal: src/app/api/provider-stats/route.ts
   "recovery", // intentionally-internal: bin/cli/runtime.mjs (import() dinâmico) + tests
   "secrets", // intentionally-internal: src/instrumentation-node.ts (import() dinâmico na inicialização)
-  "serviceModels", // intentionally-internal: 3 callers (services/modelSync, services/bootstrap, /api/services/9router/models)
   "stateReset", // db-internal: 3 callers dentro de src/lib/db/ (core, backup, apiKeys) para coordenação de reset
   "stats", // intentionally-internal: src/app/api/settings/database/refresh-stats/route.ts
   "tierConfig", // intentionally-internal: open-sse/services/tierResolver.ts (require() dinâmico)

@@ -10,18 +10,7 @@
 
 import { z } from "zod";
 
-const SERVICE_KIND_VALUES = [
-  "llm",
-  "embedding",
-  "image",
-  "imageToText",
-  "tts",
-  "stt",
-  "webSearch",
-  "webFetch",
-  "video",
-  "music",
-] as const;
+const SERVICE_KIND_VALUES = ["llm"] as const;
 
 export const ProviderSchema = z.object({
   id: z.string().min(1),
@@ -33,8 +22,7 @@ export const ProviderSchema = z.object({
   website: z.string().url().optional(),
   passthroughModels: z.boolean().optional(),
   subscriptionRisk: z.boolean().optional(),
-  riskNoticeVariant: z.enum(["oauth", "webCookie", "deprecated", "embedded-service"]).optional(),
-  isEmbeddedService: z.boolean().optional(),
+  riskNoticeVariant: z.enum(["oauth", "webCookie", "deprecated"]).optional(),
   deprecated: z.boolean().optional(),
   deprecationReason: z.string().optional(),
   hasFree: z.boolean().optional(),

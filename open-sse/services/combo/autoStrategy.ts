@@ -1,16 +1,11 @@
 /**
- * Auto-combo scoring, intent extraction, request-tag routing, candidate-pool
- * expansion and the quota-soft execution-candidate registry — extracted from
+ * Auto-combo scoring, intent extraction, request-tag routing, and candidate-pool
+ * expansion — extracted from
  * combo.ts (Quality Gate v2 / Fase 9, combo split D8 — reduced).
  *
  * Logic is unchanged (byte-identical move); the moved public symbols
- * (QUOTA_SOFT_DEPRIORITIZE_FACTOR, setCandidateQuotaSoftPenalty, scoreAutoTargets,
- * expandAutoComboCandidatePool) are re-exported from combo.ts for backward
- * compatibility — including chatCore.ts's dynamic `import("../services/combo")`
- * which reads setCandidateQuotaSoftPenalty + QUOTA_SOFT_DEPRIORITIZE_FACTOR.
- *
- * The _activeExecutionCandidates registry Map MUST stay a single instance, so it
- * and its three mutators live together here.
+ * (scoreAutoTargets, expandAutoComboCandidatePool) are re-exported from combo.ts
+ * for backward compatibility.
  *
  * NOTE: buildAutoCandidates (and its two private-only helpers
  * calculateTargetContextAffinity / getBootstrapLatencyMs) deliberately stay in
@@ -21,16 +16,9 @@
  */
 
 import { isRecord } from "./comboData.ts";
-import type {
-  AutoProviderCandidate,
-  ComboLike,
-  ResolvedComboTarget,
-} from "./types.ts";
+import type { AutoProviderCandidate, ComboLike, ResolvedComboTarget } from "./types.ts";
 import { extractSessionAffinityKey } from "@/sse/services/auth";
-import {
-  DEFAULT_INTENT_CONFIG,
-  type IntentClassifierConfig,
-} from "../intentClassifier.ts";
+import { DEFAULT_INTENT_CONFIG, type IntentClassifierConfig } from "../intentClassifier.ts";
 import { getTaskFitness } from "../autoCombo/taskFitness.ts";
 import {
   calculateFactors,
@@ -47,77 +35,14 @@ import {
   resolveRequestRoutingTags,
 } from "../../../src/domain/tagRouter.ts";
 
-// Quota Share soft-policy deprioritization factor (B17).
-// When a candidate has quotaSoftPenalty === true, its auto-combo score is
-// multiplied by this factor so over-quota-soft keys are de-prioritized
-// without being fully blocked (that is done by "hard" policy).
-// Override via QUOTA_SOFT_DEPRIORITIZE_FACTOR env var (range 0..1, default 0.7).
-export const QUOTA_SOFT_DEPRIORITIZE_FACTOR = Number(
-  process.env.QUOTA_SOFT_DEPRIORITIZE_FACTOR ?? "0.7"
-);
-
-// G2: Module-level registry of active combo execution candidates.
-// Maps executionKey → Map<stepId, candidate mutable ref>.
-// Populated by buildAutoCandidates registrations; cleaned up after each execution.
-// This allows chatCore.ts to mark a candidate's quotaSoftPenalty flag so that
-// subsequent scoring iterations (auto-combo fallback) deprioritize it.
-const _activeExecutionCandidates = new Map<string, Map<string, { quotaSoftPenalty?: boolean }>>();
-
-/**
- * Mark a specific candidate (by comboExecutionKey + stepId) with soft quota penalty.
- * Called from chatCore.ts when enforceQuotaShare returns a "soft deprioritize" decision.
- * The flag is read on subsequent auto-combo scoring iterations (fallback chain)
- * within the same combo execution via scoreAutoTargets → QUOTA_SOFT_DEPRIORITIZE_FACTOR.
- *
- * Guards:
- * - null executionKey or stepId → no-op (non-combo or context not available).
- * - unknown executionKey → no-op (candidate not yet registered or already cleaned up).
- * - Idempotent: calling twice with the same (key, stepId, true) is safe.
- */
-export function setCandidateQuotaSoftPenalty(
-  comboExecutionKey: string | null,
-  comboStepId: string | null,
-  penalty: boolean
-): void {
-  if (!comboExecutionKey || !comboStepId) return;
-  const byStep = _activeExecutionCandidates.get(comboExecutionKey);
-  if (!byStep) return;
-  const candidate = byStep.get(comboStepId);
-  if (candidate) {
-    candidate.quotaSoftPenalty = penalty;
-  }
-}
-
-/**
- * Register candidates for a combo execution so setCandidateQuotaSoftPenalty can
- * locate them by (executionKey, stepId).
- * Each candidate object is stored by reference — mutations via setCandidateQuotaSoftPenalty
- * propagate back to the original candidate array used by scoreAutoTargets.
- * @internal — not exported; only called within combo.ts by buildAutoCandidates callers.
- */
 export function _registerExecutionCandidates(
-  candidates: Array<{ executionKey: string; stepId: string; quotaSoftPenalty?: boolean }>
+  candidates: Array<{ executionKey: string; stepId: string }>
 ): void {
-  for (const candidate of candidates) {
-    if (!candidate.executionKey) continue;
-    let byStep = _activeExecutionCandidates.get(candidate.executionKey);
-    if (!byStep) {
-      byStep = new Map();
-      _activeExecutionCandidates.set(candidate.executionKey, byStep);
-    }
-    byStep.set(candidate.stepId, candidate);
-  }
+  void candidates;
 }
 
-/**
- * Unregister all candidates for a given execution key once the execution completes.
- * Prevents unbounded memory growth.
- * @internal — not exported; called after each handleComboChat iteration.
- */
 export function _unregisterExecutionCandidates(executionKeys: string[]): void {
-  for (const key of executionKeys) {
-    _activeExecutionCandidates.delete(key);
-  }
+  void executionKeys;
 }
 
 function toTextContent(content: unknown): string {
@@ -335,11 +260,7 @@ export function scoreAutoTargets(
         getTaskFitness,
         manifestHint ?? undefined
       );
-      let score = calculateScore(factors, weights);
-      // B17: Quota Share soft-policy deprioritization
-      if ("quotaSoftPenalty" in candidate && candidate.quotaSoftPenalty === true) {
-        score *= QUOTA_SOFT_DEPRIORITIZE_FACTOR;
-      }
+      const score = calculateScore(factors, weights);
       return {
         target,
         score,

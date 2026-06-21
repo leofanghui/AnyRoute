@@ -15,15 +15,9 @@ async function waitForAppRoute(page: Page, timeoutMs: number) {
   await page.locator("body").waitFor({ state: "visible", timeout: timeoutMs });
 }
 
-async function finishOnboardingIfNeeded(page: Page, timeoutMs: number) {
-  if (!page.url().includes("/dashboard/onboarding")) return;
+async function finishBootstrapIfNeeded(page: Page, timeoutMs: number) {
+  if (!page.url().includes("/dashboard/settings/general")) return;
 
-  const skipWizardButton = page.getByRole("button", {
-    name: /skip wizard|skip/i,
-  });
-  await expect(skipWizardButton).toBeVisible({ timeout: timeoutMs });
-  await skipWizardButton.click();
-  await page.waitForURL(/\/dashboard(\/.*)?$/, { timeout: timeoutMs });
   await page.locator("body").waitFor({ state: "visible", timeout: timeoutMs });
 }
 
@@ -92,16 +86,16 @@ export async function gotoDashboardRoute(
     try {
       await page.goto(url, { waitUntil, timeout: timeoutMs });
       await waitForAppRoute(page, timeoutMs);
-      await finishOnboardingIfNeeded(page, timeoutMs);
+      await finishBootstrapIfNeeded(page, timeoutMs);
 
       if (page.url().includes("/login")) {
         await loginIfNeeded(page, timeoutMs);
       }
 
-      if (page.url().includes("/dashboard/onboarding") || page.url().includes("/login")) {
+      if (page.url().includes("/dashboard/settings/general") || page.url().includes("/login")) {
         await page.goto(url, { waitUntil, timeout: timeoutMs });
         await waitForAppRoute(page, timeoutMs);
-        await finishOnboardingIfNeeded(page, timeoutMs);
+        await finishBootstrapIfNeeded(page, timeoutMs);
         await loginIfNeeded(page, timeoutMs);
       }
 
@@ -112,13 +106,13 @@ export async function gotoDashboardRoute(
         await loginIfNeeded(page, timeoutMs);
         await page.goto(url, { waitUntil, timeout: timeoutMs });
         await waitForAppRoute(page, timeoutMs);
-        await finishOnboardingIfNeeded(page, timeoutMs);
+        await finishBootstrapIfNeeded(page, timeoutMs);
       }
 
       if (!isAtRequestedRoute(page, url)) {
         await page.goto(url, { waitUntil, timeout: timeoutMs });
         await waitForAppRoute(page, timeoutMs);
-        await finishOnboardingIfNeeded(page, timeoutMs);
+        await finishBootstrapIfNeeded(page, timeoutMs);
       }
 
       await page.locator("body").waitFor({ state: "visible", timeout: timeoutMs });

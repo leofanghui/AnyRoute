@@ -23,14 +23,10 @@ const COMPONENTS = [
   { file: "MenuSelect.jsx", export: "MenuSelect" },
   { file: "ProgressBar.jsx", export: "ProgressBar" },
   { file: "StatusBadge.jsx", export: "StatusBadge" },
-  { file: "TokenCounter.jsx", export: "TokenCounter" },
   { file: "KeyMaskedDisplay.jsx", export: "KeyMaskedDisplay" },
   { file: "Sparkline.jsx", export: "Sparkline" },
   { file: "HeaderSwr.jsx", export: "HeaderSwr" },
   { file: "ConfirmDialog.jsx", export: "ConfirmDialog" },
-  { file: "MultilineInput.jsx", export: "MultilineInput" },
-  { file: "MarkdownView.jsx", export: "MarkdownView" },
-  { file: "CodeBlock.jsx", export: "CodeBlock" },
 ];
 
 for (const { file, export: exp } of COMPONENTS) {

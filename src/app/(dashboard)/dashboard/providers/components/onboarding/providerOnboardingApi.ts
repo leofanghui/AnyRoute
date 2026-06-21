@@ -63,16 +63,7 @@ const compatibleProviderNodeInputSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   prefix: z.string().trim().min(1, "Prefix is required"),
   baseUrl: z.string().trim().min(1, "Base URL is required"),
-  apiType: z
-    .enum([
-      "chat",
-      "responses",
-      "embeddings",
-      "audio-transcriptions",
-      "audio-speech",
-      "images-generations",
-    ])
-    .optional(),
+  apiType: z.enum(["chat", "responses"]).optional(),
   chatPath: z.string().trim().optional(),
   modelsPath: z.string().trim().optional(),
 });

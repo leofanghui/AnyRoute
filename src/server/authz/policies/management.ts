@@ -1,4 +1,4 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+﻿import { createHash, timingSafeEqual } from "node:crypto";
 import { isModelSyncInternalRequest } from "../../../shared/services/modelSyncScheduler";
 import { isAuthRequired, isDashboardSessionAuthenticated } from "../../../shared/utils/apiAuth";
 import { getLegacyCliTokenSync, getMachineTokenSync } from "../../../lib/machineToken";
@@ -7,7 +7,6 @@ import { allow, reject } from "../context";
 import { extractApiKey, isValidApiKey } from "../../../sse/services/auth";
 import { getApiKeyMetadata } from "../../../lib/db/apiKeys";
 import { hasManageScope } from "../../../lib/api/requireManagementAuth";
-import { evaluateAccessTokenAuth } from "../accessTokenAuth";
 import { CLI_TOKEN_HEADER, PEER_IP_HEADER } from "../headers";
 import { resolveStampedPeer } from "../peerStamp";
 import {
@@ -24,8 +23,8 @@ function requestPeerAddress(ctx: PolicyContext): string | null {
   // The Next middleware runtime exposes no socket/.ip, so the only trustworthy
   // locality signal is the token-stamped PEER_IP_HEADER our custom server writes
   // from the real TCP peer (scripts/dev/peer-stamp.mjs). We NEVER read the Host
-  // header here — it is client-controlled and spoofable. Absent/forged stamp →
-  // null → isLoopbackRequest/isPrivateLanRequest return false → fail closed.
+  // header here 鈥?it is client-controlled and spoofable. Absent/forged stamp 鈫?
+  // null 鈫?isLoopbackRequest/isPrivateLanRequest return false 鈫?fail closed.
   const stamped = resolveStampedPeer(
     ctx.request.headers?.get?.(PEER_IP_HEADER) ?? null,
     process.env.OMNIROUTE_PEER_STAMP_TOKEN
@@ -102,26 +101,21 @@ export const managementPolicy: RoutePolicy = {
       return allow({ kind: "management_key", id: "ws-bridge", label: "codex-ws-bridge-secret" });
     }
 
-    // Tier 1: local-only gate — block spawn-capable routes from non-loopback.
+    // Tier 1: local-only gate 鈥?block spawn-capable routes from non-loopback.
     //
-    // Carve-out: a small allow-list of LOCAL_ONLY paths (see
-    // LOCAL_ONLY_MANAGE_SCOPE_BYPASS_PREFIXES) is reachable from non-loopback
-    // when the caller presents EITHER (a) a valid API key with the `manage`
-    // scope, or (b) an authenticated dashboard session. This lets:
-    //   - headless / remote MCP clients drive the management surface with a
-    //     manage-scope Bearer key, and
-    //   - the Dashboard UI itself (cookie session) render its MCP pages
-    //     (/api/mcp/status, /api/mcp/tools) from a public hostname.
+    // Carve-out: a DB-stored allow-list of LOCAL_ONLY paths is reachable from
+    // non-loopback when the caller presents EITHER (a) a valid API key with the
+    // `manage` scope, or (b) an authenticated dashboard session.
     //
     // The strict-loopback default still applies to everything else (notably
-    // the subprocess-spawning /api/cli-tools/runtime/* surface, which is NOT
-    // in the bypass list).
+    // the subprocess-spawning /api/system/version surface, which is NOT in the
+    // bypass list).
     //
     // Anonymous (no Bearer / invalid key / wrong scope / no session) requests
     // still hit the same 403 LOCAL_ONLY they did before.
     if (isLocalOnlyPath(path) && !isLoopbackRequest(ctx) && !isPrivateLanRequest(ctx)) {
       if (isLocalOnlyBypassableByManageScope(path)) {
-        // Management auth is header-only — a URL-borne token must never satisfy a
+        // Management auth is header-only 鈥?a URL-borne token must never satisfy a
         // manage-scope bypass of a LOCAL_ONLY route. See #3300 follow-up.
         const apiKey = extractApiKey(ctx.request as unknown as Request, { allowUrl: false });
         if (apiKey) {
@@ -142,17 +136,15 @@ export const managementPolicy: RoutePolicy = {
           } catch (err) {
             // Auth backend (DB / file store) failure: surface as 503 so the
             // caller can retry. Anything else (TypeError / ReferenceError /
-            // programmer error) is logged so it's not silently swallowed —
+            // programmer error) is logged so it's not silently swallowed 鈥?
             // the policy still degrades closed (503) to avoid leaking the
             // route, but we leave a breadcrumb for ops.
             console.error("[managementPolicy] manage-scope bypass auth check failed", err);
             return reject(503, "AUTH_BACKEND_UNAVAILABLE", "Service temporarily unavailable");
           }
         }
-        // Dashboard session bypass: the Dashboard UI itself needs to render
-        // /api/mcp/status, /api/mcp/tools, etc. from a public hostname. Cookie
-        // auth is already proof of an authenticated admin — same trust level
-        // as a manage-scope Bearer for the surface in scope here.
+        // Dashboard session bypass: cookie auth is already proof of an
+        // authenticated admin for the surface in scope here.
         try {
           if (await isDashboardSessionAuthenticated(ctx.request)) {
             return allow({
@@ -190,7 +182,7 @@ export const managementPolicy: RoutePolicy = {
       return allow({ kind: "dashboard_session", id: "dashboard" });
     }
 
-    // Allow API keys with the `manage` scope — enables headless / programmatic
+    // Allow API keys with the `manage` scope 鈥?enables headless / programmatic
     // management (e.g. provisioning providers, setting rate limits) without
     // a browser session. The pieces below already exist and are used by
     // `requireManagementAuth` on individual routes; wiring them here closes
@@ -198,36 +190,10 @@ export const managementPolicy: RoutePolicy = {
     //
     // Error handling mirrors `requireManagementAuth.ts`: a thrown
     // isValidApiKey / getApiKeyMetadata indicates the auth backend is
-    // unhealthy, which is a 503, not a 403 — masking it as an auth failure
+    // unhealthy, which is a 503, not a 403 鈥?masking it as an auth failure
     // would tell callers their credentials are wrong when the real problem
     // is that the server cannot validate any credential right now.
-    // Scoped CLI access token (remote mode). Evaluated BEFORE the API-key branch
-    // because `oma_` tokens are management credentials, not inference API keys.
-    // Shared with `requireManagementAuth` (no drift). Scope enforced per the
-    // method+admin-allowlist policy (inferRequiredScope).
-    const accessVerdict = evaluateAccessTokenAuth(ctx.request as unknown as Request);
-    switch (accessVerdict.kind) {
-      case "ok":
-        return allow({
-          kind: "management_key",
-          id: accessVerdict.id,
-          label: `access-token:${accessVerdict.scope}`,
-        });
-      case "error":
-        return reject(503, "AUTH_BACKEND_UNAVAILABLE", "Service temporarily unavailable");
-      case "invalid":
-        return reject(401, "AUTH_001", "Invalid or expired access token");
-      case "insufficient":
-        return reject(
-          403,
-          "AUTH_SCOPE",
-          `Access token scope '${accessVerdict.have}' is insufficient; '${accessVerdict.need}' required.`
-        );
-      case "absent":
-        break; // no oma_ token → fall through to API-key auth
-    }
-
-    // Management auth is header-only — a URL-borne token must not authenticate
+    // Management auth is header-only 鈥?a URL-borne token must not authenticate
     // a management route. See #3300 follow-up.
     const apiKey = extractApiKey(ctx.request as unknown as Request, { allowUrl: false });
     if (apiKey) {

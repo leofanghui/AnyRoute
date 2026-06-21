@@ -34,19 +34,13 @@ export const APP_STAGING_REMOVAL_PATHS: string[] = [
 export const APP_STAGING_ALLOWED_EXACT_PATHS: string[] = [
   ".env.example",
   "BUILD_SHA",
-  "docs/reference/openapi.yaml",
   "http-method-guard.cjs",
-  "open-sse/mcp-server/server.js",
-  // LLMLingua ONNX worker — esbuild'd standalone .js spawned via worker_threads
-  // (the Next.js bundler can't trace the computed Worker path). Kept like the MCP server.
-  "open-sse/services/compression/engines/llmlingua/onnxWorker.js",
   "package.json",
   "peer-stamp.mjs",
   "responses-ws-proxy.mjs",
   "scripts/dev/sync-env.mjs",
   "server.js",
   "server-ws.mjs",
-  "webdav-handler.mjs",
 ];
 
 export const APP_STAGING_ALLOWED_PATH_PREFIXES: string[] = [
@@ -56,11 +50,8 @@ export const APP_STAGING_ALLOWED_PATH_PREFIXES: string[] = [
   ".next/",
   "data/",
   "node_modules/",
-  "open-sse/services/compression/engines/rtk/filters/",
-  "open-sse/services/compression/rules/",
   "public/",
   "src/lib/db/migrations/",
-  "src/mitm/",
 ];
 
 export const PACK_ARTIFACT_ALLOWED_EXACT_PATHS: string[] = APP_STAGING_ALLOWED_EXACT_PATHS.map(
@@ -75,17 +66,9 @@ export const PACK_ARTIFACT_ROOT_ALLOWED_EXACT_PATHS: string[] = [
   ".env.example",
   "LICENSE",
   "README.md",
-  "bin/mcp-server.mjs",
   "bin/nodeRuntimeSupport.mjs",
   "bin/omniroute.mjs",
   "bin/reset-password.mjs",
-  "open-sse/mcp-server/README.md",
-  "open-sse/mcp-server/audit.ts",
-  "open-sse/mcp-server/httpTransport.ts",
-  "open-sse/mcp-server/index.ts",
-  "open-sse/mcp-server/runtimeHeartbeat.ts",
-  "open-sse/mcp-server/scopeEnforcement.ts",
-  "open-sse/mcp-server/server.ts",
   // Runtime polyfill eagerly imported by bin/omniroute.mjs (Node <22 compat);
   // shipped via package.json "files", so it must be allowed in the tarball.
   "open-sse/utils/setupPolyfill.ts",
@@ -111,7 +94,6 @@ export const PACK_ARTIFACT_ROOT_ALLOWED_PATH_PREFIXES: string[] = [
   "open-sse/",
   "src/domain/",
   "src/lib/",
-  "src/mitm/",
   "src/server/",
   "src/shared/",
   "src/sse/",
@@ -119,16 +101,12 @@ export const PACK_ARTIFACT_ROOT_ALLOWED_PATH_PREFIXES: string[] = [
 ];
 
 export const PACK_ARTIFACT_REQUIRED_PATHS: string[] = [
-  "dist/open-sse/services/compression/engines/rtk/filters/generic-output.json",
-  "dist/open-sse/services/compression/rules/en/filler.json",
   "dist/server.js",
   "dist/server-ws.mjs",
   "dist/responses-ws-proxy.mjs",
   "dist/peer-stamp.mjs",
   "dist/http-method-guard.cjs",
-  "dist/webdav-handler.mjs",
   "bin/cli/program.mjs",
-  "bin/mcp-server.mjs",
   "bin/nodeRuntimeSupport.mjs",
   "bin/omniroute.mjs",
   "package.json",

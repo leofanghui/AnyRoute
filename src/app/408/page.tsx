@@ -13,7 +13,7 @@ export default function RequestTimeoutPage() {
         "For long operations, enable streaming or split the request.",
       ]}
       primaryAction={{ href: "/dashboard/endpoint", label: "Open Endpoint Guide" }}
-      secondaryAction={{ href: "/status", label: "Check Network Status" }}
+      secondaryAction={{ href: "/dashboard/health", label: "Check Network Status" }}
     />
   );
 }

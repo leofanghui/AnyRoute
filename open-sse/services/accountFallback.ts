@@ -1234,13 +1234,13 @@ export function checkFallbackError(
   permanent?: boolean;
   creditsExhausted?: boolean;
   dailyQuotaExhausted?: boolean;
-  /** G-02: true when the error originates from an embedded service supervisor (not the upstream AI
+  /** G-02: true when the error originates from local/session readiness (not the upstream AI
    * provider itself). Callers should apply connection cooldown only — do NOT record a provider
    * circuit-breaker failure when this flag is set. */
   skipProviderBreaker?: boolean;
 } {
-  // G-02: detect embedded service supervisor failures (X-Omni-Fallback-Hint: connection_cooldown).
-  // These are NOT upstream AI provider failures — they are local supervisor state changes.
+  // G-02: detect local/session readiness failures (X-Omni-Fallback-Hint: connection_cooldown).
+  // These are NOT upstream AI provider failures — they are connection state changes.
   // Apply a short 5s connection cooldown without tripping the provider circuit breaker.
   if (status === 503 && headers) {
     const hintValue =

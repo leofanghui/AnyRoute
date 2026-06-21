@@ -31,7 +31,6 @@ import { classify429FromError, type FailureKind } from "../../shared/utils/class
 import { resolveUseUpstream429BreakerHints } from "../../shared/utils/providerHints";
 
 import { logProxyEvent } from "../../lib/proxyLogger";
-import { logTranslationEvent } from "../../lib/translatorEvents";
 import { getRuntimeProviderProfile } from "@omniroute/open-sse/services/accountFallback.ts";
 
 // Models that explicitly cannot run on the codex/ChatGPT-Pro OAuth pool — when
@@ -710,21 +709,6 @@ export async function safeLogEvents({
       comboId: comboName || null,
       account: credentials.connectionId?.slice(0, 8) || null,
       tlsFingerprint: tlsFingerprintUsed,
-    });
-  } catch {}
-
-  try {
-    logTranslationEvent({
-      provider,
-      model,
-      sourceFormat,
-      targetFormat,
-      status: result.success ? "success" : "error",
-      statusCode: result.success ? 200 : result.status || 500,
-      latency: proxyLatency,
-      endpoint: clientRawRequest?.endpoint || "/v1/chat/completions",
-      connectionId: credentials.connectionId || null,
-      comboName: comboName || null,
     });
   } catch {}
 }

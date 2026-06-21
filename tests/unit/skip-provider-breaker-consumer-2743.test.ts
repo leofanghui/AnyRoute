@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
  *
  * The PRODUCER is already covered (tests/unit/account-fallback-service.test.ts, the
  * "G-02" block): `checkFallbackError` returns `skipProviderBreaker: true` for a 503 +
- * `X-Omni-Fallback-Hint: connection_cooldown` (an embedded-service supervisor outage,
+ * `X-Omni-Fallback-Hint: connection_cooldown` (a local/session readiness outage,
  * NOT an upstream AI-provider failure).
  *
  * What was UNVERIFIED is the CONSUMER gate in `open-sse/services/combo.ts` (~line 4350):
@@ -165,14 +165,14 @@ function runConsumerGate(opts: {
 }
 
 test("consumer (positive skip): 503 + connection_cooldown hint → breaker stays CLOSED", () => {
-  const provider = "test-9router-skip-2743";
+  const provider = "test-session-skip-2743";
   // Sanity: clean start.
   assert.equal(isProviderInCooldown(provider), false);
 
   const recorded = runConsumerGate({
     provider,
     status: 503,
-    errorText: "9router is not running (state: stopped)",
+    errorText: "local session is not ready",
     headers: new Headers({ "X-Omni-Fallback-Hint": "connection_cooldown" }),
   });
 
@@ -188,12 +188,12 @@ test("consumer (positive skip): 503 + connection_cooldown hint → breaker stays
 });
 
 test("consumer (positive skip): five consecutive cooldown-hint 503s keep the breaker CLOSED", () => {
-  const provider = "test-9router-skip-loop-2743";
+  const provider = "test-session-skip-loop-2743";
   for (let i = 0; i < 5; i++) {
     const recorded = runConsumerGate({
       provider,
       status: 503,
-      errorText: "9router is not running (state: stopped)",
+      errorText: "local session is not ready",
       headers: new Headers({ "X-Omni-Fallback-Hint": "connection_cooldown" }),
     });
     assert.equal(recorded, false, `call ${i + 1} must skip recordProviderFailure`);

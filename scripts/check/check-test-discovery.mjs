@@ -53,21 +53,21 @@ export const COLLECTORS = [
   // "vitest" e explodem no node runner). Subdir novo: adicione aqui E nos scripts
   // (o drift-check + o gate de órfãos forçam a manutenção em sincronia).
   {
-    glob: "tests/unit/{api,auth,authz,build,cli,cli-helper,compression,correctness,cors,dashboard,db,db-adapters,docs,gamification,guardrails,lib,mcp,runtime,security,services,settings,shared,ui}/**/*.test.ts",
+    glob: "tests/unit/{api,auth,authz,build,cli,cli-helper,correctness,cors,dashboard,db,db-adapters,docs,guardrails,lib,runtime,security,services,settings,shared,ui}/**/*.test.ts",
     sources: ["package.json", ".github/workflows/ci.yml"],
   },
   // Node native runner — test:integration (top-level only; tests/integration/services/ NÃO roda)
   { glob: "tests/integration/*.test.ts", sources: ["package.json"] },
-  // Node native runner — test:system
-  { glob: "tests/e2e/system-failover.test.ts", sources: ["package.json"] },
-  // vitest.mcp.config.ts — test:vitest
-  { glob: "open-sse/mcp-server/__tests__/**/*.test.ts", sources: ["vitest.mcp.config.ts"] },
-  { glob: "open-sse/services/autoCombo/__tests__/**/*.test.ts", sources: ["vitest.mcp.config.ts"] },
-  { glob: "tests/unit/autoCombo/**/*.test.ts", sources: ["vitest.mcp.config.ts"] },
-  { glob: "tests/unit/encryption.spec.ts", sources: ["vitest.mcp.config.ts"] },
-  { glob: "src/shared/components/**/*.test.tsx", sources: ["vitest.mcp.config.ts"] },
-  { glob: "src/shared/hooks/__tests__/**/*.test.tsx", sources: ["vitest.mcp.config.ts"] },
-  { glob: "src/app/(dashboard)/**/__tests__/**/*.test.tsx", sources: ["vitest.mcp.config.ts"] },
+  // vitest.config.ts — test:vitest
+  { glob: "open-sse/services/autoCombo/__tests__/**/*.test.ts", sources: ["vitest.config.ts"] },
+  { glob: "tests/unit/autoCombo/**/*.test.ts", sources: ["vitest.config.ts"] },
+  { glob: "tests/unit/encryption.spec.ts", sources: ["vitest.config.ts"] },
+  {
+    glob: "src/app/**/dashboard/providers/**/__tests__/**/*.test.tsx",
+    sources: ["vitest.config.ts"],
+  },
+  { glob: "src/shared/components/*.test.tsx", sources: ["vitest.config.ts"] },
+  { glob: "src/shared/hooks/__tests__/**/*.test.tsx", sources: ["vitest.config.ts"] },
   // vitest.config.ts via test:vitest:ui (roda com path-filter `tests/unit/ui`, então o
   // conjunto EFETIVO é a interseção do include `tests/unit/**/*.test.tsx` com o filtro)
   {
@@ -77,12 +77,6 @@ export const COLLECTORS = [
   },
   // Playwright — test:e2e (o script passa tests/e2e/*.spec.ts; testMatch **/*.spec.ts)
   { glob: "tests/e2e/*.spec.ts", sources: ["package.json"] },
-  // Runners custom — test:ecosystem / test:protocols:e2e (spawnam vitest com o arquivo)
-  { glob: "tests/e2e/ecosystem.test.ts", sources: ["scripts/dev/run-ecosystem-tests.mjs"] },
-  {
-    glob: "tests/e2e/protocol-clients.test.ts",
-    sources: ["scripts/dev/run-protocol-clients-tests.mjs"],
-  },
 ];
 
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

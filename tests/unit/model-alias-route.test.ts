@@ -13,7 +13,6 @@ const core = await import("../../src/lib/db/core.ts");
 const modelsDb = await import("../../src/lib/db/models.ts");
 const localDb = await import("../../src/lib/localDb.ts");
 const route = await import("../../src/app/api/models/alias/route.ts");
-const catalogRoute = await import("../../src/app/api/models/catalog/route.ts");
 const v1Catalog = await import("../../src/app/api/v1/models/catalog.ts");
 
 async function resetStorage() {
@@ -83,21 +82,6 @@ test("model alias route requires a dashboard session when management auth is ena
   assert.equal(invalidToken.status, 403);
   assert.equal(invalidTokenBody.error.message, "Invalid management token");
   assert.match(unauthenticated.headers.get("X-Model-Catalog-Version") || "", /^model-metadata-v1:/);
-});
-
-test("api models catalog route reuses the unified catalog diagnostics headers", async () => {
-  const response = await catalogRoute.GET(
-    new Request("http://localhost/api/models/catalog", {
-      headers: { "x-request-id": "req-model-catalog-1" },
-    })
-  );
-  const body = (await response.json()) as any;
-
-  assert.equal(response.status, 200);
-  assert.equal(response.headers.get("X-Request-Id"), "req-model-catalog-1");
-  assert.match(response.headers.get("X-Model-Catalog-Version") || "", /^model-metadata-v1:/);
-  assert.equal(typeof body.catalog, "object");
-  assert.equal(typeof body.catalogVersion, "string");
 });
 
 test("v1 models catalog emits diagnostics headers alongside the OpenAI-compatible list", async () => {

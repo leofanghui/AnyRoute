@@ -7,8 +7,8 @@ import {
   classifyKeyStatus,
   classifyKeyType,
   computeApiKeyCounts,
-} from "../../src/app/(dashboard)/dashboard/api-manager/apiManagerPageUtils.js";
-import type { ApiKeyShape } from "../../src/app/(dashboard)/dashboard/api-manager/apiManagerPageUtils.js";
+} from "../../src/app/(dashboard)/dashboard/api-manager/apiManagerPageUtils.ts";
+import type { ApiKeyShape } from "../../src/app/(dashboard)/dashboard/api-manager/apiManagerPageUtils.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

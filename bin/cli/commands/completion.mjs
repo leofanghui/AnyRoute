@@ -103,20 +103,11 @@ _omniroute() {
     'stream:Stream chat completion'
     'dashboard:Open dashboard'
     'open:Open UI resource in browser'
-    'backup:Create a backup'
-    'restore:Restore from backup'
     'health:Show server health'
-    'quota:Show provider quotas'
-    'cache:Manage response cache'
-    'mcp:MCP server management'
-    'a2a:A2A server management'
-    'tunnel:Tunnel management'
     'env:Environment variables'
     'test:Test provider connection'
     'update:Check for updates'
     'completion:Shell completion'
-    'memory:Manage memory store'
-    'skills:Manage skills'
   )
 
   _arguments -C \\
@@ -133,7 +124,7 @@ _omniroute() {
               local -a combos
               combos=($(_omniroute_get_cache combos))
               _describe 'combo' combos ;;
-            *) _arguments '1:subcommand:(list switch create delete show suggest)' ;;
+            *) _arguments '1:subcommand:(list switch create delete show)' ;;
           esac ;;
         providers|keys)
           case $words[2] in
@@ -150,7 +141,7 @@ _omniroute() {
             '--system[System prompt]:' \\
             '--max-tokens[Max tokens]:' ;;
         open)
-          _arguments '1:resource:(combos providers api-manager cli-tools agents settings logs memory skills evals audit cost resilience)' ;;
+          _arguments '1:resource:(home endpoint combos providers api-manager analytics costs logs health settings docs changelog)' ;;
         completion) _arguments '1:subcommand:(zsh bash fish install refresh)' ;;
         config) _arguments '1:subcommand:(list get set validate contexts)' ;;
         *) ;;
@@ -196,15 +187,15 @@ _omniroute() {
   COMPREPLY=()
   cur="\${COMP_WORDS[COMP_CWORD]}"
   prev="\${COMP_WORDS[COMP_CWORD-1]}"
-  cmds="setup doctor status logs providers config test update serve stop restart keys models combo chat stream completion dashboard open backup restore health quota cache mcp a2a tunnel env memory skills"
+  cmds="setup doctor status logs providers config test update serve stop restart keys models combo chat stream completion dashboard open health env"
 
   case "\${prev}" in
-    combo)       COMPREPLY=($(compgen -W "list switch create delete show suggest" -- "\${cur}")); return 0 ;;
+    combo)       COMPREPLY=($(compgen -W "list switch create delete show" -- "\${cur}")); return 0 ;;
     keys)        COMPREPLY=($(compgen -W "add list remove regenerate revoke reveal usage" -- "\${cur}")); return 0 ;;
     providers)   COMPREPLY=($(compgen -W "available list test test-all" -- "\${cur}")); return 0 ;;
     config)      COMPREPLY=($(compgen -W "list get set validate contexts" -- "\${cur}")); return 0 ;;
     completion)  COMPREPLY=($(compgen -W "zsh bash fish install refresh" -- "\${cur}")); return 0 ;;
-    open)        COMPREPLY=($(compgen -W "combos providers api-manager cli-tools agents settings logs memory skills evals audit cost resilience" -- "\${cur}")); return 0 ;;
+    open)        COMPREPLY=($(compgen -W "home endpoint combos providers api-manager analytics costs logs health settings docs changelog" -- "\${cur}")); return 0 ;;
     --model)
       local models
       models=$(_omniroute_get_cache models)
@@ -230,19 +221,19 @@ function generateFishScript() {
   return `# OmniRoute CLI fish completion (dynamic)
 complete -c omniroute -f
 
-set -l commands serve stop restart setup doctor status logs providers config keys models combo chat stream completion dashboard open backup restore health quota cache mcp a2a tunnel env memory skills update test
+set -l commands serve stop restart setup doctor status logs providers config keys models combo chat stream completion dashboard open health env update test
 
 for cmd in $commands
   complete -c omniroute -n '__fish_is_nth_token 1' -a $cmd
 end
 
 # Subcommands
-complete -c omniroute -n '__fish_seen_subcommand_from combo' -a 'list switch create delete show suggest'
+complete -c omniroute -n '__fish_seen_subcommand_from combo' -a 'list switch create delete show'
 complete -c omniroute -n '__fish_seen_subcommand_from keys' -a 'add list remove regenerate revoke reveal usage'
 complete -c omniroute -n '__fish_seen_subcommand_from providers' -a 'available list test test-all'
 complete -c omniroute -n '__fish_seen_subcommand_from config' -a 'list get set validate contexts'
 complete -c omniroute -n '__fish_seen_subcommand_from completion' -a 'zsh bash fish install refresh'
-complete -c omniroute -n '__fish_seen_subcommand_from open' -a 'combos providers api-manager cli-tools agents settings logs memory skills evals audit cost resilience'
+complete -c omniroute -n '__fish_seen_subcommand_from open' -a 'home endpoint combos providers api-manager analytics costs logs health settings docs changelog'
 
 # Dynamic completions from cache (requires python3)
 function __omniroute_cache_get

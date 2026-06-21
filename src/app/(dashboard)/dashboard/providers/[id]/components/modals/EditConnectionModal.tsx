@@ -102,7 +102,6 @@ export default function EditConnectionModal({
     apiKey: "",
     healthCheckInterval: 60,
     baseUrl: "",
-    cx: "",
     region: "",
     apiRegion: "international",
     validationModelId: "",
@@ -166,7 +165,6 @@ export default function EditConnectionModal({
   const supportsGoogleProjectId = isGeminiCli || isAntigravity;
   const localProviderMetadata = getLocalProviderMetadata(provider);
   const isLocalSelfHostedProvider = !!localProviderMetadata;
-  const isGooglePse = provider === "google-pse-search";
   const webSessionCredential = getWebSessionCredentialRequirement(provider);
   const isNoAuthWebSessionCredential = webSessionCredential?.kind === "none";
   const isWebSessionCredential = !!webSessionCredential && webSessionCredential.kind !== "none";
@@ -216,7 +214,6 @@ export default function EditConnectionModal({
       const existingRegion = stringField(connection.providerSpecificData?.region);
       const existingCustomUserAgent = stringField(connection.providerSpecificData?.customUserAgent);
       const existingOpenRouterPreset = stringField(connection.providerSpecificData?.preset);
-      const existingCx = stringField(connection.providerSpecificData?.cx);
       const existingAccountId = stringField(connection.providerSpecificData?.accountId);
       const codexRequestDefaults = getCodexRequestDefaults(connection.providerSpecificData);
       const ccRequestDefaults = getClaudeCodeCompatibleRequestDefaults(
@@ -253,7 +250,6 @@ export default function EditConnectionModal({
         apiKey: "",
         healthCheckInterval: connection.healthCheckInterval ?? 60,
         baseUrl: existingBaseUrl || defaultBaseUrl,
-        cx: existingCx,
         region: existingRegion || (showsRegion ? defaultRegion : ""),
         apiRegion: (connection.providerSpecificData?.apiRegion as string) || "international",
         validationModelId: (connection.providerSpecificData?.validationModelId as string) || "",
@@ -366,7 +362,6 @@ export default function EditConnectionModal({
           customUserAgent: formData.customUserAgent.trim() || undefined,
           baseUrl: formData.baseUrl.trim() || undefined,
           region: showsRegion ? formData.region.trim() || defaultRegion : undefined,
-          cx: formData.cx.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -425,11 +420,6 @@ export default function EditConnectionModal({
         updates.projectId = trimmedCloudCodeProjectId || null;
       }
 
-      if (isGooglePse && !formData.cx.trim()) {
-        setSaveError(t("searchEngineIdRequired"));
-        return;
-      }
-
       let validatedBaseUrl = null;
       if (usesBaseUrl) {
         const checked = normalizeAndValidateHttpBaseUrl(formData.baseUrl, defaultBaseUrl);
@@ -457,7 +447,6 @@ export default function EditConnectionModal({
                 customUserAgent: formData.customUserAgent.trim() || undefined,
                 baseUrl: formData.baseUrl.trim() || undefined,
                 region: showsRegion ? formData.region.trim() || defaultRegion : undefined,
-                cx: formData.cx.trim() || undefined,
               }),
             });
             const data = await res.json();
@@ -499,9 +488,6 @@ export default function EditConnectionModal({
         }
         if (formData.validationModelId) {
           updates.providerSpecificData.validationModelId = formData.validationModelId;
-        }
-        if (isGooglePse) {
-          updates.providerSpecificData.cx = formData.cx.trim() || undefined;
         }
         if (usesBaseUrl) {
           updates.providerSpecificData.baseUrl = validatedBaseUrl;
@@ -683,9 +669,7 @@ export default function EditConnectionModal({
           {showFreeModelsToggle && (
             <Toggle
               checked={formData.importFreeModelsOnly}
-              onChange={(checked) =>
-                setFormData({ ...formData, importFreeModelsOnly: checked })
-              }
+              onChange={(checked) => setFormData({ ...formData, importFreeModelsOnly: checked })}
               label={t("importFreeModelsOnlyLabel")}
               description={t("importFreeModelsOnlyHint")}
             />
@@ -808,10 +792,7 @@ export default function EditConnectionModal({
                   <Button
                     onClick={handleValidate}
                     disabled={
-                      (!isCompatible && !apiKeyOptional && !formData.apiKey) ||
-                      (isGooglePse && !formData.cx.trim()) ||
-                      validating ||
-                      saving
+                      (!isCompatible && !apiKeyOptional && !formData.apiKey) || validating || saving
                     }
                     variant="secondary"
                   >
@@ -823,15 +804,6 @@ export default function EditConnectionModal({
                   </Button>
                 </div>
               </div>
-            )}
-            {isGooglePse && (
-              <Input
-                label={t("searchEngineIdLabel")}
-                value={formData.cx}
-                onChange={(e) => setFormData({ ...formData, cx: e.target.value })}
-                placeholder="012345678901234567890:abc123xyz"
-                hint={t("searchEngineIdHint")}
-              />
             )}
             {validationResult && (
               <Badge variant={validationResult === "success" ? "success" : "error"}>
@@ -1186,11 +1158,7 @@ export default function EditConnectionModal({
         )}
 
         <div className="flex gap-2">
-          <Button
-            onClick={handleSubmit}
-            fullWidth
-            disabled={saving || (isGooglePse && !formData.cx.trim())}
-          >
+          <Button onClick={handleSubmit} fullWidth disabled={saving}>
             {saving ? t("saving") : t("save")}
           </Button>
           <Button onClick={onClose} variant="ghost" fullWidth>

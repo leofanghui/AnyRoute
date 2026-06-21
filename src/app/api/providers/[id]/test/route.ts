@@ -4,11 +4,8 @@ import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import {
   getProviderConnectionById,
   updateProviderConnection,
-  isCloudEnabled,
   resolveProxyForConnection,
 } from "@/lib/localDb";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
 import { validateProviderApiKey } from "@/lib/providers/validation";
 import { getCliRuntimeStatus } from "@/shared/services/cliRuntime";
 // Use the shared open-sse token refresh with built-in dedup/race-condition cache
@@ -360,21 +357,6 @@ function isTokenExpired(connection: any) {
   const expiresAt = new Date(expiresAtValue).getTime();
   const buffer = 5 * 60 * 1000; // 5 minutes
   return expiresAt <= Date.now() + buffer;
-}
-
-/**
- * Sync to cloud if enabled
- */
-async function syncToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.log("Error syncing to cloud after token refresh:", error);
-  }
 }
 
 /**
@@ -758,11 +740,6 @@ export async function testSingleConnection(connectionId: string, validationModel
   // Update status in db
   await updateProviderConnection(connectionId, updateData);
 
-  // Sync to cloud if token was refreshed
-  if (result.refreshed) {
-    await syncToCloudIfEnabled();
-  }
-
   // Log to Logger tab (call_logs table)
   try {
     saveCallLog({
@@ -779,7 +756,7 @@ export async function testSingleConnection(connectionId: string, validationModel
     }).catch(() => {});
   } catch {}
 
-  // Log to Proxy tab (proxy_logs table)
+  // Log provider proxy egress details for diagnostics.
   try {
     logProxyEvent({
       status: result.valid ? "success" : "error",

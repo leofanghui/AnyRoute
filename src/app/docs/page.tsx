@@ -5,11 +5,11 @@ import { source } from "@/lib/source";
 export const metadata: Metadata = {
   title: "OmniRoute Documentation",
   description:
-    "Everything you need to route, compress, and scale your AI — setup guides, API reference, compression, deployment, and more.",
+    "Everything you need to route and operate your AI gateway: setup guides, providers, routing, and deployment.",
   openGraph: {
     title: "OmniRoute Documentation",
     description:
-      "Comprehensive docs for OmniRoute AI gateway — setup, API, compression, deployment, and more.",
+      "Comprehensive docs for the minimal OmniRoute AI gateway: setup, API, providers, routing, and deployment.",
     type: "website",
     url: "https://omniroute.online/docs",
   },
@@ -44,17 +44,17 @@ const featuredLinks = [
 const sections = [
   {
     title: "For Non-Tech Users",
-    subtitle: "Get started quickly — no technical background needed",
+    subtitle: "Get started quickly - no technical background needed",
     icon: "rocket_launch",
     color: "green",
     folders: ["getting-started", "guides"],
   },
   {
     title: "For Tech Users",
-    subtitle: "Deep dive into architecture, APIs, and internals",
+    subtitle: "Deep dive into architecture, routing, security, and operations",
     icon: "code",
     color: "blue",
-    folders: ["architecture", "reference", "frameworks", "routing", "security", "compression", "ops"],
+    folders: ["architecture", "routing", "security", "ops"],
   },
 ];
 
@@ -66,14 +66,7 @@ export default function DocsHomePage() {
       <div className="text-center mb-16 mt-8">
         <h1 className="text-4xl font-bold text-fd-foreground mb-5">OmniRoute Documentation</h1>
         <p className="text-lg text-fd-muted-foreground mb-6">
-          Everything you need to route, compress, and scale your AI
-        </p>
-        <p className="text-sm text-fd-muted-foreground">
-          Press{" "}
-          <kbd className="px-1.5 py-0.5 bg-fd-muted border border-fd-border rounded font-mono text-xs">
-            Ctrl K
-          </kbd>{" "}
-          to search the docs
+          Everything you need to route and operate your AI gateway
         </p>
       </div>
 

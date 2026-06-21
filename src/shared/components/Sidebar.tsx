@@ -9,7 +9,6 @@ import { APP_CONFIG } from "@/shared/constants/appConfig";
 import OmniRouteLogo from "./OmniRouteLogo";
 import Button from "./Button";
 import { ConfirmModal } from "./Modal";
-import CloudSyncStatus from "./CloudSyncStatus";
 import { useTranslations } from "next-intl";
 import {
   HIDDEN_SIDEBAR_GROUP_LABELS_SETTING_KEY,
@@ -30,7 +29,6 @@ import {
   type SidebarItemOrder,
 } from "@/shared/constants/sidebarVisibility";
 
-const isE2EMode = process.env.NEXT_PUBLIC_OMNIROUTE_E2E_MODE === "1";
 const DEFAULT_EXPANDED: SidebarSectionId = "omni-proxy";
 const EXPANDED_SECTIONS_KEY = "sidebar-expanded-sections";
 const PINNED_SECTIONS_KEY = "sidebar-pinned-sections";
@@ -616,8 +614,6 @@ export default function Sidebar({
             );
           })}
         </nav>
-
-        {!isE2EMode && <CloudSyncStatus collapsed={collapsed} />}
 
         <div
           className={cn(

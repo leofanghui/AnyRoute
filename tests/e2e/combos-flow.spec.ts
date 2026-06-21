@@ -72,14 +72,6 @@ test.describe("Combos flow", () => {
       });
     });
 
-    await page.route("**/api/settings/proxy", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ combos: {} }),
-      });
-    });
-
     await page.route("**/api/providers", async (route) => {
       await route.fulfill({
         status: 200,
@@ -295,14 +287,6 @@ test.describe("Combos flow", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ comboConfigMode: "expert" }),
-      });
-    });
-
-    await page.route("**/api/settings/proxy", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ combos: {} }),
       });
     });
 
@@ -538,14 +522,6 @@ test.describe("Combos flow", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ comboConfigMode: "guided" }),
-      });
-    });
-
-    await page.route("**/api/settings/proxy", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ combos: {} }),
       });
     });
 

@@ -37,8 +37,6 @@ import {
   buildGlmCodingHeaders,
   buildGlmModelsUrl,
 } from "@omniroute/open-sse/config/glmProvider.ts";
-import { getImageProvider } from "@omniroute/open-sse/config/imageRegistry.ts";
-import { getVideoProvider } from "@omniroute/open-sse/config/videoRegistry.ts";
 import { resolveAntigravityVersion } from "@omniroute/open-sse/services/antigravityVersion.ts";
 import {
   discoverBedrockNativeModels,
@@ -69,12 +67,6 @@ import {
   toClientAntigravityModelId,
 } from "@omniroute/open-sse/config/antigravityModelAliases.ts";
 import { normalizeAntigravityClientProfile } from "@/shared/constants/antigravityClientProfile";
-import { getEmbeddingProvider } from "@omniroute/open-sse/config/embeddingRegistry.ts";
-import { getRerankProvider } from "@omniroute/open-sse/config/rerankRegistry.ts";
-import {
-  getSpeechProvider,
-  getTranscriptionProvider,
-} from "@omniroute/open-sse/config/audioRegistry.ts";
 import {
   getCachedDiscoveredModels,
   isAutoFetchModelsEnabled,
@@ -1789,7 +1781,7 @@ export async function GET(
         // Use ai_model_categories[].unique_identifier === "text" when available;
         // fall back to llm_model name heuristic for models without categories.
         const nonTextPattern =
-          /image|video|audio|img|vid|sound|music|voice|tts|stt|track|clip|avatar|cartoon|flux|stable.diff|recraft|ideogram|leonardo|magnific|bria|seedream|luma|kling|pika|veo|wan-|heygen|did-|vidu|pixverse|sora-|gen-[0-9]|playground|gemini-fal|gamma|lyria|clothes|whisper/i;
+          /image|video|audio|img|vid|sound|music|voice|tts|stt|track|clip|avatar|cartoon|playground|whisper/i;
         const textModels = rawModels.filter((m) => {
           if (m.enable === false || m.unavailable_api) return false;
           if (typeof m.llm_model !== "string") return false;

@@ -12,21 +12,15 @@ test("costs section exists in SIDEBAR_SECTIONS", () => {
   assert.ok(section, "costs section must exist");
 });
 
-test("costs section has exactly 5 items in the correct order", () => {
+test("costs section has the minimal item set in the correct order", () => {
   const section = findSection("costs");
   assert.ok(section, "costs section must exist");
 
   const items = sidebarVisibility.getSectionItems(section);
-  assert.equal(items.length, 5, "costs section must have 5 items");
+  assert.equal(items.length, 1, "costs section must have 1 item");
 
   const itemIds = items.map((i) => i.id);
-  assert.deepEqual(itemIds, [
-    "costs",
-    "costs-pricing",
-    "costs-budget",
-    "costs-free-tiers",
-    "free-provider-rankings",
-  ]);
+  assert.deepEqual(itemIds, ["costs"]);
 });
 
 test("costs section items have correct hrefs", () => {
@@ -36,13 +30,7 @@ test("costs section items have correct hrefs", () => {
   const items = sidebarVisibility.getSectionItems(section);
   const hrefs = items.map((i) => ({ id: i.id, href: i.href }));
 
-  assert.deepEqual(hrefs, [
-    { id: "costs", href: "/dashboard/costs" },
-    { id: "costs-pricing", href: "/dashboard/costs/pricing" },
-    { id: "costs-budget", href: "/dashboard/costs/budget" },
-    { id: "costs-free-tiers", href: "/dashboard/free-tiers" },
-    { id: "free-provider-rankings", href: "/dashboard/free-provider-rankings" },
-  ]);
+  assert.deepEqual(hrefs, [{ id: "costs", href: "/dashboard/costs" }]);
 });
 
 test("costs item uses costsOverview i18nKey (not costs)", () => {

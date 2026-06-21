@@ -10,15 +10,12 @@ import {
   deleteProviderConnections,
   updateProviderConnection,
   getProviderNodeById,
-  isCloudEnabled,
 } from "@/models";
 import {
   isClaudeCodeCompatibleProvider,
   isOpenAICompatibleProvider,
   isAnthropicCompatibleProvider,
 } from "@/shared/constants/providers";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
 import {
   createProviderSchema,
   batchUpdateProviderConnectionsSchema,
@@ -223,9 +220,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Auto sync to Cloud if enabled
-    await syncToCloudIfEnabled();
-
     logAuditEvent({
       action: "provider.credentials.created",
       actor: "admin",
@@ -276,8 +270,6 @@ export async function PATCH(request: Request) {
       if (updated) updatedIds.push(id);
       else notFoundIds.push(id);
     }
-
-    await syncToCloudIfEnabled();
 
     // Partial failure (some ids no longer exist) is logged as "warn" so the
     // Activity feed reflects that not every requested id was applied.
@@ -335,8 +327,6 @@ export async function DELETE(request: Request) {
   try {
     const deleted = await deleteProviderConnections(body.ids);
 
-    await syncToCloudIfEnabled();
-
     logAuditEvent({
       action: "provider.credentials.batch_revoked",
       actor: "admin",
@@ -354,20 +344,5 @@ export async function DELETE(request: Request) {
   } catch (error) {
     console.log("Error batch deleting connections:", error);
     return NextResponse.json({ error: "Failed to batch delete connections" }, { status: 500 });
-  }
-}
-
-/**
- * Sync to Cloud if enabled
- */
-async function syncToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.log("Error syncing providers to cloud:", error);
   }
 }

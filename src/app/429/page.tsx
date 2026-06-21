@@ -13,8 +13,8 @@ export default function TooManyRequestsPage() {
         "Tune provider resilience/rate-limit profiles in settings.",
       ]}
       primaryAction={{
-        href: "/dashboard/settings?tab=resilience",
-        label: "Open Resilience Settings",
+        href: "/dashboard/health",
+        label: "Open Health",
       }}
       secondaryAction={{ href: "/dashboard/combos", label: "Open Combos" }}
     />

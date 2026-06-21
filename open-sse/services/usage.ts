@@ -1132,8 +1132,7 @@ async function getDeepseekUsage(connectionId: string, apiKey: string) {
   }
 }
 
-// Xiaomi MiMo Token Plan monthly limit (tokens). Keep in sync with the
-// "xiaomi-mimo" preset in src/lib/quota/planRegistry.ts.
+// Xiaomi MiMo Token Plan monthly limit (tokens).
 const XIAOMI_MIMO_MONTHLY_TOKEN_LIMIT = 4_100_000_000;
 
 /**

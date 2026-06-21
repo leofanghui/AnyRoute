@@ -85,7 +85,7 @@ function makePolicyRequest(apiKey) {
 }
 
 function makeAnthropicPolicyRequest(apiKey) {
-  return new Request("http://localhost/v1/messages", {
+  return new Request("http://localhost/api/v1/chat/completions", {
     method: "POST",
     headers: apiKey
       ? {
@@ -483,7 +483,7 @@ test("enforceApiKeyPolicy rejects disallowed models and exhausted budgets", asyn
   assert.match(await readErrorMessage(overBudget.rejection), /Daily budget exceeded/);
 });
 
-test("enforceApiKeyPolicy returns Anthropic error envelope for /v1/messages model denials", async () => {
+test("enforceApiKeyPolicy returns Anthropic error envelope for Anthropic-version requests", async () => {
   const restrictedKey = await createKeyWithPolicy({
     allowedModels: ["cc/*"],
     blockedModels: ["claude-fable*", "fable"],

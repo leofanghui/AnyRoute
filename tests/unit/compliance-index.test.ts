@@ -213,15 +213,6 @@ test("cleanupExpiredLogs removes stale rows across all log tables and records an
     freshTs
   );
 
-  db.prepare("INSERT INTO mcp_tool_audit (tool_name, created_at) VALUES (?, ?)").run(
-    "memory_search",
-    oldAppTs
-  );
-  db.prepare("INSERT INTO mcp_tool_audit (tool_name, created_at) VALUES (?, ?)").run(
-    "memory_add",
-    freshTs
-  );
-
   compliance.logAuditEvent({
     action: "admin.cleanup.seed",
     actor: "admin",
@@ -239,8 +230,6 @@ test("cleanupExpiredLogs removes stale rows across all log tables and records an
   const requestDetailCount = (
     db.prepare("SELECT COUNT(*) as count FROM request_detail_logs") as any
   ).get().count;
-  const mcpAuditCount = (db.prepare("SELECT COUNT(*) as count FROM mcp_tool_audit").get() as any)
-    .count;
   const auditEntries = compliance.getAuditLog();
   const auditActions = auditEntries.map((entry) => entry.action);
 
@@ -250,7 +239,6 @@ test("cleanupExpiredLogs removes stale rows across all log tables and records an
     deletedProxyLogs: 1,
     deletedRequestDetailLogs: 1,
     deletedAuditLogs: 1,
-    deletedMcpAuditLogs: 1,
     trimmedCallLogs: 0,
     trimmedProxyLogs: 0,
     appRetentionDays: 10,
@@ -262,7 +250,6 @@ test("cleanupExpiredLogs removes stale rows across all log tables and records an
   assert.equal(callCount, 1);
   assert.equal(proxyCount, 1);
   assert.equal(requestDetailCount, 1);
-  assert.equal(mcpAuditCount, 1);
   assert.ok(auditActions.includes("compliance.cleanup"));
   const cleanupEntry = auditEntries.find((entry) => entry.action === "compliance.cleanup");
   assert.equal(cleanupEntry.resourceType, "maintenance");
@@ -280,7 +267,6 @@ test("cleanupExpiredLogs tolerates missing tables and logAuditEvent failures wit
     DROP TABLE proxy_logs;
     DROP TABLE request_detail_logs;
     DROP TABLE audit_log;
-    DROP TABLE mcp_tool_audit;
   `);
 
   compliance.logAuditEvent({
@@ -296,7 +282,6 @@ test("cleanupExpiredLogs tolerates missing tables and logAuditEvent failures wit
     deletedProxyLogs: 0,
     deletedRequestDetailLogs: 0,
     deletedAuditLogs: 0,
-    deletedMcpAuditLogs: 0,
     trimmedCallLogs: 0,
     trimmedProxyLogs: 0,
     appRetentionDays: 10,

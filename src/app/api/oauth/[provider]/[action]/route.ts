@@ -15,11 +15,8 @@ import {
   createProviderConnection,
   updateProviderConnection,
   getProviderConnections,
-  isCloudEnabled,
   resolveProxyForProvider,
 } from "@/models";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
 import { startLocalServer } from "@/lib/oauth/utils/server";
 import { runWithProxyContextOrDirect } from "@omniroute/open-sse/utils/proxyFetch.ts";
 import {
@@ -505,9 +502,6 @@ export async function POST(
         });
       }
 
-      // Auto sync to Cloud if enabled
-      await syncToCloudIfEnabled();
-
       return NextResponse.json({
         success: true,
         connection: {
@@ -591,9 +585,6 @@ export async function POST(
             testStatus: "active",
           });
         }
-
-        // Auto sync to Cloud if enabled
-        await syncToCloudIfEnabled();
 
         return NextResponse.json({
           success: true,
@@ -725,8 +716,6 @@ export async function POST(
           });
         }
 
-        await syncToCloudIfEnabled();
-
         return NextResponse.json({
           success: true,
           connection: {
@@ -798,8 +787,6 @@ export async function POST(
             testStatus: "active",
           });
         }
-
-        await syncToCloudIfEnabled();
 
         return NextResponse.json({
           success: true,
@@ -898,20 +885,5 @@ export async function POST(
   } catch (error) {
     console.error("OAuth POST error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
-  }
-}
-
-/**
- * Sync to Cloud if enabled
- */
-async function syncToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.log("Error syncing to cloud after OAuth:", error);
   }
 }

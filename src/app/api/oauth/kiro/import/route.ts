@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { KiroService } from "@/lib/oauth/services/kiro";
-import { createProviderConnection, isCloudEnabled, resolveProxyForProvider } from "@/models";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
+import { createProviderConnection, resolveProxyForProvider } from "@/models";
 import { kiroImportSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import { isAuthRequired, isAuthenticated } from "@/shared/utils/apiAuth";
@@ -104,9 +102,6 @@ export async function POST(request: Request) {
       testStatus: "active",
     });
 
-    // Auto sync to Cloud if enabled
-    await syncToCloudIfEnabled();
-
     return NextResponse.json({
       success: true,
       connection: {
@@ -118,20 +113,5 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("Kiro-compatible import token error:", error);
     return NextResponse.json({ error: buildKiroImportError(error) }, { status: 500 });
-  }
-}
-
-/**
- * Sync to Cloud if enabled
- */
-async function syncToCloudIfEnabled() {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.log("Error syncing to cloud after Kiro import:", error);
   }
 }

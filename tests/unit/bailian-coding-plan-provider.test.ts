@@ -266,19 +266,9 @@ test("getStaticModelsForProvider returns undefined for non-static providers", ()
   }
 });
 
-test("getStaticModelsForProvider returns local image catalogs for image-only providers", () => {
-  const models = getStaticModelsForProvider("xai");
-
-  assert.ok(models, "xAI should expose local image models");
-  assert.deepEqual(
-    models.map((model) => model.id),
-    ["grok-imagine-image-quality", "grok-imagine-image"]
-  );
-});
-
 test("getStaticModelsForProvider returns models for other static providers", () => {
   // Verify other static providers still work
-  const staticProviders = ["deepgram", "assemblyai", "nanobanana", "perplexity"];
+  const staticProviders = ["qoder", "nlpcloud", "perplexity"];
 
   for (const provider of staticProviders) {
     const models = getStaticModelsForProvider(provider);

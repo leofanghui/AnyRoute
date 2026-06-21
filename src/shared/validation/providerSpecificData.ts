@@ -44,15 +44,6 @@ export function validateProviderSpecificData(
     });
   }
 
-  const cx = data.cx;
-  if (cx !== undefined && cx !== null && (typeof cx !== "string" || cx.length > 500)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "providerSpecificData.cx must be a string up to 500 chars",
-      path: ["cx"],
-    });
-  }
-
   const region = data.region;
   if (
     region !== undefined &&

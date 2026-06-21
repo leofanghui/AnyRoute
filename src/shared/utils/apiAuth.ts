@@ -55,8 +55,8 @@ function getRequestPathname(request: RequestLike | Request | null | undefined): 
   }
 }
 
-function isOnboardingBootstrapPath(pathname: string | null): boolean {
-  return pathname === "/dashboard/onboarding";
+function isSettingsBootstrapPath(pathname: string | null): boolean {
+  return pathname === "/dashboard/settings/general";
 }
 
 function isRequireLoginBootstrapWritePath(pathname: string | null, method: string): boolean {
@@ -326,7 +326,7 @@ export async function isAuthRequired(
 
       const pathname = getRequestPathname(request);
       const method = getRequestMethod(request);
-      if (isOnboardingBootstrapPath(pathname)) {
+      if (isSettingsBootstrapPath(pathname)) {
         return false;
       }
 

@@ -121,7 +121,7 @@ These all eventually trip a scanner. Use `resolvePublicCred()`.
 ## Related controls
 
 - `RAW_VALUE_PATTERN` in `publicCreds.ts` enumerates the prefixes that trigger passthrough (retrocompat). Extend it only for documented public credential formats, never for proprietary secrets.
-- `.env.example` lives in CI's `check-env-doc-sync` script — when you remove a var here, make sure the docs match.
+- `.env.example` is the source for public environment examples; when you remove a var here, make sure the docs match.
 - The `npm run test:vitest` and `node --import tsx/esm --test tests/unit/publicCreds.test.ts` suites must both stay green.
 
 ## When NOT to use this helper
@@ -131,7 +131,7 @@ This helper is **only** for credentials that are:
 1. Distributed publicly by the upstream provider (CLI binary, browser bundle, official docs).
 2. Documented or strongly implied to be non-confidential (PKCE-protected, Firebase Web key, similar).
 
-For everything else — operator-issued tokens, per-tenant secrets, your own OAuth app's client_secret, encryption keys, JWT secrets, database passwords — use **env vars only** (`process.env.FOO`, `||` fallback to empty / explicit error). These belong in `.env` and the [encrypted credentials store](./COMPLIANCE.md), not in source.
+For everything else — operator-issued tokens, per-tenant secrets, your own OAuth app's client_secret, encryption keys, JWT secrets, database passwords — use **env vars only** (`process.env.FOO`, `||` fallback to empty / explicit error). These belong in `.env` or the encrypted credential store, not in source.
 
 ## References
 

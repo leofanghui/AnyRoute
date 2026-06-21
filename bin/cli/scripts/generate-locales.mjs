@@ -890,7 +890,7 @@ let skipped = 0;
 
 for (const locale of locales) {
   const { code } = locale;
-  if (code === "en" || code === "pt-BR") {
+  if (code === "en" || code === "zh-CN") {
     skipped++;
     continue;
   }

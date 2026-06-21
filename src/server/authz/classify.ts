@@ -53,7 +53,7 @@ export function classifyRoute(rawPath: string, method: string = "GET"): RouteCla
     };
   }
 
-  if (normalizedPath === "/dashboard/onboarding") {
+  if (normalizedPath === "/dashboard/settings/general") {
     return {
       routeClass: "PUBLIC",
       reason: "setup_wizard",

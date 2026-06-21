@@ -51,8 +51,8 @@ test("resolves a doc path that is a prefix of a deeper route (family reference)"
 });
 
 test("resolves into a catch-all route segment", () => {
-  const files = new Set(["src/app/api/mcp/[...transport]/route.ts"]);
-  assert.equal(resolve("/api/mcp/sse/extra", files), true);
+  const files = new Set(["src/app/api/v1/responses/[...path]/route.ts"]);
+  assert.equal(resolve("/api/v1/responses/extra", files), true);
 });
 
 test("flags a hallucinated route with no matching file", () => {
@@ -66,9 +66,9 @@ test("does NOT match when the doc path is deeper than the real route", () => {
 });
 
 test("static segment mismatch is not absorbed by an unrelated dynamic route", () => {
-  const files = new Set(["src/app/api/plugins/[name]/activate/route.ts"]);
-  // /api/plugins/{id}/enable: dynamic seg ok, but "enable" != "activate"
-  assert.equal(resolve("/api/plugins/{id}/enable", files), false);
+  const files = new Set(["src/app/api/providers/[id]/models/route.ts"]);
+  // /api/providers/{id}/enable: dynamic seg ok, but "enable" != "models"
+  assert.equal(resolve("/api/providers/{id}/enable", files), false);
 });
 
 // --- extractDocApiPaths --------------------------------------------------------------
@@ -85,10 +85,7 @@ test("extracts an /api path from inline code and strips trailing prose punctuati
 
 test("keeps balanced [param] / {param} segments intact", () => {
   const md = "DELETE | `/api/shadow/[id]` | and `/api/tools/agent-bridge/agents/{id}/state`";
-  assert.deepEqual(extract(md), [
-    "/api/shadow/[id]",
-    "/api/tools/agent-bridge/agents/{id}/state",
-  ]);
+  assert.deepEqual(extract(md), ["/api/shadow/[id]", "/api/tools/agent-bridge/agents/{id}/state"]);
 });
 
 test("does NOT capture a source-file path tail (src/lib/api/..., @/app/api/...)", () => {
@@ -104,14 +101,14 @@ test("ignores file references ending in .ts even when URL-shaped", () => {
 });
 
 test("drops a trailing markdown-emphasis underscore (table italics)", () => {
-  const md = "| _500 no POST /api/cli-tools/config_ | _Zod faltando_ |";
-  assert.deepEqual(extract(md), ["/api/cli-tools/config"]);
+  const md = "| _500 no POST /api/providers/config_ | _Zod faltando_ |";
+  assert.deepEqual(extract(md), ["/api/providers/config"]);
 });
 
 test("discards a segment with an unbalanced bracket (regex truncation in prose)", () => {
-  // greedy regex captured "/api/mcp/{status" — drop the dangling segment, keep prefix.
-  const md = "the `/api/mcp/{status` field (prose ran on)";
-  assert.deepEqual(extract(md), ["/api/mcp"]);
+  // Greedy regex captured "/api/providers/{status"; drop the dangling segment, keep prefix.
+  const md = "the `/api/providers/{status` field (prose ran on)";
+  assert.deepEqual(extract(md), ["/api/providers"]);
 });
 
 // --- findStaleDocApiRefs -------------------------------------------------------------

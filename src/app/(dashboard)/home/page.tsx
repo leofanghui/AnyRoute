@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const settings = await getSettings();
   if (!settings.setupComplete) {
-    redirect("/dashboard/onboarding");
+    redirect("/dashboard/settings/general");
   }
   const machineId = await getMachineId();
   const isBootstrapped = process.env.OMNIROUTE_BOOTSTRAPPED === "true";

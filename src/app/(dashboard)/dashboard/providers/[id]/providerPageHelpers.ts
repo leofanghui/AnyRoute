@@ -201,7 +201,6 @@ export const CONFIGURABLE_BASE_URL_PROVIDERS = new Set([
   "heroku",
   "databricks",
   "snowflake",
-  "searxng-search",
   "petals",
 ]);
 
@@ -211,7 +210,6 @@ export const DEFAULT_PROVIDER_BASE_URLS: Record<string, string> = {
   "bailian-coding-plan": "https://coding-intl.dashscope.aliyuncs.com/apps/anthropic/v1",
   "xiaomi-mimo": "https://token-plan-sgp.xiaomimimo.com/v1",
   siliconflow: "https://api.siliconflow.com/v1",
-  "searxng-search": "http://localhost:8888/search",
   petals: "https://chat.petals.dev/api/v1/generate",
 };
 
@@ -259,8 +257,6 @@ export function getProviderBaseUrlHint(
       return t ? t("databricksBaseUrlHint") : undefined;
     case "snowflake":
       return t ? t("snowflakeBaseUrlHint") : undefined;
-    case "searxng-search":
-      return t ? t("searxngBaseUrlHint") : undefined;
     default:
       return undefined;
   }
@@ -284,8 +280,6 @@ export function getProviderBaseUrlPlaceholder(providerId?: string | null) {
       return "https://adb-1234567890123456.7.azuredatabricks.net/serving-endpoints";
     case "snowflake":
       return "https://example-account.snowflakecomputing.com";
-    case "searxng-search":
-      return "http://localhost:8888/search";
     default:
       return "";
   }
@@ -891,14 +885,6 @@ export function getApiLabel(
   switch (apiType) {
     case "responses":
       return t("responsesApi");
-    case "embeddings":
-      return t("embeddings");
-    case "audio-transcriptions":
-      return t("audioTranscriptions");
-    case "audio-speech":
-      return t("audioSpeech");
-    case "images-generations":
-      return t("imagesGenerations");
     default:
       return t("chatCompletions");
   }
@@ -914,14 +900,6 @@ export function getApiDefaultPath(
   switch (apiType) {
     case "responses":
       return "/responses";
-    case "embeddings":
-      return "/embeddings";
-    case "audio-transcriptions":
-      return "/audio/transcriptions";
-    case "audio-speech":
-      return "/audio/speech";
-    case "images-generations":
-      return "/images/generations";
     default:
       return "/chat/completions";
   }

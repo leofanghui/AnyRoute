@@ -34,13 +34,13 @@ const {
 // Test group 1 — Flag definitions registry
 // ──────────────────────────────────────────────────────
 describe("featureFlagDefinitions", () => {
-  it("has exactly 34 flag definitions", () => {
-    assert.strictEqual(FEATURE_FLAG_DEFINITIONS.length, 34);
+  it("has exactly 27 flag definitions", () => {
+    assert.strictEqual(FEATURE_FLAG_DEFINITIONS.length, 27);
   });
 
   it("has unique keys for all flags", () => {
     const keys = FEATURE_FLAG_DEFINITIONS.map((d) => d.key);
-    assert.strictEqual(new Set(keys).size, 34);
+    assert.strictEqual(new Set(keys).size, 27);
   });
 
   it("has valid categories for all flags", () => {
@@ -238,8 +238,8 @@ describe("resolveFeatureFlag", () => {
     });
 
     it("returns true for '1'", () => {
-      setFeatureFlagOverride("SKILLS_SANDBOX_NETWORK_ENABLED", "1");
-      assert.ok(isFeatureFlagEnabled("SKILLS_SANDBOX_NETWORK_ENABLED"));
+      setFeatureFlagOverride("REQUIRE_API_KEY", "1");
+      assert.ok(isFeatureFlagEnabled("REQUIRE_API_KEY"));
     });
 
     it("returns true for 'yes'", () => {
@@ -264,9 +264,9 @@ describe("resolveFeatureFlag", () => {
   });
 
   describe("resolveAllFeatureFlags", () => {
-    it("returns all 34 flags", () => {
+    it("returns all 27 flags", () => {
       const all = resolveAllFeatureFlags();
-      assert.strictEqual(all.length, 34);
+      assert.strictEqual(all.length, 27);
     });
 
     it("marks DB-overridden flags with source 'db'", () => {
@@ -365,12 +365,6 @@ describe("featureFlagUpdateSchema validation", () => {
     const def = FEATURE_FLAG_DEFINITIONS.find((d) => d.key === "INJECTION_GUARD_MODE");
     assert.ok(def, "INJECTION_GUARD_MODE should exist");
     assert.deepStrictEqual(def.enumValues, ["off", "warn", "block", "redact"]);
-  });
-
-  it("validates that TOOL_POLICY_MODE has known enum values", () => {
-    const def = FEATURE_FLAG_DEFINITIONS.find((d) => d.key === "TOOL_POLICY_MODE");
-    assert.ok(def, "TOOL_POLICY_MODE should exist");
-    assert.deepStrictEqual(def.enumValues, ["disabled", "warn", "block"]);
   });
 
   it("setFeatureFlagOverride throws for unknown keys", () => {

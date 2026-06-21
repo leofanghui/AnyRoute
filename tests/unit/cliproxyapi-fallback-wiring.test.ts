@@ -5,9 +5,9 @@
  *   - clearCliproxyapiUrlCache / resolveCliproxyapiBaseUrl (open-sse/executors/cliproxyapi.ts)
  *   - upsertUpstreamProxyConfig / getUpstreamProxyConfig (src/lib/db/upstreamProxy.ts)
  *
- * The settings-loop embedded-service filter is exercised through
- * upsertUpstreamProxyConfig to prove the production EMBEDDED_SERVICE_IDS
- * guard prevents cliproxyapi/9router from appearing in the routing table.
+ * The settings-loop filter is exercised through upsertUpstreamProxyConfig to
+ * prove the production guard prevents cliproxyapi from appearing in the
+ * routing table.
  */
 
 import { describe, it, before, after, beforeEach, afterEach } from "node:test";
@@ -30,15 +30,13 @@ const upstreamProxyDb = await import("../../src/lib/db/upstreamProxy.ts");
 // Import the executor module to get the real exported functions.
 // This may be a cached import if cliproxyapi-executor.test.ts ran first — that
 // is intentional; we test the live module state, not a fresh copy.
-const {
-  clearCliproxyapiUrlCache,
-  resolveCliproxyapiBaseUrl,
-} = await import("../../open-sse/executors/cliproxyapi.ts");
+const { clearCliproxyapiUrlCache, resolveCliproxyapiBaseUrl } =
+  await import("../../open-sse/executors/cliproxyapi.ts");
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/** Mirrors the EMBEDDED_SERVICE_IDS filter in src/app/api/settings/route.ts. */
-const EMBEDDED_SERVICE_IDS = new Set(["cliproxyapi", "9router"]);
+/** Mirrors the CLIPROXYAPI-only filter in src/app/api/settings/route.ts. */
+const EMBEDDED_SERVICE_IDS = new Set(["cliproxyapi"]);
 
 function filterEmbeddedServices(providerIds: string[]): string[] {
   return providerIds.filter((id) => !EMBEDDED_SERVICE_IDS.has(id));
@@ -121,7 +119,10 @@ describe("CLIProxyAPI fallback wiring", () => {
       const url2 = await resolveCliproxyapiBaseUrl();
 
       assert.ok(url1.endsWith(":8001"), `url1 should end with :8001, got: ${url1}`);
-      assert.ok(url2.endsWith(":8002"), `url2 should end with :8002 after cache clear, got: ${url2}`);
+      assert.ok(
+        url2.endsWith(":8002"),
+        `url2 should end with :8002 after cache clear, got: ${url2}`
+      );
       assert.notEqual(url1, url2);
     });
   });
@@ -147,12 +148,11 @@ describe("CLIProxyAPI fallback wiring", () => {
       }
     });
 
-    it("filterEmbeddedServices skips cliproxyapi and 9router from the provider loop", () => {
-      const mixed = ["anthropic", "cliproxyapi", "9router", "openai"];
+    it("filterEmbeddedServices skips cliproxyapi from the provider loop", () => {
+      const mixed = ["anthropic", "cliproxyapi", "openai"];
       const filtered = filterEmbeddedServices(mixed);
       assert.deepEqual(filtered, ["anthropic", "openai"]);
       assert.ok(!filtered.includes("cliproxyapi"), "cliproxyapi must not appear in filtered list");
-      assert.ok(!filtered.includes("9router"), "9router must not appear in filtered list");
     });
 
     it("does NOT create a routing row for cliproxyapi via the provider loop", async () => {

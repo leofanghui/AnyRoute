@@ -329,10 +329,6 @@ test("OAuth test config covers all expected providers", () => {
 // ── testApiKeyConnection requiresApiKey Check ──────────────────────────────
 // Uses the centralized providerAllowsOptionalApiKey from providers.ts
 
-test("testApiKeyConnection: searxng-search with empty API key does NOT require API key", () => {
-  assert.equal(providerAllowsOptionalApiKey("searxng-search"), true);
-});
-
 test("testApiKeyConnection: self-hosted chat providers with empty API key do NOT require API key", () => {
   for (const provider of SELF_HOSTED_CHAT_PROVIDER_IDS) {
     assert.equal(

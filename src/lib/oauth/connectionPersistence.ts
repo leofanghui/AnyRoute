@@ -3,17 +3,14 @@
  * OAuth route (`device-complete`) and the public Codex device-flow completion
  * endpoint. Mirrors the exchange/poll/poll-callback persistence: normalize the
  * display name, compute expiry, match an existing connection by id or email
- * (+ Codex workspaceId) and update it, else create a new one, then sync to Cloud.
+ * (+ Codex workspaceId) and update it, else create a new one.
  */
 import { timingSafeEqual } from "crypto";
 import {
   createProviderConnection,
   updateProviderConnection,
   getProviderConnections,
-  isCloudEnabled,
 } from "@/models";
-import { getConsistentMachineId } from "@/shared/utils/machineId";
-import { syncToCloud } from "@/lib/cloudSync";
 
 /**
  * Constant-time string comparison to prevent timing-oracle attacks (CWE-208).
@@ -25,17 +22,6 @@ function safeEqual(a: string | null | undefined, b: string | null | undefined): 
   const bb = Buffer.from(String(b));
   if (ba.length !== bb.length) return false;
   return timingSafeEqual(ba, bb);
-}
-
-async function syncToCloudIfEnabled(): Promise<void> {
-  try {
-    const cloudEnabled = await isCloudEnabled();
-    if (!cloudEnabled) return;
-    const machineId = await getConsistentMachineId();
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.log("Error syncing to cloud after OAuth:", error);
-  }
 }
 
 export async function persistOAuthConnection(
@@ -85,6 +71,5 @@ export async function persistOAuthConnection(
     });
   }
 
-  await syncToCloudIfEnabled();
   return connection;
 }

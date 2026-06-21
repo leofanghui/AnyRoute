@@ -122,8 +122,6 @@ jobs:
         run: npm run check:cognitive-complexity
       - name: Type coverage ratchet
         run: npm run check:type-coverage
-      - name: Compression budget ratchet (F2.4 / N4)
-        run: npm run check:compression-budget
       # CodeQL alerts ratchet — BLOQUEANTE (promovido de advisory na v3.8.26).
       # Lê metrics.codeqlAlerts.value de quality-baseline.json e sai 1 SOMENTE numa
       # regressão real (alertas abertos > baseline). Falha de medição (gh/auth/api)
@@ -148,7 +146,7 @@ jobs:
   # (Secret scan / Workflow lint / Bundle size, all passing --ratchet) FAIL the job
   # on a measured regression vs config/quality/quality-baseline.json. The remaining
   # steps stay ADVISORY via step-level continue-on-error (scanner install,
-  # vuln/osv ratchet, OpenAPI/oasdiff breaking-change, circular-deps/dpdm): they
+  # vuln/osv ratchet, circular-deps/dpdm): they
   # depend on external binaries/state that may legitimately self-skip, so they must
   # never block. The blocking gates themselves SKIP (exit 0) when their binary/plugin
   # is absent — only a measured regression on the SAME metric the baseline froze
@@ -158,13 +156,9 @@ jobs:
     name: Quality Gates (Extended)
     runs-on: ubuntu-latest
     steps:
-      # fetch-depth: 0 — the OpenAPI breaking-change gate (oasdiff) reads the base
-      # spec via `git show <base_ref>:docs/reference/openapi.yaml`; a shallow clone
-      # would lack the base ref and the gate would self-skip (base-unresolved).
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
-          fetch-depth: 0
       - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.CI_NODE_VERSION }}
@@ -217,10 +211,6 @@ jobs:
           bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) latest "$HOME/.local/bin"
           # zizmor — PyPI (pipx preferred, pip --user fallback); lands in ~/.local/bin
           pipx install zizmor || pip install --user zizmor
-          # oasdiff — download latest linux amd64 tarball via gh (authed), extract binary
-          rm -rf /tmp/oasd && mkdir -p /tmp/oasd
-          gh release download --repo oasdiff/oasdiff --pattern '*linux_amd64.tar.gz' --dir /tmp/oasd
-          tar -xzf /tmp/oasd/*linux_amd64.tar.gz -C "$HOME/.local/bin" oasdiff
           # ALWAYS export the bin dir (even if any step above failed)
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           # diagnostics — prove what installed on the next CI run
@@ -228,7 +218,6 @@ jobs:
           "$HOME/.local/bin/gitleaks" version || true
           "$HOME/.local/bin/actionlint" -version || true
           "$HOME/.local/bin/osv-scanner" --version || true
-          "$HOME/.local/bin/oasdiff" --version || true
           zizmor --version || true
       # BLOCKING ratchet (Etapa 2): secretFindings must not regress vs the baseline.
       # --ratchet exits 1 on a measured regression; it SKIPs (exit 0) when gitleaks
@@ -249,17 +238,6 @@ jobs:
       # zizmor is absent (a missing binary never blocks).
       - name: Workflow lint (actionlint+zizmor, ratchet, blocking)
         run: npm run check:workflows -- --ratchet
-      # OpenAPI breaking-change detection (oasdiff). Diffs the PR's public API
-      # contract (docs/reference/openapi.yaml) against the base branch's spec.
-      # BLOCKING ratchet (Fase 9 Onda 0): reads metrics.openapiBreaking.value and
-      # exits 1 ONLY on a measured regression (count > baseline). It SKIPs (exit 0)
-      # when oasdiff is absent or the base spec can't be resolved — a missing
-      # measurement never blocks. BASE_REF is read by the script from the env
-      # (never interpolated into a shell body) — workflow-injection-safe.
-      - name: OpenAPI breaking-change (oasdiff, ratchet, blocking)
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: npm run check:openapi-breaking -- --ratchet
 
   docs-sync-strict:
     name: Docs Sync (Strict)
@@ -274,21 +252,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check:docs-all
-      # Previously-orphaned contract gates (existed as files, never wired anywhere).
-      # All exit 0 today: cli-i18n is a hard gate, openapi-coverage is a ratchet
-      # (floor ~36), openapi-security-tiers is advisory (Hard Rules #15/#17).
       - name: CLI i18n consistency
         run: npm run check:cli-i18n
-      - name: OpenAPI route coverage (ratchet)
-        run: npm run check:openapi-coverage
-      - name: OpenAPI security-tier consistency (advisory)
-        run: npm run check:openapi-security-tiers
-      - name: OpenAPI spec paths resolve to real routes (anti-hallucination)
-        run: npm run check:openapi-routes
       - name: Doc /api refs resolve to real routes (anti-hallucination)
         run: npm run check:docs-symbols
-      - name: i18n translation drift (warn)
-        run: node scripts/i18n/check-translation-drift.mjs --warn
 
   docs-lint:
     name: Docs Lint (prose — advisory)
@@ -315,69 +282,6 @@ jobs:
           fail_on_error: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  i18n-ui-coverage:
-    name: i18n UI Coverage
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.CI_NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: node scripts/i18n/check-ui-keys-coverage.mjs --threshold=65
-
-  i18n-matrix:
-    name: Build language matrix
-    runs-on: ubuntu-latest
-    outputs:
-      langs: ${{ steps.langs.outputs.langs }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - id: langs
-        run: |
-          LANG_DIR="src/i18n/messages"
-          LANGS=$(ls "$LANG_DIR"/*.json | xargs -n1 basename | sed 's/.json$//' | grep -v '^en$' | jq -R . | jq -s . | jq -c .)
-          echo "langs=${LANGS}" >> "$GITHUB_OUTPUT"
-
-  i18n:
-    name: i18n Validation
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        lang: ${{ fromJson(needs.i18n-matrix.outputs.langs) }}
-    needs: i18n-matrix
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Validate ${{ matrix.lang }}
-        env:
-          # Pass the matrix value via env (never interpolate ${{ ... }} straight
-          # into the run: script body) so the shell receives a variable, not
-          # inlined text — zizmor template-injection mitigation. Named MATRIX_LANG
-          # to avoid clobbering the POSIX `LANG` locale variable.
-          MATRIX_LANG: ${{ matrix.lang }}
-        run: |
-          python3 scripts/i18n/validate_translation.py quick -l "$MATRIX_LANG" > result.txt
-
-      - name: Upload result
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: i18n-${{ matrix.lang }}
-          path: result.txt
 
   pr-test-policy:
     name: PR Test Policy
@@ -516,10 +420,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check:node-runtime
-      - run: node --max-old-space-size=4096 --import tsx --import ./tests/_setup/isolateDataDir.ts --test --test-force-exit --test-concurrency=4 --test-shard=${{ matrix.shard }}/8 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,compression,correctness,cors,dashboard,db,db-adapters,docs,gamification,guardrails,lib,mcp,runtime,security,services,settings,shared,ui}/**/*.test.ts"
+      - run: node --max-old-space-size=4096 --import tsx --import ./tests/_setup/isolateDataDir.ts --test --test-force-exit --test-concurrency=4 --test-shard=${{ matrix.shard }}/8 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,correctness,cors,dashboard,db,db-adapters,docs,guardrails,lib,runtime,security,services,settings,shared,ui}/**/*.test.ts"
 
   test-vitest:
-    name: Vitest (MCP / autoCombo / UI components)
+    name: Vitest (autoCombo / UI components)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: build
@@ -569,7 +473,7 @@ jobs:
       - run: npm ci
       - run: npm run check:node-runtime
       - run: npm run build
-      - run: node --import tsx --import ./tests/_setup/isolateDataDir.ts --test --test-force-exit --test-concurrency=4 --test-shard=${{ matrix.shard }}/2 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,compression,correctness,cors,dashboard,db,db-adapters,docs,gamification,guardrails,lib,mcp,runtime,security,services,settings,shared,ui}/**/*.test.ts"
+      - run: node --import tsx --import ./tests/_setup/isolateDataDir.ts --test --test-force-exit --test-concurrency=4 --test-shard=${{ matrix.shard }}/2 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,correctness,cors,dashboard,db,db-adapters,docs,guardrails,lib,runtime,security,services,settings,shared,ui}/**/*.test.ts"
 
   node-26-compat:
     name: Node 26 Compatibility (${{ matrix.shard }}/2)
@@ -595,7 +499,7 @@ jobs:
       - run: npm ci
       - run: npm run check:node-runtime
       - run: npm run build
-      - run: node --import tsx --import ./tests/_setup/isolateDataDir.ts --test --test-force-exit --test-concurrency=4 --test-shard=${{ matrix.shard }}/2 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,compression,correctness,cors,dashboard,db,db-adapters,docs,gamification,guardrails,lib,mcp,runtime,security,services,settings,shared,ui}/**/*.test.ts"
+      - run: node --import tsx --import ./tests/_setup/isolateDataDir.ts --test --test-force-exit --test-concurrency=4 --test-shard=${{ matrix.shard }}/2 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,correctness,cors,dashboard,db,db-adapters,docs,guardrails,lib,runtime,security,services,settings,shared,ui}/**/*.test.ts"
 
   test-coverage-shard:
     name: Coverage Shard (${{ matrix.shard }}/8)
@@ -636,7 +540,7 @@ jobs:
             --exclude=tests/** \
             --exclude=**/*.test.* \
             node --max-old-space-size=4096 --import tsx --import ./tests/_setup/isolateDataDir.ts --test --test-force-exit --test-concurrency=4 \
-              --test-shard=${{ matrix.shard }}/8 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,compression,correctness,cors,dashboard,db,db-adapters,docs,gamification,guardrails,lib,mcp,runtime,security,services,settings,shared,ui}/**/*.test.ts"
+              --test-shard=${{ matrix.shard }}/8 tests/unit/*.test.ts "tests/unit/{api,auth,authz,build,cli,cli-helper,correctness,cors,dashboard,db,db-adapters,docs,guardrails,lib,runtime,security,services,settings,shared,ui}/**/*.test.ts"
       - name: Upload raw shard coverage
         if: always()
         uses: actions/upload-artifact@v7
@@ -934,8 +838,6 @@ jobs:
     needs:
       - lint
       - docs-sync-strict
-      - i18n-ui-coverage
-      - i18n
       - pr-test-policy
 
       - build
@@ -951,14 +853,6 @@ jobs:
       - test-integration
       - test-security
     steps:
-      - name: Download i18n results
-        continue-on-error: true
-        uses: actions/download-artifact@v8
-        with:
-          pattern: i18n-*
-          path: results
-          merge-multiple: true
-
       - name: Generate dashboard
         env:
           EVENT_NAME: ${{ github.event_name }}
@@ -981,7 +875,6 @@ jobs:
           echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
           echo "| Lint | $(status '${{ needs.lint.result }}') |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Docs Sync (Strict) | $(status '${{ needs.docs-sync-strict.result }}') |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| i18n UI Coverage | $(status '${{ needs.i18n-ui-coverage.result }}') |" >> "$GITHUB_STEP_SUMMARY"
           echo "| PR Test Policy | $(status '${{ needs.pr-test-policy.result }}') |" >> "$GITHUB_STEP_SUMMARY"
 
           echo "| SonarQube | $(status '${{ needs.sonarqube.result }}') |" >> "$GITHUB_STEP_SUMMARY"

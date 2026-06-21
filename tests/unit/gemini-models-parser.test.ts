@@ -70,35 +70,34 @@ test("parseGeminiModelsList maps generateContent image models to the chat endpoi
   assert.deepEqual(proImage!.supportedEndpoints, ["chat"]);
 });
 
-test("parseGeminiModelsList maps Imagen predict models to the images endpoint", () => {
+test("parseGeminiModelsList filters Imagen predict models from the minimal catalog", () => {
   const models = parseGeminiModelsList(SAMPLE);
   const imagen = models.find((m) => m.id === "imagen-4.0-generate-001");
-  assert.ok(imagen, "imagen-4.0-generate-001 should be present");
-  assert.deepEqual(imagen!.supportedEndpoints, ["images"]);
+  assert.equal(imagen, undefined);
 });
 
-test("parseGeminiModelsList maps embedContent and bidiGenerateContent", () => {
+test("parseGeminiModelsList filters embedContent and bidiGenerateContent models", () => {
   const models = parseGeminiModelsList(SAMPLE);
-  assert.deepEqual(models.find((m) => m.id === "text-embedding-004")!.supportedEndpoints, [
-    "embeddings",
-  ]);
-  assert.deepEqual(models.find((m) => m.id === "gemini-live-2.5-flash")!.supportedEndpoints, [
-    "audio",
-  ]);
+  assert.equal(
+    models.find((m) => m.id === "text-embedding-004"),
+    undefined
+  );
+  assert.equal(
+    models.find((m) => m.id === "gemini-live-2.5-flash"),
+    undefined
+  );
 });
 
-test("parseGeminiModelsList maps Veo predictLongRunning models to the video endpoint", () => {
+test("parseGeminiModelsList filters Veo predictLongRunning models", () => {
   const models = parseGeminiModelsList(SAMPLE);
   const veo = models.find((m) => m.id === "veo-3.0-generate-001");
-  assert.ok(veo, "veo-3.0-generate-001 should be present");
-  assert.deepEqual(veo!.supportedEndpoints, ["video"]);
+  assert.equal(veo, undefined);
 });
 
-test("parseGeminiModelsList keeps Imagen as images even via a long-running method", () => {
+test("parseGeminiModelsList filters Imagen long-running models", () => {
   const models = parseGeminiModelsList(SAMPLE);
   const imagen = models.find((m) => m.id === "imagen-future-preview");
-  assert.ok(imagen, "imagen-future-preview should be present");
-  assert.deepEqual(imagen!.supportedEndpoints, ["images"]);
+  assert.equal(imagen, undefined);
 });
 
 test("parseGeminiModelsList defaults to chat and tolerates empty/missing input", () => {

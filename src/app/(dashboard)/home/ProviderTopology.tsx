@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { Handle, Position, type Node, type Edge, type NodeTypes } from "@xyflow/react";
 import { AI_PROVIDERS } from "@/shared/constants/providers";
@@ -9,9 +9,6 @@ import { FlowCanvas } from "@/shared/components/flow/FlowCanvas";
 import { StatusDot } from "@/shared/components/flow/StatusDot";
 import { edgeStyle } from "@/shared/components/flow/edgeStyles";
 import { resolveTopologyNodeLabel } from "./topologyLabel";
-
-const FE_ACTIVE_TIMEOUT_MS = 60_000;
-const FE_ACTIVE_TICK_MS = 1_000;
 
 // Rings: [capacity, rx, ry]. Each successive ring fits ~6 more nodes.
 const RINGS: [number, number, number][] = [
@@ -38,19 +35,18 @@ type ProviderNodeData = {
   label: string;
   color: string;
   providerId: string;
-  active: boolean;
   error: boolean;
 };
 
 function ProviderNode({ data }: { data: ProviderNodeData }) {
-  const { label, color, providerId, active, error } = data;
+  const { label, color, providerId, error } = data;
 
   return (
     <div
       className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border-2 transition-all duration-300 bg-bg"
       style={{
-        borderColor: error ? "#ef4444" : active ? color : "var(--color-border)",
-        boxShadow: error ? `0 0 12px #ef444430` : active ? `0 0 12px ${color}30` : "none",
+        borderColor: error ? "#ef4444" : "var(--color-border)",
+        boxShadow: error ? `0 0 12px #ef444430` : "none",
         minWidth: "136px",
       }}
     >
@@ -88,19 +84,17 @@ function ProviderNode({ data }: { data: ProviderNodeData }) {
 
       <span
         className="text-xs font-medium truncate flex-1"
-        style={{ color: active ? color : error ? "#ef4444" : "var(--color-text-main)" }}
+        style={{ color: error ? "#ef4444" : "var(--color-text-main)" }}
       >
         {label}
       </span>
 
-      {(active || error) && <StatusDot color={color} error={error} />}
+      {error && <StatusDot color={color} error={error} />}
     </div>
   );
 }
 
-type RouterNodeData = { activeCount: number };
-
-function RouterNode({ data }: { data: RouterNodeData }) {
+function RouterNode() {
   return (
     <div className="flex items-center gap-2 px-5 py-3 rounded-xl border-2 border-primary bg-primary/8 shadow-lg min-w-[140px] justify-center">
       <Handle
@@ -132,11 +126,6 @@ function RouterNode({ data }: { data: RouterNodeData }) {
         <span className="material-symbols-outlined text-primary text-[16px]">route</span>
       </div>
       <span className="text-sm font-bold text-primary">OmniRoute</span>
-      {data.activeCount > 0 && (
-        <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-white text-[10px] font-bold leading-none">
-          {data.activeCount}
-        </span>
-      )}
     </div>
   );
 }
@@ -161,7 +150,6 @@ function getHandles(angle: number, cx: number): { sourceHandle: string; targetHa
 
 function buildLayout(
   providers: ProviderEntry[],
-  activeSet: Set<string>,
   lastSet: Set<string>,
   errorSet: Set<string>
 ): { nodes: Node[]; edges: Edge[] } {
@@ -177,21 +165,20 @@ function buildLayout(
     id: "router",
     type: "router",
     position: { x: -routerW / 2, y: -routerH / 2 },
-    data: { activeCount: activeSet.size },
+    data: {},
     draggable: false,
   });
 
   if (providers.length === 0) return { nodes, edges };
 
-  // Sort: active → error → last-used → rest (alpha within groups)
+  // Sort: error -> last-used -> rest (alpha within groups).
   const sorted = [...providers].sort((a, b) => {
     const aId = a.provider.toLowerCase();
     const bId = b.provider.toLowerCase();
     const rank = (id: string) => {
-      if (activeSet.has(id)) return 0;
-      if (errorSet.has(id)) return 1;
-      if (lastSet.has(id)) return 2;
-      return 3;
+      if (errorSet.has(id)) return 0;
+      if (lastSet.has(id)) return 1;
+      return 2;
     };
     const d = rank(aId) - rank(bId);
     return d !== 0 ? d : aId.localeCompare(bId); // teknik sıralama: ASCII kasıtlı
@@ -205,9 +192,8 @@ function buildLayout(
     for (let i = 0; i < count; i++) {
       const p = sorted[provIdx++];
       const pid = p.provider.toLowerCase();
-      const active = activeSet.has(pid);
-      const error = !active && errorSet.has(pid);
-      const last = !active && !error && lastSet.has(pid);
+      const error = errorSet.has(pid);
+      const last = !error && lastSet.has(pid);
       const config = getProviderConfig(p.provider);
       const nodeId = `provider-${p.provider}`;
 
@@ -224,7 +210,6 @@ function buildLayout(
           label: resolveTopologyNodeLabel(p.name, config.name, p.provider),
           color: config.color || "#6b7280",
           providerId: p.provider,
-          active,
           error,
         } satisfies ProviderNodeData,
         draggable: false,
@@ -236,8 +221,7 @@ function buildLayout(
         sourceHandle,
         target: nodeId,
         targetHandle,
-        animated: active,
-        style: edgeStyle(active, last, error),
+        style: edgeStyle(false, last, error),
       });
     }
   }
@@ -247,72 +231,26 @@ function buildLayout(
 
 type Props = {
   providers?: ProviderEntry[];
-  activeRequests?: Array<{ provider?: string; model?: string }>;
   lastProvider?: string;
   errorProvider?: string;
 };
 
 export default function ProviderTopology({
   providers = [],
-  activeRequests = [],
   lastProvider = "",
   errorProvider = "",
 }: Props) {
   const t = useTranslations("common");
-  const activeKey = useMemo(
-    () =>
-      activeRequests
-        .map((r) => r.provider?.toLowerCase())
-        .filter(Boolean)
-        .sort()
-        .join(","),
-    [activeRequests]
-  );
   const lastKey = lastProvider.toLowerCase();
   const errorKey = errorProvider.toLowerCase();
 
-  const rawActiveSet = useMemo(
-    () => new Set<string>(activeKey ? activeKey.split(",") : []),
-    [activeKey]
-  );
   const lastSet = useMemo(() => new Set<string>(lastKey ? [lastKey] : []), [lastKey]);
   const errorSet = useMemo(() => new Set<string>(errorKey ? [errorKey] : []), [errorKey]);
 
-  const firstSeenRef = useRef<Record<string, number>>({});
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const seen = firstSeenRef.current;
-    const now = Date.now();
-    for (const p of rawActiveSet) {
-      if (!seen[p]) seen[p] = now;
-    }
-    for (const p of Object.keys(seen)) {
-      if (!rawActiveSet.has(p)) delete seen[p];
-    }
-  }, [rawActiveSet]);
-
-  useEffect(() => {
-    if (rawActiveSet.size === 0) return;
-    const id = setInterval(() => setTick((t) => t + 1), FE_ACTIVE_TICK_MS);
-    return () => clearInterval(id);
-  }, [rawActiveSet]);
-
-  const activeSet = useMemo(() => {
-    const now = Date.now();
-    const filtered = new Set<string>();
-    for (const p of rawActiveSet) {
-      const ts = firstSeenRef.current[p];
-      if (!ts || now - ts < FE_ACTIVE_TIMEOUT_MS) filtered.add(p);
-    }
-    return filtered;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rawActiveSet, tick]);
-
   const { nodes, edges } = useMemo(
-    () => buildLayout(providers, activeSet, lastSet, errorSet),
+    () => buildLayout(providers, lastSet, errorSet),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [providers, activeSet, lastKey, errorKey]
+    [providers, lastKey, errorKey]
   );
 
   const providersKey = useMemo(

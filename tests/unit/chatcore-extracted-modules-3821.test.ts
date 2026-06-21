@@ -1,6 +1,6 @@
 /**
  * LEDGER-6 (#3821-review) — the chatCore modularization (#3598) relocated ~300 lines into
- * open-sse/handlers/chatCore/{idempotency,sanitization,semanticCache,memorySkillsInjection}.ts
+ * open-sse/handlers/chatCore/{idempotency,sanitization,semanticCache}.ts
  * with no direct tests at the new seam. The extraction shipped a real `ReferenceError`
  * (idempotencyKey) that no test caught. These tests pin the pure/extractable pieces:
  *  - sanitizeChatRequestBody (token-field normalization, empty-name stripping, tool filter)
@@ -32,7 +32,11 @@ test("sanitizeChatRequestBody: Responses target maps max_completion_tokens → m
 });
 
 test("sanitizeChatRequestBody: Responses target maps max_tokens → max_output_tokens", () => {
-  const out = sanitizeChatRequestBody({ max_tokens: 128 }, FORMATS.OPENAI_RESPONSES, FORMATS.OPENAI);
+  const out = sanitizeChatRequestBody(
+    { max_tokens: 128 },
+    FORMATS.OPENAI_RESPONSES,
+    FORMATS.OPENAI
+  );
   assert.equal(out.max_output_tokens, 128);
   assert.equal(out.max_tokens, undefined);
 });
@@ -91,7 +95,11 @@ test("checkIdempotencyCache returns a hit Response reusing the same key after a 
     log: undefined,
   });
 
-  assert.equal(result.idempotencyKey, key, "the resolved key is returned for the save site to reuse");
+  assert.equal(
+    result.idempotencyKey,
+    key,
+    "the resolved key is returned for the save site to reuse"
+  );
   assert.ok(result.hit, "a cached entry produces a hit");
   assert.equal(result.hit!.response.headers.get("X-OmniRoute-Idempotent"), "true");
 });

@@ -1,19 +1,8 @@
 import { z } from "zod";
 import {
-  ACCOUNT_FALLBACK_STRATEGY_VALUES,
-  ROUTING_STRATEGY_VALUES,
-} from "@/shared/constants/routingStrategies";
-import { SUPPORTED_BATCH_ENDPOINTS } from "@/shared/constants/batchEndpoints";
-import { MAX_REQUEST_BODY_LIMIT_MB, MIN_REQUEST_BODY_LIMIT_MB } from "@/shared/constants/bodySize";
-import { COMBO_CONFIG_MODES } from "@/shared/constants/comboConfigMode";
-import { providerAllowsOptionalApiKey } from "@/shared/constants/providers";
-import { HIDEABLE_SIDEBAR_ITEM_IDS } from "@/shared/constants/sidebarVisibility";
-import {
   isForbiddenUpstreamHeaderName,
   isForbiddenCustomHeaderName,
 } from "@/shared/constants/upstreamHeaders";
-import { MAX_TIMER_TIMEOUT_MS } from "@/shared/utils/runtimeTimeouts";
-
 
 export function isHttpUrl(value: string): boolean {
   try {
@@ -102,38 +91,6 @@ export const resetStatsActionSchema = z.object({
   action: z.literal("reset-stats"),
 });
 
-export const ipFilterModeSchema = z.enum(["blacklist", "whitelist"]);
-
-export const tempBanSchema = z.object({
-  ip: z.string().trim().min(1),
-  durationMs: z.coerce.number().int().min(1).optional(),
-  reason: z.string().max(200).optional(),
-});
-
-export const updateIpFilterSchema = z
-  .object({
-    enabled: z.boolean().optional(),
-    mode: ipFilterModeSchema.optional(),
-    blacklist: z.array(z.string()).optional(),
-    whitelist: z.array(z.string()).optional(),
-    addBlacklist: z.string().optional(),
-    removeBlacklist: z.string().optional(),
-    addWhitelist: z.string().optional(),
-    removeWhitelist: z.string().optional(),
-    tempBan: tempBanSchema.optional(),
-    removeBan: z.string().optional(),
-  })
-  .strict()
-  .superRefine((value, ctx) => {
-    if (Object.keys(value).length === 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "No valid fields to update",
-        path: [],
-      });
-    }
-  });
-
 export const jsonRecordSchema = z.record(z.string(), z.unknown());
 
 export const nonEmptyJsonRecordSchema = jsonRecordSchema.refine(
@@ -183,21 +140,3 @@ export const codexProfileIdSchema = z.object({
     .regex(/^[a-zA-Z0-9._-]+$/, "profileId contains invalid characters")
     .refine((v) => v !== "." && v !== "..", "profileId is invalid"),
 });
-
-export const versionManagerToolSchema = z.object({
-  tool: z.string().trim().min(1),
-});
-
-export const versionManagerInstallSchema = versionManagerToolSchema.extend({
-  version: z.string().trim().optional(),
-});
-
-// ── Zed Credential Import Flow ──────────────────────────────────────────────────
-
-export const confirmedAccountSchema = z.object({
-  service: z.string().min(1).max(500),
-  account: z.string().min(1).max(500),
-  fingerprint: z.string().min(1).max(100),
-});
-
-export type ConfirmedAccount = z.infer<typeof confirmedAccountSchema>;

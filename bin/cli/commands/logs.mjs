@@ -82,7 +82,7 @@ export async function runLogsCommand(opts = {}) {
   // Pass only level filters to the stream (server-side); other filters are client-side
   const levelFilters = opts.filter ? opts.filter.split(",").map((f) => f.trim()) : [];
 
-  const { createLogStream } = await import("../../../src/lib/cli-helper/log-streamer.js");
+  const { createLogStream } = await import("../../../src/lib/cli-helper/log-streamer.ts");
   const { stream, stop } = createLogStream({ baseUrl, filters: levelFilters, follow, timeout });
 
   const reader = stream.getReader();

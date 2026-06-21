@@ -11,10 +11,8 @@ import {
   updateSettings,
   type ProviderLimitsCacheEntry,
 } from "@/lib/localDb";
-import { syncToCloud } from "@/lib/cloudSync";
 import { setQuotaCache } from "@/domain/quotaCache";
 import { buildClaudeExtraUsageConnectionUpdate } from "@/lib/providers/claudeExtraUsage";
-import { getMachineId } from "@/shared/utils/machine";
 import { USAGE_SUPPORTED_PROVIDERS } from "@/shared/constants/providers";
 import { getExecutor } from "@omniroute/open-sse/executors/index.ts";
 import { getUsageForProvider } from "@omniroute/open-sse/services/usage.ts";
@@ -131,7 +129,7 @@ export function notifyProviderUsageRecorded(
 
 // Subscribe at module load so usageHistory can emit usage events without importing
 // this module (and its executors/translator import graph). This module is loaded by
-// the provider-limits route and the background auto-sync scheduler at server boot.
+// manual usage refreshes and the background auto-sync scheduler at server boot.
 onUsageRecorded(notifyProviderUsageRecorded);
 
 function isUsageQuotaKeyAllowed(provider: string, quotaKey: string): boolean {
@@ -250,16 +248,6 @@ function isSupportedUsageConnection(connection: ProviderConnectionLike | null): 
 
 function withStatus(error: Error, status: number): Error & { status: number } {
   return Object.assign(error, { status });
-}
-
-async function syncToCloudIfEnabled() {
-  try {
-    const machineId = await getMachineId();
-    if (!machineId) return;
-    await syncToCloud(machineId);
-  } catch (error) {
-    console.error("[ProviderLimits] Error syncing refreshed credentials to cloud:", error);
-  }
 }
 
 /**
@@ -701,10 +689,6 @@ async function fetchLiveProviderLimitsWithOptions(
       conn = result.connection;
       wasRefreshed = result.refreshed;
 
-      if (wasRefreshed) {
-        await syncToCloudIfEnabled();
-      }
-
       let usageData = sanitizeUsageQuotasForProvider(
         conn.provider,
         (await getUsageForProvider(conn as unknown as JsonRecord, options)) as JsonRecord
@@ -722,7 +706,6 @@ async function fetchLiveProviderLimitsWithOptions(
         });
         if (forced.refreshed) {
           conn = forced.connection;
-          await syncToCloudIfEnabled();
           usageData = sanitizeUsageQuotasForProvider(
             conn.provider,
             (await getUsageForProvider(conn as unknown as JsonRecord, options)) as JsonRecord

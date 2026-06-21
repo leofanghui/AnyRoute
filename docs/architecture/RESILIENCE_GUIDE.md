@@ -8,10 +8,6 @@ lastUpdated: 2026-06-09
 
 OmniRoute has three distinct but related resilience mechanisms. Each has a different scope and purpose. Keep them separate when debugging routing behavior.
 
-![3-layer resilience model](../diagrams/exported/resilience-3layers.svg)
-
-> Source: [diagrams/resilience-3layers.mmd](../diagrams/resilience-3layers.mmd)
-
 ## 1. Provider Circuit Breaker
 
 **Scope:** entire provider (e.g., `glm`, `openai`, `anthropic`).
@@ -23,18 +19,17 @@ OmniRoute has three distinct but related resilience mechanisms. Each has a diffe
 - Core class: `src/shared/utils/circuitBreaker.ts`
 - Wiring: `src/sse/handlers/chatHelpers.ts`, `src/sse/handlers/chat.ts`
 - Status API: `GET /api/monitoring/health`
-- Reset API: `POST /api/resilience/reset`
 - Wrappers: `open-sse/services/accountFallback.ts`
 - DB table: `domain_circuit_breakers`
 
 **States:**
 
-- `CLOSED` — normal traffic allowed
-- `DEGRADED` — traffic still allowed, but elevated provider failures are being tracked
-- `OPEN` — provider temporarily blocked; combo routing skips it
-- `HALF_OPEN` — reset timeout elapsed; probe request allowed
+- `CLOSED` �?normal traffic allowed
+- `DEGRADED` �?traffic still allowed, but elevated provider failures are being tracked
+- `OPEN` �?provider temporarily blocked; combo routing skips it
+- `HALF_OPEN` �?reset timeout elapsed; probe request allowed
 
-**Configurable defaults (`open-sse/config/constants.ts`, exposed in Dashboard → Settings → Resilience):**
+**Configurable defaults (`open-sse/config/constants.ts`):**
 
 | Class   | Degraded at | Opens at    | Reset timeout |
 | ------- | ----------- | ----------- | ------------- |
@@ -44,7 +39,7 @@ OmniRoute has three distinct but related resilience mechanisms. Each has a diffe
 
 `degradationThreshold` controls when a provider enters `DEGRADED`; `failureThreshold` controls when it opens and is skipped. Local provider profiles are not exposed on the Resilience settings page yet.
 
-**Trip codes:** only provider-level statuses `[408, 500, 502, 503, 504]`. Do NOT trip for account-level errors (most 401/403/429 — those belong to cooldown or lockout).
+**Trip codes:** only provider-level statuses `[408, 500, 502, 503, 504]`. Do NOT trip for account-level errors (most 401/403/429 �?those belong to cooldown or lockout).
 
 **Lazy recovery:** when `OPEN` expires, `getStatus()`, `canExecute()`, `getRetryAfterMs()` refresh state to `HALF_OPEN`. No background timer needed.
 
@@ -65,10 +60,10 @@ OmniRoute has three distinct but related resilience mechanisms. Each has a diffe
 
 **Fields per connection:**
 
-- `rateLimitedUntil` — timestamp until cooldown expires
+- `rateLimitedUntil` �?timestamp until cooldown expires
 - `testStatus: "unavailable"`
 - `lastError`, `lastErrorType`, `errorCode`
-- `backoffLevel` — exponential backoff counter
+- `backoffLevel` �?exponential backoff counter
 
 **Default cooldowns:**
 
@@ -103,65 +98,41 @@ These persist until credentials change or an operator resets them. Do not overwr
 - Local providers returning 404 for one missing model
 - Provider-specific mode/model permission failures (e.g., Grok modes)
 
-**Implementation:** `open-sse/services/accountFallback.ts` — `lockModel()`, `clearModelLock()`, `getAllModelLockouts()`.
+**Implementation:** `open-sse/services/accountFallback.ts` �?`lockModel()`, `clearModelLock()`, `getAllModelLockouts()`.
 
-### Model Cooldowns Dashboard (v3.8.0)
-
-UI: Settings → Model Cooldowns (`src/app/(dashboard)/dashboard/settings/components/ModelCooldownsCard.tsx`)
-
-Lists active lockouts with: provider, connection, model, reason, expiresAt. Operators can manually re-enable a model from the card.
-
-**REST API:**
-
-- `GET /api/resilience/model-cooldowns` — list active lockouts
-- `DELETE /api/resilience/model-cooldowns` — manual re-enable. Body: `{provider, connection, model}`. Auth: management.
+The minimal build keeps runtime lockout behavior but does not expose a dedicated model-cooldowns management route.
 
 ---
 
 ## Other Resilience Features
 
-- **14 routing strategies** (priority, weighted, round-robin, context-relay, fill-first, p2c, random, least-used, cost-optimized, reset-aware, strict-random, auto, lkgp, context-optimized) — see [AUTO-COMBO.md](../routing/AUTO-COMBO.md).
-- **Reset-aware routing** (v3.8.0) — prioritizes connections by quota reset time.
-- **Background mode degradation** — Responses API `background: true` degraded to sync with warning.
-- **Dynamic tool limit detection** — backs off providers when tool count limits hit.
-- **Emergency fallback** — controlled by `OMNIROUTE_EMERGENCY_FALLBACK`; operators can override it from the Feature Flags page without a restart.
+- **14 routing strategies** (priority, weighted, round-robin, context-relay, fill-first, p2c, random, least-used, cost-optimized, reset-aware, strict-random, auto, lkgp, context-optimized) �?see [AUTO-COMBO.md](../routing/AUTO-COMBO.md).
+- **Reset-aware routing** (v3.8.0) �?prioritizes connections by quota reset time.
+- **Background mode degradation** �?Responses API `background: true` degraded to sync with warning.
+- **Dynamic tool limit detection** �?backs off providers when tool count limits hit.
+- **Emergency fallback** - controlled by `OMNIROUTE_EMERGENCY_FALLBACK`.
 
 ---
 
 ## Debugging
 
-- All keys for a provider skipped → check both circuit breaker state AND each connection's `rateLimitedUntil`/`testStatus`.
-- Provider permanently excluded after reset window → code reading raw `state` instead of `getStatus()`/`canExecute()`.
-- One key fails, others should work → prefer connection cooldown over circuit breaker.
-- Only one model fails → prefer model lockout over connection cooldown.
-- State should self-recover but doesn't → check for future timestamp + read path that refreshes expired state. Permanent statuses require manual changes.
+- All keys for a provider skipped �?check both circuit breaker state AND each connection's `rateLimitedUntil`/`testStatus`.
+- Provider permanently excluded after reset window �?code reading raw `state` instead of `getStatus()`/`canExecute()`.
+- One key fails, others should work �?prefer connection cooldown over circuit breaker.
+- Only one model fails �?prefer model lockout over connection cooldown.
+- State should self-recover but doesn't �?check for future timestamp + read path that refreshes expired state. Permanent statuses require manual changes.
 
 ---
 
 ## TLS Fingerprinting & Stealth
 
-Provider-specific stealth (JA3/JA4, CCH, obfuscation) is separately documented — see [STEALTH_GUIDE.md](../security/STEALTH_GUIDE.md).
-
----
-
-## Resilience testing (Fase 8 · Bloco C)
-
-Além dos unit tests da lógica de resiliência, três testes exercitam o runtime sob
-estresse/falha real (todos integração/nightly — nenhum bloqueia PR):
-
-| Teste | O quê | Rodar |
-|---|---|---|
-| Chaos | Fake-upstream node injeta latência/reset/timeout/503 reais; valida que o circuit breaker abre/recupera e `checkFallbackError` classifica 503 como fallback recuperável. | `RUN_CHAOS_INT=1 npm run test:chaos` |
-| Heap-growth | ~500 streams por `createSSEStream` sob `--expose-gc`; falha se o heap crescer além do teto (guarda OOM #3069). | `npm run test:heap` |
-| k6 soak | Carga sustentada contra `/api/monitoring/health`; thresholds p95/erro. | `k6 run tests/load/k6-soak.js` (nightly) |
-
-Orquestrados por `.github/workflows/nightly-resilience.yml` (cron + dispatch). No
-`test:integration` default, chaos e heap se auto-skipam (sem `RUN_CHAOS_INT`/`--expose-gc`).
+Provider-specific transport fingerprint controls are outside the minimal source profile.
 
 ---
 
 ## See Also
 
-- [Architecture Guide](./ARCHITECTURE.md) — System architecture and internals
-- [User Guide](../guides/USER_GUIDE.md) — Providers, combos, CLI integration
-- [Auto-Combo Engine](../routing/AUTO-COMBO.md) — 6-factor scoring, mode packs
+- [Docs Index](../README.md) �?Minimal documentation surface
+- [Providers Guide](../getting-started/PROVIDERS-GUIDE.md) �?Provider setup and routing inputs
+- [Auto-Combo](../routing/AUTO-COMBO.md) �?Routing strategy reference
+- [Auto-Combo Engine](../routing/AUTO-COMBO.md) �?6-factor scoring, mode packs

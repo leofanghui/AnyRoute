@@ -26,8 +26,8 @@ jobs:
     #     6 chatCore/* leaves with direct unit coverage as batch g. A follow-up then wrote dedicated
     #     unit tests for 6 more leaves and added them as batch h. A final follow-up added dedicated
     #     tests (no mock.module — fetch-override + crafted inputs + temp-DATA_DIR) for telemetryHelpers
-    #     + memorySkillsInjection + semanticCache (its cache-HIT block now has a setCachedResponse
-    #     fixture) as batch i — ALL 15/15 chatCore leaves are now mutated. See
+    #     + semanticCache (its cache-HIT block now has a setCachedResponse
+    #     fixture) as batch i. Minimal builds mutate only retained chatCore leaves. See
     #     _mutate_godfiles_excluded_comment in stryker.conf.json.
     # 9 PARALLEL batches, each overriding the mutate set via `--mutate` (Stryker 9 CLI:
     # `-m, --mutate <comma-list>`; the conf's `mutate[]` remains the local-run default/union).
@@ -73,10 +73,10 @@ jobs:
             mutate: "open-sse/handlers/chatCore/comboContextCache.ts,open-sse/handlers/chatCore/idempotency.ts,open-sse/handlers/chatCore/passthroughHelpers.ts,open-sse/handlers/chatCore/responseHeaders.ts,open-sse/handlers/chatCore/sanitization.ts,open-sse/handlers/chatCore/upstreamTimeouts.ts"
             timeout: 240
           - name: h
-            mutate: "open-sse/handlers/chatCore/headers.ts,open-sse/handlers/chatCore/logTruncation.ts,open-sse/handlers/chatCore/memoryExtraction.ts,open-sse/handlers/chatCore/nonStreamingSse.ts,open-sse/handlers/chatCore/passthroughToolNames.ts,open-sse/handlers/chatCore/executorHelpers.ts"
+            mutate: "open-sse/handlers/chatCore/headers.ts,open-sse/handlers/chatCore/logTruncation.ts,open-sse/handlers/chatCore/nonStreamingSse.ts,open-sse/handlers/chatCore/passthroughToolNames.ts,open-sse/handlers/chatCore/executorHelpers.ts"
             timeout: 240
           - name: i
-            mutate: "open-sse/handlers/chatCore/telemetryHelpers.ts,open-sse/handlers/chatCore/memorySkillsInjection.ts,open-sse/handlers/chatCore/semanticCache.ts"
+            mutate: "open-sse/handlers/chatCore/telemetryHelpers.ts,open-sse/handlers/chatCore/semanticCache.ts"
     # Per-batch budget: a/b/c/d override to 350min, g/h to 240min; the rest default to 180min.
     # `matrix.batch.timeout` is null for batches without the key -> `|| 180`.
     timeout-minutes: ${{ matrix.batch.timeout || 180 }}

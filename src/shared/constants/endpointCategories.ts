@@ -20,92 +20,15 @@ export interface EndpointCategory {
 export const ENDPOINT_CATEGORIES: readonly EndpointCategory[] = [
   {
     id: "chat",
-    label: "Chat / Messages",
-    description: "Chat completions, text completions, messages, and responses",
-    prefixes: [
-      "/v1/chat/completions",
-      "/v1/completions",
-      "/v1/messages",
-      "/v1/responses",
-    ],
-  },
-  {
-    id: "search",
-    label: "Web Search",
-    description: "Web search and search analytics",
-    prefixes: ["/v1/search"],
-  },
-  {
-    id: "embeddings",
-    label: "Embeddings",
-    description: "Text embeddings generation",
-    prefixes: ["/v1/embeddings"],
-  },
-  {
-    id: "images",
-    label: "Images",
-    description: "Image generation and editing",
-    prefixes: ["/v1/images"],
-  },
-  {
-    id: "audio",
-    label: "Audio / Speech",
-    description: "Text-to-speech and speech-to-text",
-    prefixes: ["/v1/audio"],
-  },
-  {
-    id: "video",
-    label: "Video",
-    description: "Video generation",
-    prefixes: ["/v1/videos"],
-  },
-  {
-    id: "music",
-    label: "Music",
-    description: "Music generation",
-    prefixes: ["/v1/music"],
-  },
-  {
-    id: "rerank",
-    label: "Rerank",
-    description: "Document reranking",
-    prefixes: ["/v1/rerank"],
+    label: "Chat / Responses",
+    description: "Chat completions and Responses API requests",
+    prefixes: ["/v1/chat/completions", "/v1/responses"],
   },
   {
     id: "models",
     label: "Models",
     description: "List available models (read-only)",
     prefixes: ["/v1/models"],
-  },
-  {
-    id: "moderations",
-    label: "Moderations",
-    description: "Content moderation",
-    prefixes: ["/v1/moderations"],
-  },
-  {
-    id: "batches",
-    label: "Batch Processing",
-    description: "Batch API operations",
-    prefixes: ["/v1/batches"],
-  },
-  {
-    id: "files",
-    label: "Files",
-    description: "File upload and management",
-    prefixes: ["/v1/files"],
-  },
-  {
-    id: "web-fetch",
-    label: "Web Fetch",
-    description: "Web page fetching",
-    prefixes: ["/v1/web"],
-  },
-  {
-    id: "agents",
-    label: "Agents / A2A",
-    description: "Agent-to-agent protocol and task execution",
-    prefixes: ["/v1/agents"],
   },
 ] as const;
 

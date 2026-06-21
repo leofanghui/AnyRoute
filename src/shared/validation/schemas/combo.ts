@@ -1,19 +1,6 @@
 import { z } from "zod";
-import {
-  ACCOUNT_FALLBACK_STRATEGY_VALUES,
-  ROUTING_STRATEGY_VALUES,
-} from "@/shared/constants/routingStrategies";
-import { SUPPORTED_BATCH_ENDPOINTS } from "@/shared/constants/batchEndpoints";
-import { MAX_REQUEST_BODY_LIMIT_MB, MIN_REQUEST_BODY_LIMIT_MB } from "@/shared/constants/bodySize";
-import { COMBO_CONFIG_MODES } from "@/shared/constants/comboConfigMode";
-import { providerAllowsOptionalApiKey } from "@/shared/constants/providers";
-import { HIDEABLE_SIDEBAR_ITEM_IDS } from "@/shared/constants/sidebarVisibility";
-import {
-  isForbiddenUpstreamHeaderName,
-  isForbiddenCustomHeaderName,
-} from "@/shared/constants/upstreamHeaders";
+import { ROUTING_STRATEGY_VALUES } from "@/shared/constants/routingStrategies";
 import { MAX_TIMER_TIMEOUT_MS } from "@/shared/utils/runtimeTimeouts";
-
 
 // ──── Combo Schemas ────
 
@@ -56,18 +43,6 @@ export const shadowRoutingSchema = z
   })
   .strict();
 
-export const evalRoutingSchema = z
-  .object({
-    enabled: z.boolean().optional(),
-    suiteIds: z.array(z.string().trim().min(1).max(200)).max(50).optional(),
-    maxAgeHours: z.coerce.number().min(1).max(8760).optional(),
-    minCases: z.coerce.number().int().min(1).max(100000).optional(),
-    qualityWeight: z.coerce.number().min(0).max(1).optional(),
-    latencyWeight: z.coerce.number().min(0).max(1).optional(),
-    cacheTtlMs: z.coerce.number().int().min(1000).max(300000).optional(),
-  })
-  .strict();
-
 export const comboStrategySchema = z.enum(ROUTING_STRATEGY_VALUES);
 
 export const scoringWeightsSchema = z
@@ -102,18 +77,6 @@ export const compositeTiersSchema = z
   })
   .strict();
 
-export const compressionModeSchema = z.enum([
-  "off",
-  "lite",
-  "standard",
-  "aggressive",
-  "ultra",
-  "rtk",
-  "stacked",
-]);
-
-export const comboCompressionOverrideSchema = z.union([z.literal(""), compressionModeSchema]);
-
 export const slaRoutingPolicySchema = z
   .object({
     targetP95Ms: z.coerce.number().int().positive().max(300000).optional(),
@@ -142,15 +105,12 @@ export const comboRuntimeConfigSchema = z
     maxComboDepth: z.coerce.number().int().min(1).max(10).optional(),
     trackMetrics: z.boolean().optional(),
     reasoningTokenBufferEnabled: z.boolean().optional(),
-    compressionMode: compressionModeSchema.optional(),
     failoverBeforeRetry: z.boolean().optional(),
     maxSetRetries: z.coerce.number().int().min(0).max(10).optional(),
     setRetryDelayMs: z.coerce.number().int().min(0).max(60000).optional(),
     zeroLatencyOptimizationsEnabled: z.boolean().optional(),
     hedging: z.boolean().optional(),
     hedgeDelayMs: z.coerce.number().int().min(0).max(60000).optional(),
-    fallbackCompressionMode: compressionModeSchema.optional(),
-    fallbackCompressionThreshold: z.coerce.number().int().min(0).max(2_000_000).optional(),
     predictiveTtftMs: z.coerce.number().int().min(0).max(300000).optional(),
     // Auto-Combo / LKGP Extensions
     candidatePool: z.array(z.string().min(1)).optional(),
@@ -177,7 +137,6 @@ export const comboRuntimeConfigSchema = z
     resetWindowQuotaCacheTtlMs: z.coerce.number().int().min(0).max(300_000).optional(),
     resetWindowQuotaCacheMaxStaleMs: z.coerce.number().int().min(0).max(3_600_000).optional(),
     shadowRouting: shadowRoutingSchema.optional(),
-    evalRouting: evalRoutingSchema.optional(),
   })
   .strict()
   .superRefine((config, ctx) => {
@@ -197,9 +156,6 @@ export const comboRuntimeConfigSchema = z
     }
     if (typeof config.predictiveTtftMs === "number" && config.predictiveTtftMs > 0) {
       addZeroLatencyIssue(["predictiveTtftMs"]);
-    }
-    if (config.fallbackCompressionMode && config.fallbackCompressionMode !== "off") {
-      addZeroLatencyIssue(["fallbackCompressionMode"]);
     }
   });
 
@@ -270,7 +226,6 @@ export const updateComboSchema = z
     tool_filter_regex: z.string().max(1000).optional(),
     context_cache_protection: z.boolean().optional(),
     context_length: z.number().int().min(1000).max(2000000).optional().nullable(),
-    compressionOverride: comboCompressionOverrideSchema.optional(),
   })
   .superRefine((value, ctx) => {
     if (
@@ -283,8 +238,7 @@ export const updateComboSchema = z
       value.system_message === undefined &&
       value.tool_filter_regex === undefined &&
       value.context_cache_protection === undefined &&
-      value.context_length === undefined &&
-      value.compressionOverride === undefined
+      value.context_length === undefined
     ) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

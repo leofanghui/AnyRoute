@@ -12,7 +12,7 @@
 ```
 omniroute keys add openai sk-xxx
 omniroute combo switch fastest
-omniroute memory search "react hooks"
+omniroute providers list
 ```
 
 **Not allowed**:
@@ -136,13 +136,12 @@ export const RETRY_DEFAULTS = {
 
 - Every user-facing string goes through `t("module.key", vars)`.
 - Catalogs live in `bin/cli/locales/{locale}.json` (nested objects).
-  42 files ship out-of-the-box: `en`, `pt-BR`, and 40 additional locales.
-  11 locales are scaffold-only (empty `{}`); all keys fall back to `en` automatically.
+  The minimal profile ships `en` and `zh-CN`; unsupported locales fall back to `en`.
 - Detection order: `--lang` flag → `OMNIROUTE_LANG` env → `LC_ALL` → `LC_MESSAGES` → `LANG` → `en`.
 - Locale persisted via `config lang set <code>` — saves `OMNIROUTE_LANG` to `~/.omniroute/.env`.
 - Missing keys return the key itself (no crash).
-- PRs that add new strings **must** update `en.json` and `pt-BR.json`.
-  Other locale files are best-effort; missing keys silently fall back to `en`.
+- PRs that add new strings **must** update `en.json` and `zh-CN.json`.
+  Missing keys silently fall back to `en`.
 - `normalize()` in `i18n.mjs` validates locale codes via `/^[a-zA-Z0-9-]+$/` to
   prevent path traversal — never pass raw filesystem paths.
 - Canonical locale list: `config/i18n.json` — source of truth used by both CLI and

@@ -5,12 +5,8 @@ export const WS_PUBLIC_PATHS = new Set(["/v1/ws", "/api/v1/ws"]);
 export const WS_ALLOWED_ENDPOINTS = new Set([
   "/v1/chat/completions",
   "/api/v1/chat/completions",
-  "/v1/messages",
-  "/api/v1/messages",
   "/v1/responses",
   "/api/v1/responses",
-  "/v1/completions",
-  "/api/v1/completions",
 ]);
 
 const HANDSHAKE_PATH = "/api/v1/ws";

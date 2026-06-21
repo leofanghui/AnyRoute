@@ -24,12 +24,7 @@ import { assertNoStale } from "./lib/allowlist.mjs";
 const cwd = process.cwd();
 
 // Directories to scan (Hard Rule #12 applies to ALL error-response-building surfaces).
-// 6A.8: expanded from executors+handlers to include MCP server tools and API route files.
-const SCAN_DIRS = [
-  path.join(cwd, "open-sse/executors"),
-  path.join(cwd, "open-sse/handlers"),
-  path.join(cwd, "open-sse/mcp-server"),
-];
+const SCAN_DIRS = [path.join(cwd, "open-sse/executors"), path.join(cwd, "open-sse/handlers")];
 
 // Glob-style pattern for API route files under src/app/api/ (matched by path test below).
 const IS_API_ROUTE = /^src\/app\/api\/.+\/route\.tsx?$/;
@@ -43,13 +38,8 @@ export const KNOWN_MISSING_ERROR_HELPER = new Set([
   // --- original open-sse/executors + handlers scope (pre-6A.8) ---
   // --- 6A.8 expanded scope: src/app/api/**/route.ts pre-existing violations ---
   // TODO(6A.8): pre-existing, triage — route through buildErrorBody()/sanitizeErrorMessage()
-  "src/app/api/cli-tools/backups/route.ts",
-  "src/app/api/cli-tools/guide-settings/[toolId]/route.ts",
   "src/app/api/logs/export/route.ts",
-  "src/app/api/models/catalog/route.ts",
   "src/app/api/providers/test-batch/route.ts",
-  "src/app/api/settings/import-json/route.ts",
-  "src/app/api/usage/proxy-logs/route.ts",
 ]);
 
 // Import specifiers that count as "uses the error helper" (path ends in utils/error).
@@ -136,9 +126,7 @@ function forwardsRawError(source) {
     if (m && !/sanitize/i.test(line)) tainted.add(m[1]);
   }
   const taintedUse =
-    tainted.size > 0
-      ? new RegExp(String.raw`\b(?:${[...tainted].join("|")})\b`)
-      : null;
+    tainted.size > 0 ? new RegExp(String.raw`\b(?:${[...tainted].join("|")})\b`) : null;
 
   // Pass 2: scan for leak lines.
   for (let i = 0; i < lines.length; i++) {
@@ -232,7 +220,7 @@ export function findErrorHelperViolations(files, allowlist) {
 
 function collectFiles() {
   const files = [];
-  // Standard scan dirs (open-sse/executors, handlers, mcp-server).
+  // Standard scan dirs (open-sse/executors and handlers).
   for (const dir of SCAN_DIRS) {
     for (const p of walk(dir)) {
       files.push({

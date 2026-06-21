@@ -7,7 +7,6 @@ import { RTL_LOCALES } from "@/i18n/config";
 import { normalizeComplianceEventTypes } from "@/i18n/request";
 import { getSettings } from "@/lib/db/settings";
 import type { Viewport } from "next";
-import { PwaRegister } from "@/shared/components/PwaRegister";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -28,16 +27,7 @@ export async function generateMetadata() {
     title: `${instanceName} — AI Gateway for Multi-Provider LLMs`,
     description:
       "OmniRoute is an AI gateway for multi-provider LLMs. One endpoint for all your AI providers.",
-    manifest: "/manifest.webmanifest",
     applicationName: instanceName,
-    appleWebApp: {
-      capable: true,
-      title: instanceName,
-      statusBarStyle: "black-translucent",
-    },
-    other: {
-      "mobile-web-app-capable": "yes",
-    },
     icons: {
       icon: customFaviconUrl
         ? "/api/settings/favicon"
@@ -46,7 +36,6 @@ export async function generateMetadata() {
             { url: "/favicon.svg", type: "image/svg+xml" },
             { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
           ],
-      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
   };
 }
@@ -87,7 +76,6 @@ export default async function RootLayout({ children }) {
           Skip to content
         </a>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <PwaRegister />
           <ThemeProvider>{children}</ThemeProvider>
         </NextIntlClientProvider>
       </body>

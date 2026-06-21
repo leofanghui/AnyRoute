@@ -278,13 +278,12 @@ test("partitionDeletedRenamed: a true test-file deletion is captured as deleted"
 });
 
 test("partitionDeletedRenamed: a test→test rename is a relocation, NOT a deletion", () => {
-  const out =
-    "R085\ttests/unit/cli/live-ws-startup.test.ts\ttests/integration/live-ws-startup.test.ts";
+  const out = "R085\ttests/unit/cli/foo.test.ts\ttests/integration/foo.test.ts";
   const { deletedTests, renames } = partitionDeletedRenamed(out);
   assert.deepEqual(deletedTests, [], "relocation must not be flagged as a deletion");
   assert.equal(renames.length, 1);
-  assert.equal(renames[0].from, "tests/unit/cli/live-ws-startup.test.ts");
-  assert.equal(renames[0].to, "tests/integration/live-ws-startup.test.ts");
+  assert.equal(renames[0].from, "tests/unit/cli/foo.test.ts");
+  assert.equal(renames[0].to, "tests/integration/foo.test.ts");
 });
 
 test("partitionDeletedRenamed: a test→non-test rename is recorded (caller treats as removed)", () => {
@@ -306,7 +305,7 @@ test("relocated test with preserved asserts is NOT masking (evaluateMasking on t
   // Simulates the rename pipeline: base(old) vs head(new) for a clean relocation.
   const r = evaluateMasking([
     {
-      file: "tests/integration/live-ws-startup.test.ts",
+      file: "tests/integration/foo.test.ts",
       baseAsserts: 2,
       headAsserts: 2, // preserved across the move
       baseTaut: 0,

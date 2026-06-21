@@ -56,12 +56,8 @@ test("no two migration files share the same numeric prefix", () => {
   );
 });
 
-test("quota_pools lives at 085 (renumbered from the 077 collision)", () => {
+test("api_key_stream_default_mode stays at 077", () => {
   const files = migrationFiles();
-  const quotaPools = files.find((f) => f.name === "quota_pools");
-  assert.ok(quotaPools, "quota_pools migration must exist");
-  assert.equal(quotaPools.version, "085", "quota_pools must be renumbered to 085");
-  // The standalone, non-idempotent column add stays at 077.
   const streamDefault = files.find((f) => f.name === "api_key_stream_default_mode");
   assert.ok(streamDefault, "api_key_stream_default_mode migration must exist");
   assert.equal(streamDefault.version, "077", "api_key_stream_default_mode stays at 077");

@@ -47,13 +47,8 @@ async function testComboTarget(target, baseInternalUrl, internalApiKey: string |
         latencyMs: 0,
       });
     }
-    const modelLower = modelStr.toLowerCase();
-    const isEmbedding =
-      modelLower.includes("embedding") ||
-      modelLower.includes("bge-") ||
-      modelLower.includes("text-embed");
-    const internalUrl = `${baseInternalUrl}/v1/${isEmbedding ? "embeddings" : "chat/completions"}`;
-    const testBody = buildComboTestRequestBody(modelStr, isEmbedding);
+    const internalUrl = `${baseInternalUrl}/v1/chat/completions`;
+    const testBody = buildComboTestRequestBody(modelStr);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 20000);

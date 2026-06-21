@@ -1,9 +1,3 @@
-/**
- * Unit tests for API key endpoint restriction enforcement through enforceApiKeyPolicy.
- *
- * These tests require the full DB stack (same pattern as api-key-policy.test.ts).
- */
-
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -82,9 +76,7 @@ test.after(async () => {
   fs.rmSync(TEST_DATA_DIR, { recursive: true, force: true });
 });
 
-// ─── Policy tests ─────────────────────────────────────────────────────────
-
-test("no restriction — all endpoints allowed", async () => {
+test("no restriction allows retained chat endpoint", async () => {
   const policy = await loadPolicy("no-endpoint-restriction");
   const key = await createKeyWithEndpoints([]);
 
@@ -94,19 +86,19 @@ test("no restriction — all endpoints allowed", async () => {
   assert.equal(result.rejection, null);
 });
 
-test("search-only key allows /v1/search", async () => {
-  const policy = await loadPolicy("search-only-allowed");
-  const key = await createKeyWithEndpoints(["search"]);
+test("models-only key allows /v1/models", async () => {
+  const policy = await loadPolicy("models-only-allowed");
+  const key = await createKeyWithEndpoints(["models"]);
 
-  const request = makeRequest("http://localhost/v1/search", key.key);
-  const result = await policy.enforceApiKeyPolicy(request, "search");
+  const request = makeRequest("http://localhost/v1/models", key.key);
+  const result = await policy.enforceApiKeyPolicy(request, "models");
 
   assert.equal(result.rejection, null);
 });
 
-test("search-only key blocks /v1/chat/completions", async () => {
-  const policy = await loadPolicy("search-blocks-chat");
-  const key = await createKeyWithEndpoints(["search"]);
+test("models-only key blocks /v1/chat/completions", async () => {
+  const policy = await loadPolicy("models-blocks-chat");
+  const key = await createKeyWithEndpoints(["models"]);
 
   const request = makeRequest("http://localhost/v1/chat/completions", key.key);
   const result = await policy.enforceApiKeyPolicy(request, "gpt-4");
@@ -117,44 +109,7 @@ test("search-only key blocks /v1/chat/completions", async () => {
   assert.ok(msg.includes("chat"), `Error message should mention 'chat', got: ${msg}`);
 });
 
-test("chat+embeddings key allows /v1/embeddings", async () => {
-  const policy = await loadPolicy("chat-emb-allowed");
-  const key = await createKeyWithEndpoints(["chat", "embeddings"]);
-
-  const request = makeRequest("http://localhost/v1/embeddings", key.key);
-  const result = await policy.enforceApiKeyPolicy(request, "text-embedding-3");
-
-  assert.equal(result.rejection, null);
-});
-
-test("chat-only key blocks /v1/embeddings", async () => {
-  const policy = await loadPolicy("chat-blocks-emb");
-  const key = await createKeyWithEndpoints(["chat"]);
-
-  const request = makeRequest("http://localhost/v1/embeddings", key.key);
-  const result = await policy.enforceApiKeyPolicy(request, "text-embedding-3");
-
-  assert.ok(result.rejection, "Should reject the request");
-  assert.equal(result.rejection.status, 403);
-  const msg = await readErrorMessage(result.rejection);
-  assert.ok(
-    msg.includes("embeddings"),
-    `Error message should mention 'embeddings', got: ${msg}`
-  );
-});
-
-test("search-only key blocks /v1/images/generations", async () => {
-  const policy = await loadPolicy("search-blocks-images");
-  const key = await createKeyWithEndpoints(["search"]);
-
-  const request = makeRequest("http://localhost/v1/images/generations", key.key);
-  const result = await policy.enforceApiKeyPolicy(request, "dall-e-3");
-
-  assert.ok(result.rejection, "Should reject the request");
-  assert.equal(result.rejection.status, 403);
-});
-
-test("no API key — endpoint check skipped", async () => {
+test("no API key skips endpoint restriction check", async () => {
   const policy = await loadPolicy("no-key-endpoint");
 
   const request = makeRequest("http://localhost/v1/chat/completions");
@@ -163,30 +118,18 @@ test("no API key — endpoint check skipped", async () => {
   assert.equal(result.rejection, null);
 });
 
-test("search-only key allows /v1/search/analytics", async () => {
-  const policy = await loadPolicy("search-analytics-allowed");
-  const key = await createKeyWithEndpoints(["search"]);
-
-  const request = makeRequest("http://localhost/v1/search/analytics", key.key);
-  const result = await policy.enforceApiKeyPolicy(request, "analytics");
-
-  assert.equal(result.rejection, null);
-});
-
-// ─── DB persistence tests ──────────────────────────────────────────────────
-
-test("updateApiKeyPermissions: persists allowedEndpoints", async () => {
+test("updateApiKeyPermissions persists retained allowedEndpoints", async () => {
   const key = await apiKeysDb.createApiKey("EP Persist Key", "machine-persist");
   await apiKeysDb.updateApiKeyPermissions(key.id, {
-    allowedEndpoints: ["search", "embeddings"],
+    allowedEndpoints: ["chat", "models"],
   });
 
   const meta = await apiKeysDb.getApiKeyMetadata(key.key);
   assert.ok(meta, "Metadata should exist");
-  assert.deepEqual(meta.allowedEndpoints, ["search", "embeddings"]);
+  assert.deepEqual(meta.allowedEndpoints, ["chat", "models"]);
 });
 
-test("updateApiKeyPermissions: empty allowedEndpoints", async () => {
+test("updateApiKeyPermissions keeps empty allowedEndpoints", async () => {
   const key = await apiKeysDb.createApiKey("EP All Key", "machine-all");
   await apiKeysDb.updateApiKeyPermissions(key.id, {
     allowedEndpoints: [],
@@ -197,7 +140,7 @@ test("updateApiKeyPermissions: empty allowedEndpoints", async () => {
   assert.deepEqual(meta.allowedEndpoints, []);
 });
 
-test("getApiKeys: returns allowedEndpoints in listing", async () => {
+test("getApiKeys returns allowedEndpoints in listing", async () => {
   const key = await apiKeysDb.createApiKey("EP List Key", "machine-list");
   await apiKeysDb.updateApiKeyPermissions(key.id, {
     allowedEndpoints: ["chat"],

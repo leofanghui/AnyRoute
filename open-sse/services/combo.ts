@@ -55,8 +55,6 @@ import { fisherYatesShuffle, getNextFromDeck } from "../../src/shared/utils/shuf
 import { parseModel } from "./model.ts";
 import { applyComboAgentMiddleware } from "./comboAgentMiddleware.ts";
 import { checkCredentialGate, logCredentialSkip } from "./credentialGate.ts";
-import { emit } from "../../src/lib/events/eventBus";
-import { notifyWebhookEvent } from "../../src/lib/webhookDispatcher";
 import { classifyWithConfig } from "./intentClassifier.ts";
 import { selectProvider as selectAutoProvider } from "./autoCombo/engine.ts";
 import { selectWithStrategy } from "./autoCombo/routerStrategy.ts";
@@ -70,11 +68,9 @@ import {
 import { supportsToolCalling } from "./modelCapabilities.ts";
 import { estimateTokens } from "./contextManager.ts";
 import { getSessionConnection } from "./sessionManager.ts";
-import { orderTargetsByEvalScores } from "./evalRouting.ts";
 import { generateRoutingHints } from "./manifestAdapter";
 import type { RoutingHint } from "./manifestAdapter";
 import { buildComplexityRoutingHint } from "./autoCombo/complexityRouter";
-import type { CompressionMode } from "./compression/types.ts";
 import { getProviderConnections } from "../../src/lib/db/providers";
 import { normalizeRoutingStrategy } from "../../src/shared/constants/routingStrategies.ts";
 import {
@@ -138,8 +134,6 @@ import {
   sortTargetsByContextSize,
 } from "./combo/comboStructure.ts";
 import {
-  QUOTA_SOFT_DEPRIORITIZE_FACTOR,
-  setCandidateQuotaSoftPenalty,
   _registerExecutionCandidates,
   _unregisterExecutionCandidates,
   extractPromptForIntent,
@@ -167,9 +161,6 @@ import {
 // Backward-compatible re-exports — these were public from combo.ts before the
 // types extraction (Quality Gate v2 / Fase 9). Keep the external surface stable.
 export { RESET_WINDOW_NAMES };
-// chatCore.ts's dynamic `import("../services/combo")` reads these two — keep them
-// re-exported from combo.ts after the auto-strategy extraction (combo split D8).
-export { QUOTA_SOFT_DEPRIORITIZE_FACTOR, setCandidateQuotaSoftPenalty };
 export { scoreAutoTargets, expandAutoComboCandidatePool };
 export type { SingleModelTarget, ResolvedComboTarget };
 export { validateResponseQuality };
@@ -768,7 +759,6 @@ export async function handleComboChat({
       relayOptions?.sessionId,
       resetWindowConfig
     );
-    // G2: Register candidates so chatCore can mark quotaSoftPenalty via setCandidateQuotaSoftPenalty.
     _registerExecutionCandidates(candidates);
     if (candidates.length > 0) {
       let selectedProvider: string | null = null;
@@ -1016,7 +1006,6 @@ export async function handleComboChat({
     log.info("COMBO", `Context-optimized ordering: largest first (${orderedTargets[0]?.modelStr})`);
   }
 
-  orderedTargets = orderTargetsByEvalScores(orderedTargets, config.evalRouting, log);
   orderedTargets = filterTargetsByRequestCompatibility(orderedTargets, body, log);
 
   // Parallel pre-screen: check provider profiles and model availability for all targets
@@ -1043,8 +1032,6 @@ export async function handleComboChat({
     log
   );
 
-  // G2: Collect execution keys registered by _registerExecutionCandidates above (auto strategy).
-  // We snapshot them now so cleanup can happen after the attempt loop finishes.
   const _registeredExecutionKeys = orderedTargets.map((t) => t.executionKey).filter(Boolean);
 
   let globalAttempts = 0;
@@ -1258,48 +1245,9 @@ export async function handleComboChat({
             "COMBO",
             `Trying model ${i + 1}/${orderedTargets.length}: ${modelStr}${retry > 0 ? ` (retry ${retry})` : ""}`
           );
-          emit("combo.target.attempt", {
-            comboName: combo.name,
-            targetIndex: i,
-            provider,
-            model: modelStr,
-            timestamp: Date.now(),
-            strategy,
-          });
-
           // Deep clone the body to ensure context preservation and prevent mutations
           // from affecting other targets in the combo
           let attemptBody = JSON.parse(JSON.stringify(body));
-
-          // Proactive Context Compression for fallbacks (Zero-Latency optimization)
-          if (
-            zeroLatencyOptimizationsEnabled &&
-            i > 0 &&
-            config.fallbackCompressionMode &&
-            config.fallbackCompressionMode !== "off"
-          ) {
-            const { estimateTokens } = await import("./contextManager.ts");
-            const estimatedTokens = estimateTokens(JSON.stringify(attemptBody));
-            if (estimatedTokens > (config.fallbackCompressionThreshold ?? 1000)) {
-              const { applyCompression } = await import("./compression/strategySelector.ts");
-              const compressionResult = applyCompression(
-                attemptBody,
-                config.fallbackCompressionMode as CompressionMode,
-                // Opt into the TV1 bail-out so a throwing fallback engine is SKIPPED rather than
-                // propagating out of executeTarget and being swallowed as a "Speculative task
-                // error" (which silently drops this combo target). minGainPercent:0 keeps the
-                // advance behavior identical to the default path — this only adds skip-on-throw.
-                { model: modelStr, bailout: { enabled: true, minGainPercent: 0 } }
-              );
-              if (compressionResult.compressed) {
-                log.info(
-                  "COMBO",
-                  `Proactive fallback compression applied (${config.fallbackCompressionMode}): ${estimatedTokens} -> ${compressionResult.stats?.compressedTokens} tokens`
-                );
-                attemptBody = compressionResult.body;
-              }
-            }
-          }
 
           // Universal handoff: inject existing handoff if model changed
           if (
@@ -1386,14 +1334,6 @@ export async function handleComboChat({
                   );
                 }
               }
-              emit("combo.target.failed", {
-                comboName: combo.name,
-                targetIndex: i,
-                provider,
-                model: modelStr,
-                error: `Quality: ${quality.reason}`,
-                latencyMs: Date.now() - startTime,
-              });
               return null;
             }
 
@@ -1415,14 +1355,6 @@ export async function handleComboChat({
               }
             }
 
-            const latencyMs = Date.now() - startTime;
-            emit("combo.target.succeeded", {
-              comboName: combo.name,
-              targetIndex: i,
-              provider,
-              model: modelStr,
-              latencyMs,
-            });
             log.info(
               "COMBO",
               `Model ${modelStr} succeeded (${latencyMs}ms, ${fallbackCount} fallbacks)`
@@ -1440,15 +1372,6 @@ export async function handleComboChat({
             if (provider && provider !== "unknown") {
               recordProviderSuccess(provider, target.connectionId ?? undefined);
             }
-            // Webhook fan-out: best-effort, never blocks the response stream.
-            notifyWebhookEvent("request.completed", {
-              combo: combo.name,
-              provider,
-              model: modelStr,
-              latencyMs,
-              fallbackCount,
-            });
-
             // Context cache pinning: record model usage for session-based pinning
             // (independent of universal handoff — always fires when context_cache_protection is on)
             // #3825: write under the SAME effectiveSessionId used by the read site so a
@@ -1965,12 +1888,6 @@ export async function handleComboChat({
 
       // All set retries exhausted — return the final error
       if (!lastStatus) {
-        notifyWebhookEvent("request.failed", {
-          combo: combo.name,
-          reason: "ALL_ACCOUNTS_INACTIVE",
-          latencyMs,
-          fallbackCount,
-        });
         return new Response(
           JSON.stringify({
             error: {
@@ -2001,7 +1918,6 @@ export async function handleComboChat({
 
     return errorResponse(503, "Combo routing completed without an upstream response");
   } finally {
-    // G2: Clean up candidate registry to prevent unbounded memory growth.
     _unregisterExecutionCandidates(_registeredExecutionKeys);
   }
 }
@@ -2047,9 +1963,8 @@ async function handleRoundRobinCombo({
     clampComboDepth(config.maxComboDepth)
   );
   const tagFilteredTargets = await applyRequestTagRouting(orderedTargets, body, log);
-  const evalRankedTargets = orderTargetsByEvalScores(tagFilteredTargets, config.evalRouting, log);
   const filteredTargets = filterTargetsByRequestCompatibility(
-    evalRankedTargets,
+    tagFilteredTargets,
     body,
     log,
     "Context-aware round-robin fallback"

@@ -36,6 +36,7 @@ import {
   applySectionOrder,
   applyItemOrder,
   normalizeHiddenSidebarItems,
+  normalizeSidebarPresetId,
   type HideableSidebarItemId,
   type SidebarSectionId,
   type SidebarItemOrder,
@@ -370,7 +371,7 @@ export default function SidebarTab() {
             ? data[SIDEBAR_ITEM_ORDER_KEY]
             : {}
         );
-        setActivePreset(data?.[SIDEBAR_PRESET_KEY] ?? null);
+        setActivePreset(normalizeSidebarPresetId(data?.[SIDEBAR_PRESET_KEY]));
         setShowDebug(data?.debugMode === true);
         setLoading(false);
       })
@@ -467,20 +468,14 @@ export default function SidebarTab() {
     });
   };
 
-  const resetToDefault = () => applyPreset("all");
+  const resetToDefault = () => applyPreset("minimal");
 
   const presetLabels: Record<SidebarPresetId, string> = {
-    all: getSettingsLabel("presetAll", "All"),
     minimal: getSettingsLabel("presetMinimal", "Minimal"),
-    developer: getSettingsLabel("presetDeveloper", "Developer"),
-    admin: getSettingsLabel("presetAdmin", "Admin"),
   };
 
   const presetDescriptions: Record<SidebarPresetId, string> = {
-    all: getSettingsLabel("presetAllDesc", "Show everything"),
-    minimal: getSettingsLabel("presetMinimalDesc", "Core pages only"),
-    developer: getSettingsLabel("presetDeveloperDesc", "Dev & proxy tools"),
-    admin: getSettingsLabel("presetAdminDesc", "Monitoring & audit"),
+    minimal: getSettingsLabel("presetMinimalDesc", "Minimal source profile"),
   };
 
   return (
@@ -536,7 +531,7 @@ export default function SidebarTab() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid max-w-xs grid-cols-1 gap-2">
             {SIDEBAR_PRESETS.map((preset) => {
               const isActive = activePreset === preset.id;
               return (

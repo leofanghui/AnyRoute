@@ -2,8 +2,8 @@ import type { SqliteAdapter } from "@/lib/db/adapters/types";
 import { getDbInstance } from "../db/core";
 
 // #2650: extracted from compliance/index.ts to break the
-// callLogs.ts → compliance/index.ts → callLogs.ts cycle that deadlocks
-// the bundled MCP server under Node.js 24's stricter ESM evaluation.
+// callLogs.ts -> compliance/index.ts -> callLogs.ts cycle under Node.js 24's
+// stricter ESM evaluation.
 
 function getDb(): SqliteAdapter | null {
   try {

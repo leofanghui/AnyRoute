@@ -17,7 +17,6 @@
  * pino-pretty -> outDir/node_modules/pino-pretty              Y               -           -    SHARED (extra module)
  * split2 -> outDir/node_modules/split2                        Y               -           -    SHARED (extra module)
  * src/lib/db/migrations -> outDir/migrations                  Y               Y           -    SHARED (extra module)
- * src/mitm/server.cjs -> outDir/src/mitm/server.cjs           Y               -           -    SHARED (extra module)
  * scripts/dev/run-standalone.mjs -> outDir/dev/run-standalone Y               -           -    SHARED (extra module)
  * scripts/dev/standalone-server-ws.mjs -> outDir/server-ws    Y               Y           -    SHARED (extra module)
  * scripts/dev/peer-stamp.mjs -> outDir/peer-stamp.mjs         Y               Y           -    SHARED (extra module)
@@ -26,19 +25,15 @@
  * scripts/build/bootstrap-env.mjs -> outDir/build/bootstrap-  Y               -           -    SHARED (extra module)
  * scripts/dev/healthcheck.mjs -> outDir/healthcheck.mjs       Y               -           -    SHARED (extra module)
  * playwright-core -> outDir/node_modules/playwright-core      Y               -           -    SHARED (extra module)
- * sqlite-vec -> outDir/node_modules/sqlite-vec                Y               -           -    SHARED (extra module)
- * sqlite-vec-linux-x64/arm64/darwin-x64/arm64/win-x64 (same) Y               -           -    SHARED (extra module)
  * abs-path sanitization in server.js + required-server-files  -               Y           Y    SHARED (opt-in: sanitizePaths)
  * Turbopack hashed-chunk patch (.next/server/ *.js)           -               Y           -    SHARED (opt-in: patchTurbopackChunks)
  * --- npm-UNIQUE ---
- * MITM tsc compile -> app/src/mitm/                           -               Y           -    UNIQUE (prepublish)
- * MCP server esbuild -> dist/open-sse/mcp-server/server.js    -               Y           -    UNIQUE (prepublish)
  * CLI esbuild -> bin/omniroute.mjs                            -               Y           -    UNIQUE (prepublish)
  * sidecar/doc copies (.env.example, docs/, sync-env, etc.)    -               Y           -    UNIQUE (prepublish)
  * prune + validate (pack-artifact-policy)                      -               Y           -    UNIQUE (prepublish)
  * data/ dir creation                                           -               Y           -    UNIQUE (prepublish)
  * --- electron-UNIQUE ---
- * better-sqlite3 + keytar native strip (ABI rebuild)           -               -           Y    UNIQUE (electron)
+ * better-sqlite3 native strip (ABI rebuild)                    -               -           Y    UNIQUE (electron)
  * symlink guard (assertBundleIsPackagable)                     -               -           Y    UNIQUE (electron)
  * removeGeneratedElectronArtifacts                             -               -           Y    UNIQUE (electron)
  */
@@ -83,15 +78,6 @@ const NATIVE_ASSET_ENTRIES = [
     src: ["node_modules", "better-sqlite3", "build"],
     dest: ["node_modules", "better-sqlite3", "build"],
   },
-  {
-    // TPROXY IP_TRANSPARENT addon (Fase 3 / Epic A). Built by build-tproxy-native
-    // before assembly; Linux-only + opt-in, so the source is absent on non-Linux
-    // builds → syncNativeAssetsToDir skips it gracefully. The runtime loader
-    // (transparentSocket.ts) resolves it cwd-relative to this same dest.
-    label: "TPROXY transparent-socket addon (Linux-only, opt-in)",
-    src: ["src", "mitm", "tproxy", "native", "build", "Release", "transparent.node"],
-    dest: ["src", "mitm", "tproxy", "native", "build", "Release", "transparent.node"],
-  },
 ];
 
 /** @type {{label:string, src:string[], dest:string[]}[]} */
@@ -113,7 +99,6 @@ const EXTRA_MODULE_ENTRIES = [
   },
   { label: "split2", src: ["node_modules", "split2"], dest: ["node_modules", "split2"] },
   { label: "migrations", src: ["src", "lib", "db", "migrations"], dest: ["migrations"] },
-  { label: "MITM server", src: ["src", "mitm", "server.cjs"], dest: ["src", "mitm", "server.cjs"] },
   {
     label: "run-standalone script",
     src: ["scripts", "dev", "run-standalone.mjs"],
@@ -145,11 +130,6 @@ const EXTRA_MODULE_ENTRIES = [
     dest: ["responses-ws-proxy.mjs"],
   },
   {
-    label: "webdav-handler (server-ws.mjs dependency)",
-    src: ["scripts", "dev", "webdav-handler.mjs"],
-    dest: ["webdav-handler.mjs"],
-  },
-  {
     label: "runtime-env script",
     src: ["scripts", "build", "runtime-env.mjs"],
     dest: ["build", "runtime-env.mjs"],
@@ -170,24 +150,6 @@ const EXTRA_MODULE_ENTRIES = [
     src: ["node_modules", "playwright-core"],
     dest: ["node_modules", "playwright-core"],
   },
-  {
-    label: "sqlite-vec wrapper (vector memory - loaded at runtime via createRequire)",
-    src: ["node_modules", "sqlite-vec"],
-    dest: ["node_modules", "sqlite-vec"],
-  },
-  // sqlite-vec's native vec0.so lives in a platform-specific package resolved at
-  // runtime via require.resolve(). Next.js does NOT trace it into the standalone
-  // (the externalized wrapper is copied, but its optional platform dep is missed -
-  // Next.js #88844), so without this the bundled/Docker build silently degrades
-  // vector search to FTS5: the wrapper loads but getLoadablePath() throws
-  // MODULE_NOT_FOUND. Copy whichever platform package npm actually installed. See #3066.
-  ...[
-    "sqlite-vec-linux-x64",
-    "sqlite-vec-linux-arm64",
-    "sqlite-vec-darwin-x64",
-    "sqlite-vec-darwin-arm64",
-    "sqlite-vec-windows-x64",
-  ].map((pkg) => ({ label: pkg, src: ["node_modules", pkg], dest: ["node_modules", pkg] })),
 ];
 
 /**
@@ -426,7 +388,7 @@ function copyStaticAndPublic({ distDir, relDistDir, projectRoot, resolvedOutDir 
 
 /**
  * Copy native assets (wreq-js, better-sqlite3) and extra runtime modules/sidecars
- * (pino, migrations, MITM server, helper scripts, sqlite-vec platform packages, …)
+ * (pino, migrations, helper scripts, …)
  * into the assembled bundle. Missing sources are skipped silently.
  *
  * @param {string} projectRoot

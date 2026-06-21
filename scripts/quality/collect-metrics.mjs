@@ -2,7 +2,7 @@
 // scripts/quality/collect-metrics.mjs — emite quality-metrics.json
 // Coletores incrementais: Fase 1 traz ESLint warnings + cobertura.
 // Fases 3/4 estendem com duplicação (jscpd), tamanho de arquivo e cobertura por módulo.
-// Fase 6A.11: openapiCoverage.pct + i18nUiCoverage.pct (mínimo entre locales).
+// Fase 6A.11: i18nUiCoverage.pct (mínimo entre locales).
 // Task 7.9: coverage.<modulo>.lines para ~8 módulos críticos, lidos do
 //   coverage/coverage-summary.json se existir (sem erro se ausente).
 import fs from "node:fs";
@@ -10,7 +10,6 @@ import { promises as fsAsync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
-import yaml from "js-yaml";
 
 const cwd = process.cwd();
 const out = {};
@@ -116,44 +115,6 @@ function coverageByModule() {
   Object.assign(out, moduleMetrics);
 }
 
-// 4) OpenAPI coverage: percentage of implemented routes documented in openapi.yaml
-function openapiCoverage() {
-  const API_ROOT = path.join(cwd, "src", "app", "api");
-  const OPENAPI_PATH = path.join(cwd, "docs", "reference", "openapi.yaml");
-  if (!fs.existsSync(API_ROOT) || !fs.existsSync(OPENAPI_PATH)) return;
-
-  function collectRoutePaths(dir) {
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    const paths = [];
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        paths.push(...collectRoutePaths(fullPath));
-        continue;
-      }
-      if (entry.isFile() && entry.name === "route.ts") {
-        const apiPath = path
-          .dirname(fullPath)
-          .replace(API_ROOT, "")
-          .replace(/\[([^\]]+)\]/g, "{$1}");
-        paths.push(`/api${apiPath}`);
-      }
-    }
-    return paths;
-  }
-
-  function normalizePath(p) {
-    return p.replace(/\/\[\.\.\.([^\]]+)\]/g, "/{$1}").replace(/\[([^\]]+)\]/g, "{$1}");
-  }
-
-  const implementedPaths = collectRoutePaths(API_ROOT).map(normalizePath);
-  const raw = yaml.load(fs.readFileSync(OPENAPI_PATH, "utf-8"));
-  const documentedPaths = new Set(Object.keys(raw.paths || {}));
-  const covered = implementedPaths.filter((p) => documentedPaths.has(p)).length;
-  const total = implementedPaths.length;
-  if (total > 0) out["openapiCoverage.pct"] = parseFloat(((covered / total) * 100).toFixed(1));
-}
-
 // 4) i18n UI coverage: minimum real coverage across all non-en locales
 async function i18nUiCoverage() {
   const MESSAGES_DIR = path.join(cwd, "src", "i18n", "messages");
@@ -248,7 +209,6 @@ if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {
   eslintCounts();
   coverage();
   coverageByModule();
-  openapiCoverage();
   await i18nUiCoverage();
   fs.writeFileSync(
     path.join(cwd, "config/quality/quality-metrics.json"),

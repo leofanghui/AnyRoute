@@ -5,7 +5,7 @@
  * autoSync enabled in their providerSpecificData, at a configurable
  * interval (default: 24h).
  *
- * Pattern mirrors cloudSyncScheduler.ts for consistency.
+ * Pattern mirrors the other retained background schedulers for consistency.
  */
 
 import { randomUUID } from "node:crypto";

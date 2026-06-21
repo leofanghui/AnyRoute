@@ -51,21 +51,6 @@ test("bulkCreateProviderSchema requires non-empty name per entry", () => {
   assert.equal(result.success, false);
 });
 
-test("bulkCreateProviderSchema enforces google-pse-search cx requirement", () => {
-  const noCx = bulkCreateProviderSchema.safeParse({
-    provider: "google-pse-search",
-    entries: [{ name: "k1", apiKey: "x" }],
-  });
-  assert.equal(noCx.success, false);
-
-  const withCx = bulkCreateProviderSchema.safeParse({
-    provider: "google-pse-search",
-    entries: [{ name: "k1", apiKey: "x" }],
-    providerSpecificData: { cx: "abc123" },
-  });
-  assert.equal(withCx.success, true);
-});
-
 test("bulkCreateProviderSchema accepts optional validateKeys flag", () => {
   const result = bulkCreateProviderSchema.safeParse({
     provider: "anthropic",
@@ -94,7 +79,6 @@ test("supportsBulkApiKey: false for OAuth/multi-field/web-session providers", ()
   assert.equal(supportsBulkApiKey("qoder"), false);
   assert.equal(supportsBulkApiKey("azure"), false);
   assert.equal(supportsBulkApiKey("cloudflare-ai"), false);
-  assert.equal(supportsBulkApiKey("google-pse-search"), false);
   assert.equal(supportsBulkApiKey("command-code"), false);
   assert.equal(supportsBulkApiKey("ollama-local"), false);
 });

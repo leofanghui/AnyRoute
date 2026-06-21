@@ -49,9 +49,6 @@ import { useTranslations } from "next-intl";
 const ModelSelectModal = dynamic(() => import("@/shared/components/ModelSelectModal"), {
   ssr: false,
 });
-const ProxyConfigModal = dynamic(() => import("@/shared/components/ProxyConfigModal"), {
-  ssr: false,
-});
 
 // Validate combo name: letters, numbers, spaces, -, _, /, ., [ and ].
 const VALID_NAME_REGEX = /^[a-zA-Z0-9_/.\-\[\] ]+$/;
@@ -638,8 +635,6 @@ export default function CombosPage() {
   const [testingCombo, setTestingCombo] = useState(null);
   const { copied, copy } = useCopyToClipboard();
   const notify = useNotificationStore();
-  const [proxyTargetCombo, setProxyTargetCombo] = useState(null);
-  const [proxyConfig, setProxyConfig] = useState(null);
   const [providerNodes, setProviderNodes] = useState([]);
   const [showUsageGuide, setShowUsageGuide] = useState(true);
   const [recentlyCreatedCombo, setRecentlyCreatedCombo] = useState("");
@@ -647,7 +642,6 @@ export default function CombosPage() {
   const [comboDragOverIndex, setComboDragOverIndex] = useState(null);
   const [savingComboOrder, setSavingComboOrder] = useState(false);
   const [comboConfigMode, setComboConfigMode] = useState("guided");
-  const [promptCompressionEnabled, setPromptCompressionEnabled] = useState(false);
   const [selectedIntelligentComboId, setSelectedIntelligentComboId] = useState<string | null>(null);
   const comboDragIndexRef = useRef<number | null>(null);
   const activeFilter = normalizeIntelligentRoutingFilter(searchParams.get("filter"));
@@ -692,14 +686,6 @@ export default function CombosPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((settings) => setComboConfigMode(normalizeComboConfigMode(settings?.comboConfigMode)))
       .catch(() => setComboConfigMode("guided"));
-    fetch("/api/settings/compression")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((settings) => setPromptCompressionEnabled(settings?.enabled === true))
-      .catch(() => setPromptCompressionEnabled(false));
-    fetch("/api/settings/proxy")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((c) => setProxyConfig(c))
-      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -1151,7 +1137,6 @@ export default function CombosPage() {
               <ComboCard
                 combo={combo}
                 metrics={metrics[combo.name]}
-                compressionEnabled={promptCompressionEnabled}
                 providerNodes={providerNodes}
                 copied={copied}
                 onCopy={copy}
@@ -1160,8 +1145,6 @@ export default function CombosPage() {
                 onDuplicate={() => handleDuplicate(combo)}
                 onTest={() => handleTestCombo(combo)}
                 testing={testingCombo === combo.name}
-                onProxy={() => setProxyTargetCombo(combo)}
-                hasProxy={!!proxyConfig?.combos?.[combo.id]}
                 onToggle={() => handleToggleCombo(combo)}
                 dragDisabled={savingComboOrder || activeFilter !== "all" || combos.length < 2}
                 isDragged={comboDragIndex === index}
@@ -1210,17 +1193,6 @@ export default function CombosPage() {
         activeProviders={activeProviders}
         comboConfigMode={comboConfigMode}
       />
-
-      {/* Proxy Config Modal */}
-      {proxyTargetCombo && (
-        <ProxyConfigModal
-          isOpen={!!proxyTargetCombo}
-          onClose={() => setProxyTargetCombo(null)}
-          level="combo"
-          levelId={proxyTargetCombo.id}
-          levelLabel={proxyTargetCombo.name}
-        />
-      )}
     </div>
   );
 }
@@ -1525,7 +1497,6 @@ function ComboReadinessPanel({ checks, blockers, showDescription = true }) {
 function ComboCard({
   combo,
   metrics,
-  compressionEnabled,
   copied,
   onCopy,
   onEdit,
@@ -1533,8 +1504,6 @@ function ComboCard({
   onDuplicate,
   onTest,
   testing,
-  onProxy,
-  hasProxy,
   onToggle,
   providerNodes,
   dragDisabled,
@@ -1551,47 +1520,6 @@ function ComboCard({
   const tc = useTranslations("common");
   const emailsVisible = useEmailPrivacyStore((s) => s.emailsVisible);
   const strategyDescription = getStrategyDescription(t, strategy);
-  const hasRuntimeConfig = combo?.config && typeof combo.config === "object";
-  const initialCompressionMode =
-    typeof combo?.config?.compressionMode === "string"
-      ? combo.config.compressionMode
-      : hasRuntimeConfig
-        ? ""
-        : combo.compressionOverride || "";
-  const [compressionOverride, setCompressionOverride] = useState(initialCompressionMode);
-  const [isSavingCompression, setIsSavingCompression] = useState(false);
-
-  useEffect(() => {
-    setCompressionOverride(initialCompressionMode);
-  }, [initialCompressionMode]);
-
-  const handleCompressionOverrideChange = async (value) => {
-    setCompressionOverride(value);
-    setIsSavingCompression(true);
-    const nextConfig = { ...(combo.config || {}) };
-    if (value) {
-      nextConfig.compressionMode = value;
-    } else {
-      delete nextConfig.compressionMode;
-    }
-    try {
-      const response = await fetch(`/api/combos/${combo.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config: nextConfig }),
-      });
-      if (!response.ok) {
-        console.error("Failed to update compression override");
-        setCompressionOverride(initialCompressionMode);
-      }
-    } catch (error) {
-      console.error("Error updating compression override:", error);
-      setCompressionOverride(initialCompressionMode);
-    } finally {
-      setIsSavingCompression(false);
-    }
-  };
-
   return (
     <Card
       padding="sm"
@@ -1637,15 +1565,6 @@ function ComboCard({
                   {getStrategyLabel(t, strategy)}
                 </span>
               </Tooltip>
-              {hasProxy && (
-                <span
-                  className="text-[9px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-primary/15 text-primary flex items-center gap-0.5"
-                  title={t("proxyConfigured")}
-                >
-                  <span className="material-symbols-outlined text-[11px]">vpn_lock</span>
-                  proxy
-                </span>
-              )}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1724,34 +1643,6 @@ function ComboCard({
             </span>
           </div>
           <div className="flex items-center gap-1.5 transition-opacity">
-            {compressionEnabled && (
-              <select
-                value={compressionOverride}
-                onChange={(e) => handleCompressionOverrideChange(e.target.value)}
-                disabled={isSavingCompression}
-                className="text-xs py-1 px-2 rounded border border-black/10 dark:border-white/10 bg-surface text-text-main focus:border-primary focus:outline-none transition-colors disabled:opacity-50 max-w-[130px] md:max-w-none"
-                title={t("compressionOverride")}
-              >
-                <option value="" className="bg-surface text-text-main">
-                  Default
-                </option>
-                <option value="off" className="bg-surface text-text-main">
-                  Off
-                </option>
-                <option value="lite" className="bg-surface text-text-main">
-                  Lite
-                </option>
-                <option value="standard" className="bg-surface text-text-main">
-                  Standard
-                </option>
-                <option value="aggressive" className="bg-surface text-text-main">
-                  Aggressive
-                </option>
-                <option value="ultra" className="bg-surface text-text-main">
-                  Ultra
-                </option>
-              </select>
-            )}
             <Link
               href={`/dashboard/combos/${combo.id}`}
               onClick={(e) => e.stopPropagation()}
@@ -1778,13 +1669,6 @@ function ComboCard({
               title={t("duplicate")}
             >
               <span className="material-symbols-outlined text-[16px]">content_copy</span>
-            </button>
-            <button
-              onClick={onProxy}
-              className="p-1.5 hover:bg-black/5 dark:hover:bg-white/5 rounded text-text-muted hover:text-primary transition-colors"
-              title={t("proxyConfig")}
-            >
-              <span className="material-symbols-outlined text-[16px]">vpn_lock</span>
             </button>
             <button
               onClick={onEdit}
