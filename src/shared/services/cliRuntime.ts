@@ -5,6 +5,7 @@ import path from "path";
 import { spawn, execFileSync } from "child_process";
 import { getHermesHome } from "@/lib/cli-helper/config-generator/hermesHome";
 import { getCachedLoginShellPath, mergeShellPath } from "./loginShellPath";
+import { resolveClaudeDesktopPaths } from "./claudeDesktopConfig";
 
 const VALID_RUNTIME_MODES = new Set(["auto", "host", "container"]);
 const FALSE_VALUES = new Set(["0", "false", "no", "off"]);
@@ -19,6 +20,13 @@ const CLI_TOOLS: Record<string, any> = {
       settings: ".claude/settings.json",
       auth: [".claude/.credentials.json", ".config/claude/credentials.json"],
     },
+  },
+  "claude-desktop": {
+    defaultCommand: null,
+    envBinKey: "CLI_CLAUDE_DESKTOP_BIN",
+    requiresBinary: false,
+    healthcheckTimeoutMs: 4000,
+    paths: {},
   },
   codex: {
     defaultCommand: "codex",
@@ -971,6 +979,15 @@ export const getCliConfigPaths = (toolId: string) => {
     return {
       config: getOpenCodeConfigPath(),
     };
+  }
+
+  if (toolId === "claude-desktop") {
+    const paths = resolveClaudeDesktopPaths();
+    return paths.profilePath
+      ? {
+          config: paths.profilePath,
+        }
+      : {};
   }
 
   // hermes-agent: honour HERMES_HOME env var instead of the generic CLI_CONFIG_HOME (#3628).

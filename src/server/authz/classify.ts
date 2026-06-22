@@ -87,6 +87,17 @@ export function classifyRoute(rawPath: string, method: string = "GET"): RouteCla
     };
   }
 
+  if (
+    normalizedPath === "/api/claude-desktop" ||
+    normalizedPath.startsWith("/api/claude-desktop/")
+  ) {
+    return {
+      routeClass: "CLIENT_API",
+      reason: "client_api_claude_desktop_gateway",
+      normalizedPath,
+    };
+  }
+
   if (normalizedPath.startsWith("/api/")) {
     if (isClassifiedAsPublic(normalizedPath, method)) {
       return {

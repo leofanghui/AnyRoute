@@ -13,6 +13,7 @@ import { getAllCliToolLastConfigured } from "@/lib/db/cliToolState";
 import { checkToolConfigStatus } from "@/lib/cliTools/checkToolConfigStatus";
 import { getCached, setCached } from "@/lib/cliTools/batchStatusCache";
 import type { ToolBatchStatus, ToolBatchStatusMap } from "@/shared/types/cliBatchStatus";
+import { getClaudeDesktopStatus } from "@/shared/services/claudeDesktopConfig";
 
 const logger = pino({ name: "cli-tools-all-statuses-api" });
 
@@ -27,6 +28,11 @@ async function extractEndpointFromConfig(
   configPath: string
 ): Promise<string | null> {
   try {
+    if (toolId === "claude-desktop") {
+      const status = await getClaudeDesktopStatus();
+      return status.gatewayBaseUrl;
+    }
+
     const content = await fs.readFile(configPath, "utf-8");
 
     // TOML-based tools (codex) — do a best-effort text search

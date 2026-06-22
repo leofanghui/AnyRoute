@@ -55,6 +55,7 @@ export async function GET(request: Request) {
     // Check config status for installed+runnable tools via direct file reads
     const settingsTools = [
       "claude",
+      "claude-desktop",
       "codex",
       "droid",
       "openclaw",

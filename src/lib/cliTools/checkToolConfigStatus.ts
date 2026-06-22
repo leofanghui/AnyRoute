@@ -3,6 +3,7 @@
 import fs from "fs/promises";
 import { getCliPrimaryConfigPath } from "@/shared/services/cliRuntime";
 import { getRuntimePorts } from "@/lib/runtime/ports";
+import { getClaudeDesktopStatus } from "@/shared/services/claudeDesktopConfig";
 
 const { apiPort } = getRuntimePorts();
 
@@ -20,6 +21,12 @@ export async function checkToolConfigStatus(
   _configPathOverride?: string
 ): Promise<"configured" | "not_configured" | "not_installed" | "unknown" | "other"> {
   try {
+    if (toolId === "claude-desktop") {
+      const status = await getClaudeDesktopStatus();
+      if (!status.supported) return "not_installed";
+      return status.configured ? "configured" : "not_configured";
+    }
+
     const configPath = _configPathOverride ?? getCliPrimaryConfigPath(toolId);
     if (!configPath) return "unknown";
 

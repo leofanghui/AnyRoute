@@ -7,6 +7,7 @@ import { CLI_TOOLS } from "@/shared/constants/cliTools";
 import { PROVIDER_ID_TO_ALIAS, getModelsByProviderId } from "@/shared/constants/models";
 import {
   AntigravityToolCard,
+  ClaudeDesktopToolCard,
   ClaudeToolCard,
   ClineToolCard,
   CodexToolCard,
@@ -211,6 +212,8 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
             onModelMappingChange={handleModelMappingChange}
           />
         );
+      case "claude-desktop":
+        return <ClaudeDesktopToolCard {...cardProps} />;
       case "codex":
         return <CodexToolCard {...cardProps} />;
       case "droid":
