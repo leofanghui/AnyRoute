@@ -22,8 +22,6 @@ export interface ProviderSummaryStats {
   apikey: SummaryStat;
   compatible: SummaryStat;
   webcookie: SummaryStat;
-  local: SummaryStat;
-  upstreamproxy: SummaryStat;
   ide: SummaryStat;
 }
 
@@ -94,12 +92,6 @@ export default function ProviderSummaryCard({
       title: t("freeAggregated"),
     },
     { key: "no-auth", color: "bg-stone-500", label: t("noAuthLabel"), stat: summaryStats.noauth },
-    {
-      key: "upstream-proxy",
-      color: "bg-indigo-500",
-      label: t("upstreamProxyLabel"),
-      stat: summaryStats.upstreamproxy,
-    },
     { key: "apikey", color: "bg-amber-500", label: t("apiKeyLabel"), stat: summaryStats.apikey },
     {
       key: "compatible",
@@ -108,7 +100,6 @@ export default function ProviderSummaryCard({
       stat: summaryStats.compatible,
     },
     { key: "webcookie", color: "bg-purple-500", label: "Web Cookie", stat: summaryStats.webcookie },
-    { key: "local", color: "bg-emerald-500", label: "Local", stat: summaryStats.local },
   ].filter((category) => category.key !== "no-auth" || category.stat.total > 0);
 
   return (

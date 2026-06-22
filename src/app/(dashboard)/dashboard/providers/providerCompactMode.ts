@@ -15,12 +15,9 @@ export interface CompactProviderEntryOptions<TProvider> {
   oauthProviderEntries: ProviderCategoryEntries<TProvider>;
   ideProviderEntries: ProviderCategoryEntries<TProvider>;
   noAuthEntries: ProviderCategoryEntries<TProvider>;
-  upstreamProxyEntries: ProviderCategoryEntries<TProvider>;
   llmProviderEntries: ProviderCategoryEntries<TProvider>;
-  aggregatorProviderEntries: ProviderCategoryEntries<TProvider>;
   enterpriseProviderEntries: ProviderCategoryEntries<TProvider>;
   webCookieProviderEntries: ProviderCategoryEntries<TProvider>;
-  localProviderEntries: ProviderCategoryEntries<TProvider>;
 }
 
 function getCompactProviderEntryGroups<TProvider>({
@@ -31,17 +28,14 @@ function getCompactProviderEntryGroups<TProvider>({
   oauthProviderEntries,
   ideProviderEntries,
   noAuthEntries,
-  upstreamProxyEntries,
   llmProviderEntries,
-  aggregatorProviderEntries,
   enterpriseProviderEntries,
   webCookieProviderEntries,
-  localProviderEntries,
 }: CompactProviderEntryOptions<TProvider>): ProviderEntry<TProvider>[][] {
   const oauthEntries = oauthProviderEntries.filter(
     (entry) => !IDE_PROVIDER_IDS.has(entry.providerId)
   );
-  const apiKeyEntries = [llmProviderEntries, aggregatorProviderEntries, enterpriseProviderEntries];
+  const apiKeyEntries = [llmProviderEntries, enterpriseProviderEntries];
 
   if (showFreeOnly) return [freeSectionEntries];
 
@@ -49,10 +43,8 @@ function getCompactProviderEntryGroups<TProvider>({
   if (activeCategory === "oauth") return [oauthEntries];
   if (activeCategory === "ide") return [ideProviderEntries];
   if (activeCategory === "no-auth") return [noAuthEntries];
-  if (activeCategory === "upstream-proxy") return [upstreamProxyEntries];
   if (activeCategory === "apikey") return apiKeyEntries;
   if (activeCategory === "webcookie") return [webCookieProviderEntries];
-  if (activeCategory === "local") return [localProviderEntries];
 
   return [
     compatibleProviderEntries,
@@ -60,10 +52,7 @@ function getCompactProviderEntryGroups<TProvider>({
     ideProviderEntries,
     webCookieProviderEntries,
     llmProviderEntries,
-    upstreamProxyEntries,
-    aggregatorProviderEntries,
     enterpriseProviderEntries,
-    localProviderEntries,
     noAuthEntries,
   ];
 }

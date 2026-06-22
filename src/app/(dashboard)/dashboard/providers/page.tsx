@@ -191,11 +191,13 @@ export default function ProvidersPage() {
     proxy: "upstream-proxy",
     web: "webcookie",
   };
+  const visibleActiveCategory =
+    activeCategory === "local" || activeCategory === "upstream-proxy" ? null : activeCategory;
   const showSection = (category: string) => {
     const normalizedCategory = sectionCategoryAliases[category] ?? category;
     if (showFreeOnly) return normalizedCategory === "free";
-    if (hasSearchQuery && !activeCategory) return normalizedCategory !== "free";
-    return !activeCategory || activeCategory === normalizedCategory;
+    if (hasSearchQuery && !visibleActiveCategory) return normalizedCategory !== "free";
+    return !visibleActiveCategory || visibleActiveCategory === normalizedCategory;
   };
   const t = useTranslations("providers");
   const tc = useTranslations("common");
@@ -537,7 +539,10 @@ export default function ProvidersPage() {
   );
 
   const apiKeyProviderEntriesAll = buildStaticProviderEntries("apikey", getProviderStats);
-  const llmProviderEntriesAll = apiKeyProviderEntriesAll.filter(
+  const visibleApiKeyProviderEntriesAll = apiKeyProviderEntriesAll.filter(
+    (entry) => !AGGREGATOR_PROVIDER_IDS.has(entry.providerId)
+  );
+  const llmProviderEntriesAll = visibleApiKeyProviderEntriesAll.filter(
     (entry) =>
       !AGGREGATOR_PROVIDER_IDS.has(entry.providerId) &&
       !ENTERPRISE_CLOUD_PROVIDER_IDS.has(entry.providerId)
@@ -549,17 +554,7 @@ export default function ProvidersPage() {
     showFreeOnly,
     modelSearchQuery
   );
-  const aggregatorProviderEntriesAll = apiKeyProviderEntriesAll.filter((entry) =>
-    AGGREGATOR_PROVIDER_IDS.has(entry.providerId)
-  );
-  const aggregatorProviderEntries = filterConfiguredProviderEntries(
-    aggregatorProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-  const enterpriseProviderEntriesAll = apiKeyProviderEntriesAll.filter((entry) =>
+  const enterpriseProviderEntriesAll = visibleApiKeyProviderEntriesAll.filter((entry) =>
     ENTERPRISE_CLOUD_PROVIDER_IDS.has(entry.providerId)
   );
   const enterpriseProviderEntries = filterConfiguredProviderEntries(
@@ -572,24 +567,6 @@ export default function ProvidersPage() {
   const webCookieProviderEntriesAll = buildStaticProviderEntries("web-cookie", getProviderStats);
   const webCookieProviderEntries = filterConfiguredProviderEntries(
     webCookieProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
-  const localProviderEntriesAll = buildStaticProviderEntries("local", getProviderStats);
-  const localProviderEntries = filterConfiguredProviderEntries(
-    localProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
-  const upstreamProxyEntriesAll = buildStaticProviderEntries("upstream-proxy", getProviderStats);
-  const upstreamProxyEntries = filterConfiguredProviderEntries(
-    upstreamProxyEntriesAll,
     effectiveShowConfiguredOnly,
     searchQuery,
     showFreeOnly,
@@ -630,10 +607,8 @@ export default function ProvidersPage() {
   const staticProviderEntriesAll = dedupeProviderEntries([
     ...oauthProviderEntriesAll,
     ...noAuthEntriesAll,
-    ...apiKeyProviderEntriesAll,
+    ...visibleApiKeyProviderEntriesAll,
     ...webCookieProviderEntriesAll,
-    ...localProviderEntriesAll,
-    ...upstreamProxyEntriesAll,
   ] as DashboardProviderEntry[]);
   const dashboardProviderEntriesAll = dedupeProviderEntries([
     ...staticProviderEntriesAll,
@@ -667,19 +642,16 @@ export default function ProvidersPage() {
     .filter((e) => !IDE_PROVIDER_IDS.has(e.providerId));
 
   const compactProviderEntries = buildCompactProviderEntriesForPage({
-    activeCategory,
+    activeCategory: visibleActiveCategory,
     showFreeOnly,
     freeSectionEntries,
     compatibleProviderEntries,
     oauthProviderEntries,
     ideProviderEntries,
     noAuthEntries,
-    upstreamProxyEntries,
     llmProviderEntries,
-    aggregatorProviderEntries,
     enterpriseProviderEntries,
     webCookieProviderEntries,
-    localProviderEntries,
   });
 
   const summaryStats = {
@@ -687,11 +659,9 @@ export default function ProvidersPage() {
     free: countConfigured(freeSectionEntriesAll),
     noauth: countConfigured(noAuthEntriesAll),
     oauth: countConfigured(oauthOnlyEntriesAll),
-    apikey: countConfigured(apiKeyProviderEntriesAll),
+    apikey: countConfigured(visibleApiKeyProviderEntriesAll),
     compatible: countConfigured(compatibleProviderEntriesAll),
     webcookie: countConfigured(webCookieProviderEntriesAll),
-    local: countConfigured(localProviderEntriesAll),
-    upstreamproxy: countConfigured(upstreamProxyEntriesAll),
     ide: countConfigured(ideProviderEntriesAll),
   };
   if (loading) {
@@ -740,7 +710,7 @@ export default function ProvidersPage() {
       )}
 
       <ProviderSummaryCard
-        activeCategory={activeCategory}
+        activeCategory={visibleActiveCategory}
         disabledConfigured={connections.length === 0}
         displayMode={effectiveProviderDisplayMode}
         modelSearchQuery={modelSearchQuery}
@@ -1218,83 +1188,6 @@ export default function ProvidersPage() {
             </div>
           )}
 
-          {/* Upstream Proxy Providers */}
-          {showSection("proxy") && upstreamProxyEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("upstreamProxyProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-indigo-500"
-                    title={t("upstreamProxyProviders")}
-                  />
-                  <ProviderCountBadge {...countConfigured(upstreamProxyEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("upstream-proxy")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "upstream-proxy"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "upstream-proxy" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "upstream-proxy" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("upstreamProxyProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {upstreamProxyEntries.map(({ providerId, provider, stats, toggleAuthType }) => (
-                  <ProviderCard
-                    key={providerId}
-                    providerId={providerId}
-                    provider={provider}
-                    stats={stats}
-                    authType="upstream-proxy"
-                    onToggle={(active) => handleToggleProvider(providerId, toggleAuthType, active)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Aggregators Gateways */}
-          {showSection("apikey") && aggregatorProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("aggregatorsGateways")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-amber-500"
-                    title={t("aggregatorsGateways")}
-                  />
-                  <ProviderCountBadge {...countConfigured(aggregatorProviderEntriesAll)} />
-                </h2>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("aggregatorsGatewaysDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {aggregatorProviderEntries.map(
-                  ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={providerId}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
           {/* Enterprise & Cloud */}
           {showSection("apikey") && enterpriseProviderEntries.length > 0 && (
             <div className="flex flex-col gap-4">
@@ -1324,50 +1217,6 @@ export default function ProvidersPage() {
                     />
                   )
                 )}
-              </div>
-            </div>
-          )}
-
-          {/* Local / Self-Hosted Providers */}
-          {showSection("local") && localProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("localProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-emerald-500"
-                    title={t("localProviders")}
-                  />
-                  <ProviderCountBadge {...countConfigured(localProviderEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("local")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "local"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "local" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "local" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("localProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {localProviderEntries.map(({ providerId, provider, stats, toggleAuthType }) => (
-                  <ProviderCard
-                    key={providerId}
-                    providerId={providerId}
-                    provider={provider}
-                    stats={stats}
-                    authType="local"
-                    onToggle={(active) => handleToggleProvider(providerId, toggleAuthType, active)}
-                  />
-                ))}
               </div>
             </div>
           )}
