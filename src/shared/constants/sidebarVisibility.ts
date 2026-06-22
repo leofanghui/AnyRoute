@@ -4,6 +4,7 @@ export const HIDEABLE_SIDEBAR_ITEM_IDS = [
   "endpoints",
   "providers",
   "combos",
+  "cli-code",
   "analytics",
   "costs",
   "logs",
@@ -104,6 +105,13 @@ const OMNI_PROXY_ITEMS: readonly SidebarItemDefinition[] = [
     i18nKey: "combos",
     subtitleKey: "combosSubtitle",
     icon: "layers",
+  },
+  {
+    id: "cli-code",
+    href: "/dashboard/cli-code",
+    i18nKey: "cliCode",
+    subtitleKey: "cliCodeSubtitle",
+    icon: "terminal",
   },
 ];
 

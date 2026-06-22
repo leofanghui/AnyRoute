@@ -13,6 +13,7 @@ export { default as Sidebar } from "./Sidebar";
 export { default as Header } from "./Header";
 export { default as OAuthModal } from "./OAuthModal";
 export { default as ModelSelectModal } from "./ModelSelectModal";
+export { default as ManualConfigModal } from "./ManualConfigModal";
 export { default as UsageAnalytics } from "./UsageAnalytics";
 export { default as RequestLoggerV2 } from "./RequestLoggerV2";
 export { default as KiroAuthModal } from "./KiroAuthModal";

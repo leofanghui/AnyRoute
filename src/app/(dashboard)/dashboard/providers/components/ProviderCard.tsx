@@ -7,13 +7,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Badge, Card, Toggle } from "@/shared/components";
-import ProviderTestSlideOver from "@/shared/components/ProviderTestSlideOver";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import {
   isAnthropicCompatibleProvider,
   isClaudeCodeCompatibleProvider,
   isOpenAICompatibleProvider,
 } from "@/shared/constants/providers";
+import { useNotificationStore } from "@/store/notificationStore";
 
 import { CategoryDot } from "./CategoryDot";
 
@@ -136,7 +136,8 @@ export default function ProviderCard({
   const t = useTranslations("providers");
   const tc = useTranslations("common");
   const tt = useTranslations("providerTest");
-  const [testExpanded, setTestExpanded] = useState<boolean>(false);
+  const notify = useNotificationStore();
+  const [testing, setTesting] = useState<boolean>(false);
 
   // Show the Test button for LLM providers.
   const serviceKinds = provider.serviceKinds ?? [];
@@ -144,10 +145,58 @@ export default function ProviderCard({
     serviceKinds.includes("llm") ||
     (serviceKinds.length === 0 && authType !== "upstream-proxy" && authType !== "no-auth");
 
-  const handleTestClick = (e: MouseEvent<HTMLButtonElement>) => {
+  const handleTestClick = async (e: MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
-    setTestExpanded((v) => !v);
+    if (testing) return;
+
+    setTesting(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90_000);
+
+    try {
+      const res = await fetch("/api/providers/test-batch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "provider", providerId }),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const message =
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || providerText(t, "providerTestFailed", "Provider test failed");
+        notify.error(message);
+        return;
+      }
+
+      const summary = data?.summary;
+      if (!summary || summary.total === 0) {
+        notify.warning(providerText(t, "noConnectionsToTest", "No connections to test"));
+        return;
+      }
+
+      if (summary.failed === 0) {
+        notify.success(t("allTestsPassed", { total: summary.total }));
+      } else {
+        notify.warning(
+          t("testSummary", {
+            passed: summary.passed,
+            failed: summary.failed,
+            total: summary.total,
+          })
+        );
+      }
+    } catch (error: unknown) {
+      const errorName =
+        error && typeof error === "object" && "name" in error ? String(error.name) : "";
+      notify.error(errorName === "AbortError" ? t("providerTestTimeout") : t("providerTestFailed"));
+    } finally {
+      clearTimeout(timeoutId);
+      setTesting(false);
+    }
   };
   const connected = Number(stats.connected || 0);
   const error = Number(stats.error || 0);
@@ -350,13 +399,14 @@ export default function ProviderCard({
                   <button
                     type="button"
                     onClick={handleTestClick}
-                    title={tt("expandTest")}
-                    className="inline-flex items-center gap-0.5 rounded-md border border-border bg-bg-subtle px-2 py-0.5 text-[11px] text-text-muted hover:text-text-primary hover:border-primary/30 transition-colors"
+                    disabled={testing}
+                    title={providerText(t, "testConnection", "Test connection")}
+                    className="inline-flex items-center gap-0.5 rounded-md border border-border bg-bg-subtle px-2 py-0.5 text-[11px] text-text-muted hover:text-text-primary hover:border-primary/30 transition-colors disabled:opacity-60 disabled:cursor-wait"
                   >
                     <span className="material-symbols-outlined text-[11px] leading-none">
-                      play_arrow
+                      {testing ? "sync" : "play_arrow"}
                     </span>
-                    {tt("testLabel")}
+                    {testing ? t("testing") : tt("testLabel")}
                   </button>
                 )}
                 {!isLlmProvider && (
@@ -369,15 +419,6 @@ export default function ProviderCard({
           </div>
         </Card>
       </Link>
-      {isLlmProvider && (
-        <ProviderTestSlideOver
-          isOpen={testExpanded}
-          onClose={() => setTestExpanded(false)}
-          providerId={providerId}
-          provider={provider}
-          staticIconPath={staticIconPath}
-        />
-      )}
     </div>
   );
 }

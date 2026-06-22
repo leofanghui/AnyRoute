@@ -1,3 +1,6 @@
+import os from "node:os";
+import path from "node:path";
+
 export interface LogStreamOptions {
   baseUrl?: string;
   filters?: string[];
@@ -21,7 +24,7 @@ export function createLogStream(options: LogStreamOptions = {}): LogStream {
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      let url = `${baseUrl}/api/usage/call-logs?limit=200`;
+      let url = `${baseUrl}/api/cli-tools/logs?follow=${follow}`;
       if (filters.length > 0) {
         url += `&filter=${encodeURIComponent(filters.join(","))}`;
       }
@@ -40,12 +43,19 @@ export function createLogStream(options: LogStreamOptions = {}): LogStream {
           return;
         }
 
-        const rows = (await response.json()) as unknown;
-        const encoder = new TextEncoder();
-        const list = Array.isArray(rows) ? rows : [];
-        for (const row of list) {
+        if (!response.body) {
+          controller.error(new Error("Response body is null"));
+          clearTimeout(timeoutId);
+          return;
+        }
+
+        const reader = response.body.getReader();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
           if (signal.aborted) break;
-          controller.enqueue(encoder.encode(`${JSON.stringify(row)}\n`));
+          controller.enqueue(value);
         }
 
         controller.close();
