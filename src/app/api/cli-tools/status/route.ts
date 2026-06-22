@@ -57,6 +57,7 @@ export async function GET(request: Request) {
       "claude",
       "claude-desktop",
       "codex",
+      "codex-desktop",
       "droid",
       "openclaw",
       "cline",

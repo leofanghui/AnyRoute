@@ -24,7 +24,6 @@ export default function CliToolCard({
   const t = useTranslations("cliCommon");
   const installed = batchStatus?.detection.installed ?? false;
   const configStatus = batchStatus?.config.status ?? null;
-  const version = batchStatus?.detection.version ?? t("card.notDetected");
   const endpoint = batchStatus?.config.endpoint ?? null;
 
   const showInstallChips = !installed && tool.configType !== "guide";
@@ -53,11 +52,7 @@ export default function CliToolCard({
           <span className="font-semibold text-text-main text-sm leading-tight truncate">
             {tool.name}
           </span>
-          <span className="text-[11px] text-text-muted font-mono bg-black/5 dark:bg-white/5 px-1.5 py-0.5 rounded">
-            {version}
-          </span>
         </div>
-        <p className="text-xs text-text-muted line-clamp-1 mt-0.5">{tool.description}</p>
       </div>
       <span className="material-symbols-outlined text-[18px] text-text-muted flex-shrink-0">
         chevron_right
@@ -114,11 +109,11 @@ export default function CliToolCard({
             {t("card.baseUrlPartial")}
           </span>
         )}
-        {tool.acpSpawnable === true && (
+        {/* {tool.acpSpawnable === true && (
           <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400">
             {t("card.alsoAcp")}
           </span>
-        )}
+        )} */}
         {showInstallChips && (
           <>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-black/5 dark:bg-white/5 text-text-muted">

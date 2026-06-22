@@ -1,5 +1,6 @@
 export { default as ClaudeToolCard } from "./ClaudeToolCard";
 export { default as ClaudeDesktopToolCard } from "./ClaudeDesktopToolCard";
+export { default as CodexDesktopToolCard } from "./CodexDesktopToolCard";
 export { default as CodexToolCard } from "./CodexToolCard";
 export { default as DroidToolCard } from "./DroidToolCard";
 export { default as OpenClawToolCard } from "./OpenClawToolCard";

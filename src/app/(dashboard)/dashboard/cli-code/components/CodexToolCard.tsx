@@ -18,7 +18,12 @@ export default function CodexToolCard({
   cloudEnabled,
   batchStatus,
   lastConfiguredAt,
+  codexTarget = "cli",
 }) {
+  const isDesktopTarget = codexTarget === "desktop";
+  const codexSettingsUrl = isDesktopTarget
+    ? "/api/cli-tools/codex-settings?target=desktop"
+    : "/api/cli-tools/codex-settings";
   const t = useTranslations("cliTools");
   const [codexStatus, setCodexStatus] = useState(null);
   const [checkingCodex, setCheckingCodex] = useState(false);
@@ -37,9 +42,12 @@ export default function CodexToolCard({
     "gpt-5.2",
     "gpt-5.1-codex-mini",
   ];
+  const CODEX_DESKTOP_MODELS = ["gpt-5.5", "gpt-5.4", "gpt-5.4mini", "gpt-5.3-codex", "gpt-5.2"];
+  const codexMappingModels = isDesktopTarget ? CODEX_DESKTOP_MODELS : CODEX_DEFAULT_MODELS;
   const [modelMappings, setModelMappings] = useState<Record<string, string>>({});
   const [reasoningEffort, setReasoningEffort] = useState("xhigh");
-  const [wireApi, setWireApi] = useState("chat");
+  const [wireApi, setWireApi] = useState(isDesktopTarget ? "responses" : "chat");
+  const [preserveOfficialAuth, setPreserveOfficialAuth] = useState(isDesktopTarget);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTarget, setModalTarget] = useState<string | null>(null); // null = default model, string = mapping key
   const [modelAliases, setModelAliases] = useState({});
@@ -95,6 +103,13 @@ export default function CodexToolCard({
       const wireMatch = codexStatus.config.match(/^wire_api\s*=\s*"([^"]+)"/im);
       if (wireMatch) setWireApi(wireMatch[1]);
 
+      if (isDesktopTarget && codexStatus.config.includes("[model_providers.omniroute]")) {
+        setPreserveOfficialAuth(
+          codexStatus.config.includes("experimental_bearer_token") ||
+            !codexStatus.config.includes('env_key = "OPENAI_API_KEY"')
+        );
+      }
+
       const newMappings: Record<string, string> = {};
       const migrationsBlock = codexStatus.config.split("[notice.model_migrations]")[1];
       if (migrationsBlock) {
@@ -109,7 +124,7 @@ export default function CodexToolCard({
       }
       setModelMappings(newMappings);
     }
-  }, [codexStatus]);
+  }, [codexStatus, isDesktopTarget]);
 
   const getConfigStatus = () => {
     if (!cliReady) return null;
@@ -133,7 +148,7 @@ export default function CodexToolCard({
   const checkCodexStatus = async () => {
     setCheckingCodex(true);
     try {
-      const res = await fetch("/api/cli-tools/codex-settings");
+      const res = await fetch(codexSettingsUrl);
       const data = await res.json();
       setCodexStatus(data);
     } catch (error) {
@@ -166,6 +181,7 @@ export default function CodexToolCard({
           model: selectedModel || CODEX_DEFAULT_MODELS[0],
           reasoningEffort,
           wireApi,
+          ...(isDesktopTarget ? { codexTarget: "desktop", preserveOfficialAuth } : {}),
           modelMappings,
         }),
       });
@@ -192,7 +208,7 @@ export default function CodexToolCard({
     setRestoring(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/cli-tools/codex-settings", { method: "DELETE" });
+      const res = await fetch(codexSettingsUrl, { method: "DELETE" });
       const data = await res.json();
       if (res.ok) {
         setMessage({ type: "success", text: t("settingsReset") });
@@ -350,27 +366,35 @@ export default function CodexToolCard({
 
   const getManualConfigs = () => {
     const keyToUse = !cloudEnabled ? "sk_omniroute" : "<YOUR_OMNIROUTE_API_KEY>";
+    const shouldPreserveOfficialAuth = isDesktopTarget && preserveOfficialAuth;
 
-    let configContent = `# OmniRoute Configuration for Codex CLI
+    let configContent = `# OmniRoute Configuration for ${isDesktopTarget ? "Codex Desktop" : "Codex CLI"}
 model = "${selectedModel || CODEX_DEFAULT_MODELS[0]}"`;
 
     if (reasoningEffort && reasoningEffort !== "none") {
       configContent += `\nmodel_reasoning_effort = "${reasoningEffort}"`;
     }
 
-    if (wireApi === "responses") {
+    if (isDesktopTarget || wireApi === "responses") {
       configContent += `
 model_provider = "omniroute"
 
 [model_providers.omniroute]
 name = "OmniRoute"
 base_url = "${getEffectiveBaseUrl()}"
-wire_api = "responses"
-env_key = "OPENAI_API_KEY"
+wire_api = "${wireApi}"
 `;
+
+      if (shouldPreserveOfficialAuth) {
+        configContent += `requires_openai_auth = true
+experimental_bearer_token = "${keyToUse}"
+`;
+      } else {
+        configContent += `env_key = "OPENAI_API_KEY"
+`;
+      }
     } else {
       configContent += `
-
 # Utilize the built-in OpenAI provider pointed to OmniRoute
 openai_base_url = "${getEffectiveBaseUrl()}"
 `;
@@ -385,18 +409,21 @@ openai_base_url = "${getEffectiveBaseUrl()}"
       }
     }
 
-    const authContent = JSON.stringify({ OPENAI_API_KEY: keyToUse }, null, 2);
-
-    return [
+    const configs = [
       {
         filename: "~/.codex/config.toml",
         content: configContent,
       },
-      {
-        filename: "~/.codex/auth.json",
-        content: authContent,
-      },
     ];
+
+    if (!shouldPreserveOfficialAuth) {
+      configs.push({
+        filename: "~/.codex/auth.json",
+        content: JSON.stringify({ OPENAI_API_KEY: keyToUse }, null, 2),
+      });
+    }
+
+    return configs;
   };
 
   return (
@@ -415,7 +442,9 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                 lastConfiguredAt={lastConfiguredAt}
               />
             </div>
-            <p className="text-xs text-text-muted truncate">{t("toolDescriptions.codex")}</p>
+            <p className="text-xs text-text-muted truncate">
+              {isDesktopTarget ? tool.description : t("toolDescriptions.codex")}
+            </p>
           </div>
         </div>
         <span
@@ -574,6 +603,26 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                   )}
                 </div>
 
+                {isDesktopTarget && (
+                  <div className="flex items-start gap-2">
+                    <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">
+                      官方登录
+                    </span>
+                    <span className="material-symbols-outlined text-text-muted text-[14px] pt-1">
+                      arrow_forward
+                    </span>
+                    <label className="flex flex-1 items-start gap-2 text-xs text-text-muted">
+                      <input
+                        type="checkbox"
+                        checked={preserveOfficialAuth}
+                        onChange={(e) => setPreserveOfficialAuth(e.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>切换到 AnyRoute 时保留 Codex 官方登录，不覆盖 ~/.codex/auth.json</span>
+                    </label>
+                  </div>
+                )}
+
                 {/* Default Model */}
                 <div className="flex items-center gap-2">
                   <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
@@ -654,7 +703,7 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                 <div className="text-[11px] text-text-muted mb-2 font-medium uppercase tracking-wider text-right">
                   {t("modelAliasesTitle")}
                 </div>
-                {CODEX_DEFAULT_MODELS.map((defaultModel) => (
+                {codexMappingModels.map((defaultModel) => (
                   <div key={defaultModel} className="flex items-center gap-2 group">
                     <span className="w-32 shrink-0 text-[11px] font-mono text-text-main text-right truncate opacity-70 group-hover:opacity-100 transition-opacity">
                       {defaultModel}

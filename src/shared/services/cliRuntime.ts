@@ -38,6 +38,16 @@ const CLI_TOOLS: Record<string, any> = {
       auth: ".codex/auth.json",
     },
   },
+  "codex-desktop": {
+    defaultCommand: null,
+    envBinKey: "CLI_CODEX_DESKTOP_BIN",
+    requiresBinary: false,
+    healthcheckTimeoutMs: 4000,
+    paths: {
+      config: ".codex/config.toml",
+      auth: ".codex/auth.json",
+    },
+  },
   droid: {
     defaultCommand: "droid",
     envBinKey: "CLI_DROID_BIN",

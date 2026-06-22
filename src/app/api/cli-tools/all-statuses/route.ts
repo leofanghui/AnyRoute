@@ -36,7 +36,7 @@ async function extractEndpointFromConfig(
     const content = await fs.readFile(configPath, "utf-8");
 
     // TOML-based tools (codex) — do a best-effort text search
-    if (toolId === "codex") {
+    if (toolId === "codex" || toolId === "codex-desktop") {
       const match = content.match(/base_url\s*=\s*["']([^"'\n]+)["']/i);
       return match ? match[1] : null;
     }

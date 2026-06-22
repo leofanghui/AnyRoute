@@ -9,6 +9,7 @@ import {
   AntigravityToolCard,
   ClaudeDesktopToolCard,
   ClaudeToolCard,
+  CodexDesktopToolCard,
   ClineToolCard,
   CodexToolCard,
   CopilotToolCard,
@@ -216,6 +217,8 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
         return <ClaudeDesktopToolCard {...cardProps} />;
       case "codex":
         return <CodexToolCard {...cardProps} />;
+      case "codex-desktop":
+        return <CodexDesktopToolCard {...cardProps} />;
       case "droid":
         return <DroidToolCard {...cardProps} />;
       case "openclaw":

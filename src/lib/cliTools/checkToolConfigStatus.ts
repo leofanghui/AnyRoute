@@ -33,13 +33,17 @@ export async function checkToolConfigStatus(
     const content = await fs.readFile(configPath, "utf-8");
 
     // Codex uses TOML config — parse as raw text, not JSON
-    if (toolId === "codex") {
+    if (toolId === "codex" || toolId === "codex-desktop") {
       const lower = content.toLowerCase();
       const hasOmniRoute =
         lower.includes("omniroute") ||
         lower.includes(`localhost:${apiPort}`) ||
         lower.includes(`127.0.0.1:${apiPort}`);
       if (!hasOmniRoute) return "not_configured";
+
+      if (/experimental_bearer_token\s*=\s*["'][^"']+["']/i.test(content)) {
+        return "configured";
+      }
 
       // Also verify auth.json has an API key (not masked/empty)
       try {

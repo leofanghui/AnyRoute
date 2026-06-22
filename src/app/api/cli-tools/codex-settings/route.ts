@@ -124,6 +124,12 @@ const readConfig = async () => {
   }
 };
 
+const redactCodexConfig = (config: string | null) =>
+  config?.replace(
+    /experimental_bearer_token\s*=\s*(["'])(?:(?!\1).)*\1/g,
+    'experimental_bearer_token = "<redacted>"'
+  ) ?? null;
+
 // Check if config has OmniRoute settings
 const hasOmniRouteConfig = (config: string | null) => {
   if (!config) return false;
@@ -140,7 +146,8 @@ export async function GET(request: Request) {
   if (authError) return authError;
 
   try {
-    const runtime = await getCliRuntimeStatus("codex");
+    const target = new URL(request.url).searchParams.get("target");
+    const runtime = await getCliRuntimeStatus(target === "desktop" ? "codex-desktop" : "codex");
 
     if (!runtime.installed || !runtime.runnable) {
       return NextResponse.json({
@@ -167,7 +174,7 @@ export async function GET(request: Request) {
       commandPath: runtime.commandPath,
       runtimeMode: runtime.runtimeMode,
       reason: runtime.reason,
-      config,
+      config: redactCodexConfig(config),
       hasOmniRoute: hasOmniRouteConfig(config),
       configPath: getCodexConfigPath(),
     });
@@ -213,6 +220,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
     const { baseUrl, model, reasoningEffort, wireApi, modelMappings } = validation.data;
+    const isDesktopTarget = validation.data.codexTarget === "desktop";
+    const toolStateId = isDesktopTarget ? "codex-desktop" : "codex";
+    const preserveOfficialAuth = isDesktopTarget
+      ? validation.data.preserveOfficialAuth !== false
+      : validation.data.preserveOfficialAuth === true;
     let { apiKey } = validation.data;
     if (!apiKey) {
       return NextResponse.json(
@@ -270,7 +282,9 @@ export async function POST(request: Request) {
       name: "OmniRoute",
       base_url: normalizedBaseUrl,
       wire_api: wireApi || "chat",
-      env_key: "OPENAI_API_KEY",
+      ...(preserveOfficialAuth
+        ? { requires_openai_auth: true, experimental_bearer_token: apiKey }
+        : { env_key: "OPENAI_API_KEY" }),
     };
     delete parsed._root.openai_base_url;
 
@@ -290,21 +304,23 @@ export async function POST(request: Request) {
     const configContent = toToml(parsed);
     await fs.writeFile(configPath, configContent);
 
-    // Update auth.json with OPENAI_API_KEY (Codex reads this first)
-    let authData: Record<string, any> = {};
-    try {
-      const existingAuth = await fs.readFile(authPath, "utf-8");
-      authData = JSON.parse(existingAuth);
-    } catch {
-      /* No existing auth */
-    }
+    if (!preserveOfficialAuth) {
+      // Legacy mode: overwrite auth.json with the selected gateway key.
+      let authData: Record<string, any> = {};
+      try {
+        const existingAuth = await fs.readFile(authPath, "utf-8");
+        authData = JSON.parse(existingAuth);
+      } catch {
+        /* No existing auth */
+      }
 
-    authData.OPENAI_API_KEY = apiKey;
-    await fs.writeFile(authPath, JSON.stringify(authData, null, 2));
+      authData.OPENAI_API_KEY = apiKey;
+      await fs.writeFile(authPath, JSON.stringify(authData, null, 2));
+    }
 
     // Persist last-configured timestamp
     try {
-      saveCliToolLastConfigured("codex");
+      saveCliToolLastConfigured(toolStateId);
     } catch {
       /* non-critical */
     }
@@ -326,6 +342,8 @@ export async function DELETE(request: Request) {
   if (authError) return authError;
 
   try {
+    const target = new URL(request.url).searchParams.get("target");
+    const toolStateId = target === "desktop" ? "codex-desktop" : "codex";
     const writeGuard = ensureCliConfigWriteAllowed();
     if (writeGuard) {
       return NextResponse.json({ error: writeGuard }, { status: 403 });
@@ -366,26 +384,9 @@ export async function DELETE(request: Request) {
     const configContent = toToml(parsed);
     await fs.writeFile(configPath, configContent);
 
-    // Remove OPENAI_API_KEY from auth.json
-    const authPath = getCodexAuthPath();
-    try {
-      const existingAuth = await fs.readFile(authPath, "utf-8");
-      const authData = JSON.parse(existingAuth);
-      delete authData.OPENAI_API_KEY;
-
-      // Write back or delete if empty
-      if (Object.keys(authData).length === 0) {
-        await fs.unlink(authPath);
-      } else {
-        await fs.writeFile(authPath, JSON.stringify(authData, null, 2));
-      }
-    } catch {
-      /* No auth file */
-    }
-
     // Clear last-configured timestamp
     try {
-      deleteCliToolLastConfigured("codex");
+      deleteCliToolLastConfigured(toolStateId);
     } catch {
       /* non-critical */
     }

@@ -60,5 +60,5 @@ export type CliCatalogEntry = z.infer<typeof CliCatalogEntrySchema>;
 export const CliCatalogSchema = z.record(CliCatalogEntrySchema);
 
 /** Cardinalidade obrigatória (Plano §3.1/§3.2 + D15). */
-export const EXPECTED_CODE_COUNT = 20;
+export const EXPECTED_CODE_COUNT = 21;
 export const EXPECTED_AGENT_COUNT = 6;

@@ -70,5 +70,7 @@ export const cliModelConfigSchema = z.object({
   model: z.string().trim().min(1, "baseUrl and model are required"),
   reasoningEffort: z.enum(["none", "low", "medium", "high", "xhigh"]).optional(),
   wireApi: z.enum(["chat", "responses"]).optional(),
+  codexTarget: z.enum(["cli", "desktop"]).optional(),
+  preserveOfficialAuth: z.boolean().optional(),
   modelMappings: z.record(z.string().trim().min(1), z.string().trim().min(1)).optional(),
 });
