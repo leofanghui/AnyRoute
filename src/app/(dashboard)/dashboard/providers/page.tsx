@@ -1164,6 +1164,7 @@ export default function ProvidersPage() {
                     key={connection.id}
                     connection={connection}
                     providerEntry={providerEntry}
+                    models={marketplaceModelsByProvider[connection.provider] || []}
                     testing={testingMode === connection.id}
                     onTestStart={() => setTestingMode(connection.id)}
                     onTestEnd={() => setTestingMode(null)}
@@ -1495,6 +1496,7 @@ function getAuthTypeDescription(
 function ChannelCard({
   connection,
   providerEntry,
+  models = [],
   testing,
   onTestStart,
   onTestEnd,
@@ -1504,6 +1506,7 @@ function ChannelCard({
 }: {
   connection: any;
   providerEntry?: DashboardProviderEntry;
+  models: Array<{ id: string; name?: string }>;
   testing: boolean;
   onTestStart: () => void;
   onTestEnd: () => void;
@@ -1678,11 +1681,33 @@ function ChannelCard({
           <ProviderIcon providerId={provider.id || providerId} size={26} type="color" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-text-main">{channelName}</h3>
-            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${statusClass}`}>
-              {statusLabel}
-            </span>
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="truncate text-sm font-semibold text-text-main">{channelName}</h3>
+              <span className="shrink-0 rounded-full bg-bg-subtle px-2 py-0.5 text-[11px] font-medium text-text-muted">
+                {getAuthTypeLabel(t, authType)}
+              </span>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${statusClass}`}>
+                {statusLabel}
+              </span>
+              {typeof connection.latencyMs === "number" && connection.latencyMs >= 0 && (
+                <span
+                  className={`whitespace-nowrap text-xs tabular-nums ${
+                    connection.latencyMs < 200
+                      ? "text-emerald-500"
+                      : connection.latencyMs < 500
+                        ? "text-amber-500"
+                        : connection.latencyMs < 1000
+                          ? "text-orange-500"
+                          : "text-red-500"
+                  }`}
+                >
+                  {providerText(t, "latencySuffix", "{ms}ms", { ms: connection.latencyMs })}
+                </span>
+              )}
+            </div>
           </div>
           <p className="mt-1 truncate text-xs text-text-muted">
             {providerName}
@@ -1691,37 +1716,23 @@ function ChannelCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">{providerText(t, "authMethod", "认证")}</p>
-          <p className="mt-0.5 truncate font-medium text-text-main">
-            {getAuthTypeLabel(t, authType)}
-          </p>
-        </div>
-        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">{providerText(t, "priority", "优先级")}</p>
-          <p className="mt-0.5 font-medium text-text-main">{connection.priority ?? "-"}</p>
-        </div>
-        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">{providerText(t, "defaultModel", "默认模型")}</p>
-          <p className="mt-0.5 truncate font-mono text-text-main">
-            {connection.defaultModel || "-"}
-          </p>
-        </div>
-        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">{providerText(t, "lastChecked", "最近检测")}</p>
-          <p className="mt-0.5 truncate font-medium text-text-main">
-            {connection.lastTested ? getRelativeTime(connection.lastTested) : "-"}
-          </p>
-        </div>
-        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">{providerText(t, "latency", "延迟")}</p>
-          <p className="mt-0.5 truncate font-medium text-text-main">
-            {typeof connection.latencyMs === "number" && connection.latencyMs >= 0
-              ? providerText(t, "latencySuffix", "{ms}ms", { ms: connection.latencyMs })
-              : "-"}
-          </p>
-        </div>
+      <div className="flex min-h-0 flex-wrap gap-1.5">
+        {(models.length > 0 ? models : [{ id: connection.defaultModel || "-" }])
+          .slice(0, 20)
+          .map((model) => (
+            <span
+              key={model.id}
+              className="inline-block truncate rounded-full bg-bg-subtle px-2.5 py-0.5 text-[11px] font-mono text-text-muted"
+              title={model.name || model.id}
+            >
+              {model.id}
+            </span>
+          ))}
+        {models.length > 20 && (
+          <span className="inline-block rounded-full bg-bg-subtle px-2.5 py-0.5 text-[11px] text-text-muted">
+            +{models.length - 20}
+          </span>
+        )}
       </div>
 
       {hasError && connection.lastError && (

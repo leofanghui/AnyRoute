@@ -65,7 +65,11 @@ export default function CcSwitchImportPanel({
   const [uploadSql, setUploadSql] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [appTypeFilter, setAppTypeFilter] = useState<"all" | "claude" | "codex">("all");
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const filteredProviders =
+    appTypeFilter === "all" ? providers : providers.filter((p) => p.appType === appTypeFilter);
 
   const handleDetect = async () => {
     setDetecting(true);
@@ -128,14 +132,6 @@ export default function CcSwitchImportPanel({
       else next.add(id);
       return next;
     });
-  };
-
-  const toggleAll = () => {
-    if (selectedIds.size === providers.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(providers.map((p) => p.id)));
-    }
   };
 
   const handleImport = async () => {
@@ -250,13 +246,52 @@ export default function CcSwitchImportPanel({
 
       {providers.length > 0 && !result && (
         <>
+          <div
+            className="inline-flex w-fit rounded-lg border border-border bg-bg-subtle p-1"
+            role="tablist"
+          >
+            {[
+              { id: "all" as const, label: "全部" },
+              { id: "claude" as const, label: "Claude" },
+              { id: "codex" as const, label: "Codex" },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={appTypeFilter === tab.id}
+                onClick={() => setAppTypeFilter(tab.id)}
+                className={`h-7 rounded-md px-3 text-xs font-medium transition-colors ${
+                  appTypeFilter === tab.id
+                    ? "bg-surface text-text-main shadow-sm"
+                    : "text-text-muted hover:text-text-main"
+                }`}
+              >
+                {tab.label}
+                <span className="ml-1 text-text-muted">
+                  (
+                  {tab.id === "all"
+                    ? providers.length
+                    : providers.filter((p) => p.appType === tab.id).length}
+                  )
+                </span>
+              </button>
+            ))}
+          </div>
+
           <div className="flex items-center justify-between">
             <button
               type="button"
-              onClick={toggleAll}
+              onClick={() => {
+                if (selectedIds.size === filteredProviders.length) {
+                  setSelectedIds(new Set());
+                } else {
+                  setSelectedIds(new Set(filteredProviders.map((p) => p.id)));
+                }
+              }}
               className="text-sm font-medium text-primary hover:underline"
             >
-              {selectedIds.size === providers.length
+              {selectedIds.size === filteredProviders.length
                 ? pt(t, "importDeselectAll", "取消全选")
                 : pt(t, "importSelectAll", "全选")}
             </button>
@@ -277,7 +312,7 @@ export default function CcSwitchImportPanel({
                 </tr>
               </thead>
               <tbody>
-                {providers.map((p) => (
+                {filteredProviders.map((p) => (
                   <tr
                     key={p.id}
                     onClick={() => toggleSelection(p.id)}
