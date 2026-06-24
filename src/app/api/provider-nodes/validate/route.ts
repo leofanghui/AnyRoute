@@ -8,6 +8,7 @@ import {
   getSafeOutboundFetchErrorStatus,
   safeOutboundFetch,
 } from "@/shared/network/safeOutboundFetch";
+import tlsClient from "@omniroute/open-sse/utils/tlsClient.ts";
 import {
   PROVIDER_URL_BLOCKED_MESSAGE,
   getProviderOutboundGuard,
@@ -38,6 +39,87 @@ function sanitizeAuditBaseUrl(baseUrl: string) {
   } catch {
     return baseUrl;
   }
+}
+
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function hasVersionPath(baseUrl: string) {
+  try {
+    const pathname = new URL(baseUrl).pathname.replace(/\/+$/, "");
+    return /\/v\d+$/i.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
+function buildModelsCandidates(baseUrl: string, modelsPath?: string) {
+  const normalizedBase = trimTrailingSlash(baseUrl);
+  const path = modelsPath || "/models";
+  const candidates = [{ url: `${normalizedBase}${path}`, baseUrl: normalizedBase }];
+
+  if (!modelsPath && !hasVersionPath(normalizedBase)) {
+    candidates.push({ url: `${normalizedBase}/v1/models`, baseUrl: `${normalizedBase}/v1` });
+  }
+
+  return candidates;
+}
+
+async function fetchValidationUrl(url: string, init: Parameters<typeof safeOutboundFetch>[1]) {
+  try {
+    return await safeOutboundFetch(url, init);
+  } catch (error) {
+    if (error instanceof SafeOutboundFetchError && error.code === "NETWORK_ERROR") {
+      return await tlsClient.fetch(url, {
+        method: init?.method,
+        headers: init?.headers,
+        redirect: init?.allowRedirect ? "follow" : "manual",
+        signal: init?.signal,
+      });
+    }
+    throw error;
+  }
+}
+
+async function isModelsResponse(response: Response) {
+  if (!response.ok) return false;
+
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) return false;
+
+  try {
+    const json = JSON.parse(text);
+    return Array.isArray(json) || Array.isArray(json?.data) || Array.isArray(json?.models);
+  } catch {
+    return false;
+  }
+}
+
+async function validateModelsCandidates(
+  candidates: Array<{ url: string; baseUrl: string }>,
+  init: Parameters<typeof safeOutboundFetch>[1]
+) {
+  let sawUnauthorized = false;
+  let lastError = "Invalid API key or models endpoint unavailable";
+
+  for (const candidate of candidates) {
+    try {
+      const response = await fetchValidationUrl(candidate.url, init);
+      if (response.status === 401 || response.status === 403) {
+        sawUnauthorized = true;
+        lastError = "Invalid API key";
+        continue;
+      }
+      if (await isModelsResponse(response)) {
+        return { valid: true, baseUrl: candidate.baseUrl, error: null };
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Validation failed";
+    }
+  }
+
+  return { valid: false, baseUrl: null, error: sawUnauthorized ? "Invalid API key" : lastError };
 }
 
 // POST /api/provider-nodes/validate - Validate API key against base URL
@@ -97,32 +179,31 @@ export async function POST(request) {
       // Robustly construct URL: remove trailing slash, and remove trailing /messages if user added it
       const normalizedBase = sanitizeAnthropicBaseUrl(baseUrl);
 
-      // Use /models endpoint for validation as many compatible providers support it (like OpenAI)
-      const modelsUrl = `${normalizedBase}${modelsPath || "/models"}`;
+      const result = await validateModelsCandidates(
+        buildModelsCandidates(normalizedBase, modelsPath),
+        {
+          ...SAFE_OUTBOUND_FETCH_PRESETS.validationRead,
+          guard: getProviderOutboundGuard(),
+          method: "GET",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            Authorization: `Bearer ${apiKey}`, // Add Bearer token for hybrid proxies
+          },
+        }
+      );
 
-      const res = await safeOutboundFetch(modelsUrl, {
-        ...SAFE_OUTBOUND_FETCH_PRESETS.validationRead,
-        guard: getProviderOutboundGuard(),
-        method: "GET",
-        headers: {
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          Authorization: `Bearer ${apiKey}`, // Add Bearer token for hybrid proxies
-        },
-      });
-
-      return NextResponse.json({ valid: res.ok, error: res.ok ? null : "Invalid API key" });
+      return NextResponse.json(result);
     }
 
     // OpenAI Compatible Validation (Default)
-    const modelsUrl = `${baseUrl.replace(/\/$/, "")}${modelsPath || "/models"}`;
-    const res = await safeOutboundFetch(modelsUrl, {
+    const result = await validateModelsCandidates(buildModelsCandidates(baseUrl, modelsPath), {
       ...SAFE_OUTBOUND_FETCH_PRESETS.validationRead,
       guard: getProviderOutboundGuard(),
       headers: { Authorization: `Bearer ${apiKey}` },
     });
 
-    return NextResponse.json({ valid: res.ok, error: res.ok ? null : "Invalid API key" });
+    return NextResponse.json(result);
   } catch (error) {
     const status = getSafeOutboundFetchErrorStatus(error);
     if (status) {

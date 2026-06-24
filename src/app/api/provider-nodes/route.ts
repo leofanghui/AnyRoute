@@ -32,6 +32,31 @@ function sanitizeClaudeCodeCompatibleBaseUrl(baseUrl: string) {
     .replace(/\/(?:v\d+\/)?messages(?:\?[^#]*)?$/i, "");
 }
 
+function normalizeNullablePath(value: unknown) {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function normalizeBaseUrl(value: unknown) {
+  return typeof value === "string" ? value.trim().replace(/\/+$/, "") : "";
+}
+
+function findExistingCompatibleNode(nodes, target) {
+  return (
+    nodes.find((node) => {
+      if (node.type !== target.type) return false;
+      if (normalizeBaseUrl(node.baseUrl) !== normalizeBaseUrl(target.baseUrl)) return false;
+      if (normalizeNullablePath(node.chatPath) !== normalizeNullablePath(target.chatPath)) {
+        return false;
+      }
+      if (normalizeNullablePath(node.modelsPath) !== normalizeNullablePath(target.modelsPath)) {
+        return false;
+      }
+      if (target.type === "openai-compatible" && node.apiType !== target.apiType) return false;
+      return true;
+    }) || null
+  );
+}
+
 // GET /api/provider-nodes - List all provider nodes
 export async function GET() {
   try {
@@ -68,22 +93,46 @@ export async function POST(request) {
     if (isValidationFailure(validation)) {
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-    const { name, prefix, apiType, baseUrl, type, compatMode, chatPath, modelsPath, customHeaders } =
-      validation.data;
+    const {
+      name,
+      prefix,
+      apiType,
+      baseUrl,
+      type,
+      compatMode,
+      chatPath,
+      modelsPath,
+      customHeaders,
+    } = validation.data;
 
     // Determine type
     const nodeType = type || "openai-compatible";
 
     if (nodeType === "openai-compatible") {
+      const target = {
+        type: "openai-compatible",
+        apiType,
+        baseUrl: (baseUrl || OPENAI_COMPATIBLE_DEFAULTS.baseUrl).trim(),
+        chatPath: chatPath || null,
+        modelsPath: modelsPath || null,
+      };
+      const existing = findExistingCompatibleNode(
+        await getProviderNodes({ type: target.type }),
+        target
+      );
+      if (existing) {
+        return NextResponse.json({ node: existing, reused: true }, { status: 200 });
+      }
+
       const node = await createProviderNode({
         id: `${OPENAI_COMPATIBLE_PREFIX}${apiType}-${generateId()}`,
         type: "openai-compatible",
         prefix: prefix.trim(),
         apiType,
-        baseUrl: (baseUrl || OPENAI_COMPATIBLE_DEFAULTS.baseUrl).trim(),
+        baseUrl: target.baseUrl,
         name: name.trim(),
-        chatPath: chatPath || null,
-        modelsPath: modelsPath || null,
+        chatPath: target.chatPath,
+        modelsPath: target.modelsPath,
         customHeaders: customHeaders || null,
       });
       return NextResponse.json({ node }, { status: 201 });
@@ -99,6 +148,19 @@ export async function POST(request) {
         compatMode === "cc"
           ? sanitizeClaudeCodeCompatibleBaseUrl(rawBaseUrl)
           : sanitizeAnthropicBaseUrl(rawBaseUrl);
+      const target = {
+        type: "anthropic-compatible",
+        baseUrl: sanitizedBaseUrl,
+        chatPath: chatPath || null,
+        modelsPath: compatMode === "cc" ? null : modelsPath || null,
+      };
+      const existing = findExistingCompatibleNode(
+        await getProviderNodes({ type: target.type }),
+        target
+      );
+      if (existing) {
+        return NextResponse.json({ node: existing, reused: true }, { status: 200 });
+      }
 
       const node = await createProviderNode({
         id:
@@ -107,10 +169,10 @@ export async function POST(request) {
             : `${ANTHROPIC_COMPATIBLE_PREFIX}${generateId()}`,
         type: "anthropic-compatible",
         prefix: prefix.trim(),
-        baseUrl: sanitizedBaseUrl,
+        baseUrl: target.baseUrl,
         name: name.trim(),
-        chatPath: chatPath || null,
-        modelsPath: compatMode === "cc" ? null : modelsPath || null,
+        chatPath: target.chatPath,
+        modelsPath: target.modelsPath,
         customHeaders: customHeaders || null,
       });
       return NextResponse.json({ node }, { status: 201 });

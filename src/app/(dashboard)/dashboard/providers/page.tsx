@@ -56,7 +56,8 @@ type DashboardProviderEntry = ProviderEntry<DashboardProviderInfo> & {
 };
 
 type MarketplaceTab = "channels" | "models";
-type CompatibleMode = "openai" | "anthropic";
+type CompatibleMode = "auto" | "openai" | "anthropic";
+type ResolvedCompatibleMode = Exclude<CompatibleMode, "auto">;
 type CompatibleProviderNode = { id: string } & Record<string, unknown>;
 
 type ModelMarketplaceItem = {
@@ -138,7 +139,9 @@ function getProviderDisplayName(entry: DashboardProviderEntry): string {
 
 function getCompatibleTemplateMode(entry: DashboardProviderEntry): CompatibleMode | null {
   if (!entry.provider.isCompatibleTemplate) return null;
-  return entry.provider.compatibleMode === "openai" || entry.provider.compatibleMode === "anthropic"
+  return entry.provider.compatibleMode === "auto" ||
+    entry.provider.compatibleMode === "openai" ||
+    entry.provider.compatibleMode === "anthropic"
     ? entry.provider.compatibleMode
     : null;
 }
@@ -146,26 +149,12 @@ function getCompatibleTemplateMode(entry: DashboardProviderEntry): CompatibleMod
 function buildCompatibleTemplateEntries(t: ProviderMessageTranslator): DashboardProviderEntry[] {
   return [
     {
-      providerId: "__compatible-openai-template",
+      providerId: "__compatible-auto-template",
       provider: {
         id: "openai",
-        name: providerText(t, "openAICompatible", "OpenAI 兼容"),
+        name: providerText(t, "customCompatibleChannel", "自定义兼容渠道"),
         color: "#10A37F",
-        compatibleMode: "openai",
-        isCompatibleTemplate: true,
-      },
-      stats: { total: 0 },
-      displayAuthType: "compatible",
-      toggleAuthType: "apikey",
-      presetCategory: "compatible",
-    },
-    {
-      providerId: "__compatible-anthropic-template",
-      provider: {
-        id: "anthropic",
-        name: providerText(t, "anthropicCompatible", "Anthropic 兼容"),
-        color: "#D97757",
-        compatibleMode: "anthropic",
+        compatibleMode: "auto",
         isCompatibleTemplate: true,
       },
       stats: { total: 0 },
@@ -1424,13 +1413,24 @@ export default function ProvidersPage() {
       >
         <ChannelPresetPicker
           entries={providerPresetEntriesAll}
-          onCompatibleNodeCreated={(node) => setProviderNodes((prev) => [...prev, node])}
+          compatibleNodes={providerNodes}
+          onCompatibleNodeCreated={(node) =>
+            setProviderNodes((prev) =>
+              prev.some((item) => item.id === node.id)
+                ? prev.map((item) => (item.id === node.id ? node : item))
+                : [...prev, node]
+            )
+          }
           onConfigureProvider={(providerId) => {
             setShowProviderPresetModal(false);
             router.push(`/dashboard/providers/${providerId}`);
           }}
           onConnectionCreated={(connection) => {
-            setConnections((prev) => [...prev, connection]);
+            setConnections((prev) =>
+              prev.some((item) => item.id === connection.id)
+                ? prev.map((item) => (item.id === connection.id ? connection : item))
+                : [...prev, connection]
+            );
           }}
         />
       </Modal>
@@ -1548,6 +1548,7 @@ export default function ProvidersPage() {
 
 type ChannelPresetPickerProps = {
   entries: DashboardProviderEntry[];
+  compatibleNodes: CompatibleProviderNode[];
   onCompatibleNodeCreated: (node: CompatibleProviderNode) => void;
   onConnectionCreated: (connection: any) => void;
   onConfigureProvider: (providerId: string) => void;
@@ -1899,6 +1900,7 @@ function ChannelCard({
 
 function ChannelPresetPicker({
   entries,
+  compatibleNodes,
   onCompatibleNodeCreated,
   onConnectionCreated,
   onConfigureProvider,
@@ -1940,7 +1942,6 @@ function ChannelPresetPicker({
   const configuredCount = Number(selectedEntry?.stats?.total || 0);
   const handleCompatibleNodeCreated = (node: CompatibleProviderNode) => {
     onCompatibleNodeCreated(node);
-    onConfigureProvider(node.id);
   };
 
   return (
@@ -2042,7 +2043,9 @@ function ChannelPresetPicker({
           selectedCompatibleMode ? (
             <CompatibleNodeInlinePanel
               mode={selectedCompatibleMode}
+              compatibleNodes={compatibleNodes}
               onCreated={handleCompatibleNodeCreated}
+              onConnectionCreated={onConnectionCreated}
             />
           ) : (
             <div className="flex min-h-full flex-col gap-5">
@@ -2173,7 +2176,7 @@ type CompatibleNodeFormState = {
 };
 
 const COMPATIBLE_MODE_CONFIG: Record<
-  CompatibleMode,
+  ResolvedCompatibleMode,
   {
     label: string;
     description: string;
@@ -2213,50 +2216,115 @@ const COMPATIBLE_MODE_CONFIG: Record<
   },
 };
 
+function getCompatibleModeConfig(mode: CompatibleMode) {
+  return COMPATIBLE_MODE_CONFIG[mode === "anthropic" ? "anthropic" : "openai"];
+}
+
 function createCompatibleNodeForm(mode: CompatibleMode): CompatibleNodeFormState {
-  const config = COMPATIBLE_MODE_CONFIG[mode];
+  const config = getCompatibleModeConfig(mode);
   return {
     name: "",
     prefix: "",
     apiType: "chat",
-    baseUrl: config.defaultBaseUrl,
+    baseUrl: "",
     chatPath: config.defaultChatPath,
     modelsPath: "",
     checkKey: "",
   };
 }
 
+function deriveCompatiblePrefix(baseUrl: string, name: string): string {
+  const source = (() => {
+    try {
+      return new URL(baseUrl.trim()).hostname;
+    } catch {
+      return name || baseUrl || "custom-compatible";
+    }
+  })();
+  const normalized = source
+    .toLowerCase()
+    .replace(/^www\./, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "custom-compatible";
+}
+
+function normalizeCompatibleBaseUrl(value: unknown): string {
+  return typeof value === "string" ? value.trim().replace(/\/+$/, "") : "";
+}
+
+function normalizeCompatiblePath(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function findMatchingCompatibleNode(
+  nodes: CompatibleProviderNode[],
+  body: Record<string, unknown>
+): CompatibleProviderNode | null {
+  return (
+    nodes.find((node) => {
+      if (node.type !== body.type) return false;
+      if (normalizeCompatibleBaseUrl(node.baseUrl) !== normalizeCompatibleBaseUrl(body.baseUrl)) {
+        return false;
+      }
+      if (normalizeCompatiblePath(node.chatPath) !== normalizeCompatiblePath(body.chatPath)) {
+        return false;
+      }
+      if (normalizeCompatiblePath(node.modelsPath) !== normalizeCompatiblePath(body.modelsPath)) {
+        return false;
+      }
+      if (body.type === "openai-compatible" && node.apiType !== body.apiType) return false;
+      return true;
+    }) || null
+  );
+}
+
 function CompatibleNodeInlinePanel({
   mode,
+  compatibleNodes,
   onCreated,
+  onConnectionCreated,
 }: {
   mode: CompatibleMode;
+  compatibleNodes: CompatibleProviderNode[];
   onCreated: (node: CompatibleProviderNode) => void;
+  onConnectionCreated: (connection: any) => void;
 }) {
   const t = useTranslations("providers") as ProviderMessageTranslator;
   const notify = useNotificationStore();
   const [form, setForm] = useState<CompatibleNodeFormState>(() => createCompatibleNodeForm(mode));
+  const [manualMode, setManualMode] = useState<CompatibleMode>(mode);
+  const [detectedMode, setDetectedMode] = useState<ResolvedCompatibleMode | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<"success" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const config = COMPATIBLE_MODE_CONFIG[mode];
-  const configLabel = providerText(
-    t,
-    mode === "openai" ? "openAICompatible" : "anthropicCompatible",
-    config.label
-  );
+  const resolvedMode: ResolvedCompatibleMode =
+    manualMode === "auto" ? detectedMode || "openai" : manualMode;
+  const config = getCompatibleModeConfig(resolvedMode);
+  const configLabel = providerText(t, "customCompatibleChannel", "自定义兼容渠道");
+  const detectedModeLabel = detectedMode
+    ? providerText(
+        t,
+        detectedMode === "openai" ? "openAICompatible" : "anthropicCompatible",
+        detectedMode === "openai" ? "OpenAI 兼容" : "Anthropic 兼容"
+      )
+    : null;
   const configDescription = providerText(
     t,
-    mode === "openai" ? "openAICompatibleDesc" : "anthropicCompatibleDesc",
-    config.description
+    "customCompatibleChannelDesc",
+    "填写中转站的 Base URL 和 API Key，OmniRoute 会自动识别 OpenAI 或 Anthropic 兼容格式。"
   );
-  const hasRequiredFields = Boolean(form.name.trim() && form.prefix.trim() && form.baseUrl.trim());
+  const hasRequiredFields = Boolean(
+    form.name.trim() && form.baseUrl.trim() && form.checkKey.trim()
+  );
   const canValidate = Boolean(form.checkKey.trim() && form.baseUrl.trim());
 
   useEffect(() => {
     setForm(createCompatibleNodeForm(mode));
+    setManualMode(mode);
+    setDetectedMode(null);
     setShowAdvanced(false);
     setValidationResult(null);
     setError(null);
@@ -2265,19 +2333,76 @@ function CompatibleNodeInlinePanel({
   const updateForm = (field: keyof CompatibleNodeFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
     setValidationResult(null);
+    setDetectedMode(null);
   };
 
-  const buildNodeBody = () => {
+  const buildNodeBody = (nodeMode: ResolvedCompatibleMode, detectedBaseUrl?: string) => {
+    const nodeConfig = COMPATIBLE_MODE_CONFIG[nodeMode];
+    const effectiveBaseUrl = detectedBaseUrl || form.baseUrl.trim();
+    const name = form.name.trim();
+    const prefix = form.prefix.trim() || deriveCompatiblePrefix(effectiveBaseUrl, name);
     const body: Record<string, unknown> = {
-      name: form.name.trim(),
-      prefix: form.prefix.trim(),
-      baseUrl: form.baseUrl.trim(),
-      type: config.type,
+      name,
+      prefix,
+      baseUrl: effectiveBaseUrl,
+      type: nodeConfig.type,
       chatPath: form.chatPath.trim(),
     };
-    if (config.hasApiType) body.apiType = form.apiType;
-    if (config.hasModelsPath) body.modelsPath = form.modelsPath.trim();
+    if (nodeConfig.hasApiType) body.apiType = form.apiType;
+    if (nodeConfig.hasModelsPath) body.modelsPath = form.modelsPath.trim();
     return body;
+  };
+
+  const validateCompatibleMode = async (modeToValidate: ResolvedCompatibleMode) => {
+    const nodeConfig = COMPATIBLE_MODE_CONFIG[modeToValidate];
+    const body: Record<string, unknown> = {
+      baseUrl: form.baseUrl.trim(),
+      apiKey: form.checkKey.trim(),
+      type: nodeConfig.type,
+    };
+    if (form.chatPath.trim()) body.chatPath = form.chatPath.trim();
+    if (nodeConfig.hasModelsPath) body.modelsPath = form.modelsPath.trim();
+
+    const res = await fetch("/api/provider-nodes/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    return {
+      ok: res.ok && data?.valid === true,
+      baseUrl: typeof data?.baseUrl === "string" ? data.baseUrl : null,
+      error:
+        typeof data?.error === "string"
+          ? data.error
+          : data?.error?.message || providerText(t, "validationFailed", "校验失败"),
+    };
+  };
+
+  const detectCompatibleMode = async (): Promise<{
+    mode: ResolvedCompatibleMode;
+    baseUrl: string | null;
+  }> => {
+    if (manualMode !== "auto") {
+      const result = await validateCompatibleMode(manualMode);
+      if (!result.ok) throw new Error(result.error);
+      setDetectedMode(manualMode);
+      return { mode: manualMode, baseUrl: result.baseUrl };
+    }
+
+    const openAIResult = await validateCompatibleMode("openai");
+    if (openAIResult.ok) {
+      setDetectedMode("openai");
+      return { mode: "openai", baseUrl: openAIResult.baseUrl };
+    }
+
+    const anthropicResult = await validateCompatibleMode("anthropic");
+    if (anthropicResult.ok) {
+      setDetectedMode("anthropic");
+      return { mode: "anthropic", baseUrl: anthropicResult.baseUrl };
+    }
+
+    throw new Error(anthropicResult.error || openAIResult.error);
   };
 
   const handleValidate = async () => {
@@ -2286,26 +2411,21 @@ function CompatibleNodeInlinePanel({
     setError(null);
     setValidationResult(null);
     try {
-      const body: Record<string, unknown> = {
-        baseUrl: form.baseUrl.trim(),
-        apiKey: form.checkKey.trim(),
-        type: config.type,
-      };
-      if (config.hasModelsPath) body.modelsPath = form.modelsPath.trim();
-
-      const res = await fetch("/api/provider-nodes/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.valid) {
-        setValidationResult("failed");
-        throw new Error(data?.error || providerText(t, "validationFailed", "校验失败"));
+      const detected = await detectCompatibleMode();
+      if (detected.baseUrl && detected.baseUrl !== form.baseUrl.trim()) {
+        setForm((prev) => ({ ...prev, baseUrl: detected.baseUrl || prev.baseUrl }));
       }
       setValidationResult("success");
-      notify.success(providerText(t, "compatibleEndpointValidationPassed", "兼容端点校验通过"));
+      notify.success(
+        providerText(t, "compatibleEndpointDetected", "已识别为 {type}", {
+          type:
+            detected.mode === "openai"
+              ? providerText(t, "openAICompatible", "OpenAI 兼容")
+              : providerText(t, "anthropicCompatible", "Anthropic 兼容"),
+        })
+      );
     } catch (err) {
+      setValidationResult("failed");
       const message =
         err instanceof Error ? err.message : providerText(t, "validationFailed", "校验失败");
       setError(message);
@@ -2318,7 +2438,7 @@ function CompatibleNodeInlinePanel({
   const handleSubmit = async () => {
     if (!hasRequiredFields || saving) {
       if (!hasRequiredFields) {
-        setError(providerText(t, "compatibleRequiredFields", "请填写名称、前缀和 Base URL"));
+        setError(providerText(t, "compatibleRequiredFields", "请填写名称、Base URL 和 API Key"));
       }
       return;
     }
@@ -2326,26 +2446,61 @@ function CompatibleNodeInlinePanel({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/provider-nodes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildNodeBody()),
-      });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.node) {
-        const message =
-          typeof data?.error === "string"
-            ? data.error
-            : data?.error?.message ||
-              providerText(t, "createCompatibleEndpointFailed", "创建兼容端点失败");
-        throw new Error(message);
+      const detected =
+        validationResult === "success" && detectedMode
+          ? { mode: detectedMode, baseUrl: null }
+          : await detectCompatibleMode();
+      if (detected.baseUrl && detected.baseUrl !== form.baseUrl.trim()) {
+        setForm((prev) => ({ ...prev, baseUrl: detected.baseUrl || prev.baseUrl }));
+      }
+      const nodeBody = buildNodeBody(detected.mode, detected.baseUrl || undefined);
+      let node = findMatchingCompatibleNode(compatibleNodes, nodeBody);
+
+      if (!node) {
+        const res = await fetch("/api/provider-nodes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(nodeBody),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.node) {
+          const message =
+            typeof data?.error === "string"
+              ? data.error
+              : data?.error?.message ||
+                providerText(t, "createCompatibleEndpointFailed", "创建兼容端点失败");
+          throw new Error(message);
+        }
+        node = data.node;
+        onCreated(node);
       }
 
-      onCreated(data.node);
+      const connectionRes = await fetch("/api/providers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: node.id,
+          name: form.name.trim(),
+          apiKey: form.checkKey.trim(),
+          priority: 1,
+          testStatus: "unknown",
+        }),
+      });
+      const connectionData = await connectionRes.json().catch(() => null);
+      if (!connectionRes.ok || !connectionData?.connection) {
+        const message =
+          typeof connectionData?.error === "string"
+            ? connectionData.error
+            : connectionData?.error?.message ||
+              providerText(t, "createChannelFailed", "创建渠道失败");
+        throw new Error(message);
+      }
+      onConnectionCreated(connectionData.connection);
       setForm(createCompatibleNodeForm(mode));
+      setDetectedMode(null);
       setShowAdvanced(false);
       setValidationResult(null);
-      notify.success(providerText(t, "compatibleProviderCreated", "兼容服务商已创建"));
+      notify.success(providerText(t, "compatibleChannelCreated", "兼容渠道已创建"));
     } catch (err) {
       const message =
         err instanceof Error
@@ -2374,58 +2529,34 @@ function CompatibleNodeInlinePanel({
       </div>
 
       <p className="mt-3 text-xs text-text-muted">{configDescription}</p>
+      {detectedModeLabel && (
+        <div className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="material-symbols-outlined text-[14px]">check_circle</span>
+          {providerText(t, "detectedCompatibleType", "已识别：{type}", {
+            type: detectedModeLabel,
+          })}
+        </div>
+      )}
 
       <div className="mt-4 grid gap-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">
-              {providerText(t, "nameLabel", "名称")}
-            </span>
-            <input
-              value={form.name}
-              onChange={(event) => updateForm("name", event.target.value)}
-              placeholder={providerText(t, "customProviderNamePlaceholder", "例如：我的中转")}
-              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
-            />
-          </label>
-
-          <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">
-              {providerText(t, "prefixLabel", "前缀")}
-            </span>
-            <input
-              value={form.prefix}
-              onChange={(event) => updateForm("prefix", event.target.value)}
-              placeholder={config.prefixPlaceholder}
-              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
-            />
-          </label>
-        </div>
-
-        {config.hasApiType && (
-          <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">
-              {providerText(t, "apiTypeLabel", "API 类型")}
-            </span>
-            <select
-              value={form.apiType}
-              onChange={(event) =>
-                updateForm("apiType", event.target.value as CompatibleNodeFormState["apiType"])
-              }
-              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
-            >
-              <option value="chat">Chat Completions</option>
-              <option value="responses">Responses API</option>
-            </select>
-          </label>
-        )}
+        <label className="grid gap-1.5 text-sm">
+          <span className="text-xs font-medium text-text-muted">
+            {providerText(t, "nameLabel", "名称")}
+          </span>
+          <input
+            value={form.name}
+            onChange={(event) => updateForm("name", event.target.value)}
+            placeholder={providerText(t, "customProviderNamePlaceholder", "例如：我的中转")}
+            className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+          />
+        </label>
 
         <label className="grid gap-1.5 text-sm">
           <span className="text-xs font-medium text-text-muted">Base URL</span>
           <input
             value={form.baseUrl}
             onChange={(event) => updateForm("baseUrl", event.target.value)}
-            placeholder={config.baseUrlPlaceholder}
+            placeholder="https://api.example.com/v1"
             className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
           />
         </label>
@@ -2448,6 +2579,57 @@ function CompatibleNodeInlinePanel({
 
         {showAdvanced && (
           <div className="grid gap-3 border-l-2 border-border pl-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-xs font-medium text-text-muted">
+                {providerText(t, "compatibleType", "兼容类型")}
+              </span>
+              <select
+                value={manualMode}
+                onChange={(event) => {
+                  setManualMode(event.target.value as CompatibleMode);
+                  setDetectedMode(null);
+                  setValidationResult(null);
+                }}
+                className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+              >
+                <option value="auto">{providerText(t, "autoDetect", "自动检测")}</option>
+                <option value="openai">{providerText(t, "openAICompatible", "OpenAI 兼容")}</option>
+                <option value="anthropic">
+                  {providerText(t, "anthropicCompatible", "Anthropic 兼容")}
+                </option>
+              </select>
+            </label>
+
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-xs font-medium text-text-muted">
+                {providerText(t, "prefixLabel", "前缀")}
+              </span>
+              <input
+                value={form.prefix}
+                onChange={(event) => updateForm("prefix", event.target.value)}
+                placeholder={config.prefixPlaceholder}
+                className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+              />
+            </label>
+
+            {config.hasApiType && (
+              <label className="grid gap-1.5 text-sm">
+                <span className="text-xs font-medium text-text-muted">
+                  {providerText(t, "apiTypeLabel", "API 类型")}
+                </span>
+                <select
+                  value={form.apiType}
+                  onChange={(event) =>
+                    updateForm("apiType", event.target.value as CompatibleNodeFormState["apiType"])
+                  }
+                  className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+                >
+                  <option value="chat">Chat Completions</option>
+                  <option value="responses">Responses API</option>
+                </select>
+              </label>
+            )}
+
             <label className="grid gap-1.5 text-sm">
               <span className="text-xs font-medium text-text-muted">Chat Path</span>
               <input
@@ -2492,7 +2674,7 @@ function CompatibleNodeInlinePanel({
               disabled={!canValidate}
               onClick={handleValidate}
             >
-              {providerText(t, "validate", "校验")}
+              {providerText(t, "detectCompatibleEndpoint", "检测")}
             </Button>
           </div>
         </div>
@@ -2519,7 +2701,7 @@ function CompatibleNodeInlinePanel({
 
         <div className="flex flex-wrap gap-2">
           <Button icon="add" loading={saving} disabled={!hasRequiredFields} onClick={handleSubmit}>
-            {providerText(t, "createCompatibleEndpoint", "创建兼容端点")}
+            {providerText(t, "detectAndCreateChannel", "检测并创建渠道")}
           </Button>
         </div>
       </div>
