@@ -26,6 +26,7 @@ import {
   stableAccountSuffix,
   formatApiKeyLabel,
 } from "@/shared/utils/formatting";
+import { diagnoseUserFacingError } from "@/shared/utils/errorDiagnosis";
 import { getProviderDisplayLabel } from "@/shared/utils/providerDisplayLabel";
 import useEmailPrivacyStore from "@/store/emailPrivacyStore";
 import { computeLogsSignature, shouldAutoRefresh } from "./requestLoggerSignature";
@@ -1025,6 +1026,9 @@ const RequestLoggerV2 = forwardRef<RequestLoggerV2Handle, { initialSelectedId?: 
                     const cacheSourceMeta = getCacheSourceMeta(log.cacheSource);
                     const isSemanticCache = cacheSourceMeta?.key === "semantic";
                     const accountLabel = maskAccount(log.account, emailsVisible);
+                    const errorDiagnosis = isError
+                      ? diagnoseUserFacingError({ status: log.status, message: log.error })
+                      : null;
 
                     return (
                       <tr
@@ -1042,12 +1046,29 @@ const RequestLoggerV2 = forwardRef<RequestLoggerV2Handle, { initialSelectedId?: 
                                 <span className="inline-block h-3 w-3 rounded-full border-2 border-amber-500 border-t-transparent animate-spin" />
                               </span>
                             ) : (
-                              <span
-                                className="inline-block px-2 py-0.5 rounded text-[10px] font-bold min-w-[36px] text-center"
-                                style={{ backgroundColor: statusStyle.bg, color: statusStyle.text }}
-                              >
-                                {log.status || "..."}
-                              </span>
+                              <div className="flex flex-col items-start gap-1">
+                                <span
+                                  className="inline-block px-2 py-0.5 rounded text-[10px] font-bold min-w-[36px] text-center"
+                                  style={{
+                                    backgroundColor: statusStyle.bg,
+                                    color: statusStyle.text,
+                                  }}
+                                >
+                                  {log.status || "..."}
+                                </span>
+                                {errorDiagnosis && (
+                                  <span
+                                    className={`max-w-[120px] truncate rounded border px-1.5 py-0.5 text-[9px] font-medium ${
+                                      errorDiagnosis.variant === "warning"
+                                        ? "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-300"
+                                        : "border-red-500/30 bg-red-500/10 text-red-700 dark:text-red-300"
+                                    }`}
+                                    title={`${errorDiagnosis.description} ${errorDiagnosis.action}`}
+                                  >
+                                    {errorDiagnosis.label}
+                                  </span>
+                                )}
+                              </div>
                             )}
                           </td>
                         )}

@@ -6,6 +6,7 @@ import {
   getHttpStatusStyle as getStatusStyle,
   getProtocolColor,
 } from "@/shared/constants/colors";
+import { diagnoseUserFacingError } from "@/shared/utils/errorDiagnosis";
 import { formatDuration, formatApiKeyLabel, maskAccount } from "@/shared/utils/formatting";
 
 // ─── Payload Code Block ─────────────────────────────────────────────────────
@@ -196,6 +197,12 @@ export default function RequestLoggerDetail({
   };
 
   const pipelinePayloads = detail?.pipelinePayloads || null;
+  const errorDiagnosis = diagnoseUserFacingError({
+    status: log.status,
+    message: detail?.error || log.error,
+    responseBody: detail?.responseBody,
+    pipelinePayloads,
+  });
   const payloadSections = pipelinePayloads
     ? [
         ["clientRawRequest", "Client Raw Request"],
@@ -548,10 +555,41 @@ export default function RequestLoggerDetail({
           )}
 
           {/* Error Message */}
+          {errorDiagnosis && (
+            <div
+              className={`p-4 rounded-xl border ${
+                errorDiagnosis.variant === "warning"
+                  ? "bg-amber-500/10 border-amber-500/30"
+                  : "bg-red-500/10 border-red-500/30"
+              }`}
+            >
+              <div
+                className={`text-[10px] uppercase tracking-wider mb-1 font-bold ${
+                  errorDiagnosis.variant === "warning"
+                    ? "text-amber-700 dark:text-amber-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                错误诊断
+              </div>
+              <div
+                className={`text-sm font-semibold ${
+                  errorDiagnosis.variant === "warning"
+                    ? "text-amber-800 dark:text-amber-200"
+                    : "text-red-700 dark:text-red-200"
+                }`}
+              >
+                {errorDiagnosis.label}
+              </div>
+              <div className="mt-1 text-sm text-text-primary">{errorDiagnosis.description}</div>
+              <div className="mt-2 text-xs text-text-muted">{errorDiagnosis.action}</div>
+            </div>
+          )}
+
           {(detail?.error || log.error) && (
             <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30">
               <div className="text-[10px] text-red-600 dark:text-red-400 uppercase tracking-wider mb-1 font-bold">
-                Error
+                原始错误
               </div>
               <div className="text-sm text-red-600 dark:text-red-300 font-mono">
                 {detail?.error || log.error}
