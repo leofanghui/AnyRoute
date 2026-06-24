@@ -1683,12 +1683,37 @@ function ChannelCard({
 
   const handleTest = async () => {
     if (testing) return;
+
+    // Determine validation model ID: defaultModel → first synced model → auto-sync
+    let modelId = connection.defaultModel;
+
+    if (!modelId && models.length > 0) {
+      modelId = models[0].id;
+    }
+
+    if (!modelId) {
+      try {
+        const syncRes = await fetch(`/api/providers/${connection.provider}/sync-models`, {
+          method: "POST",
+        });
+        if (syncRes.ok) {
+          const syncData = await syncRes.json();
+          const syncedModels = syncData?.models || syncData?.importedModels || [];
+          if (syncedModels.length > 0) {
+            modelId = syncedModels[0].id || syncedModels[0].model || syncedModels[0];
+          }
+        }
+      } catch {
+        // sync failed — proceed without modelId, test will likely fail
+      }
+    }
+
     onTestStart();
     try {
       const res = await fetch(`/api/providers/${connection.id}/test`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ validationModelId: connection.defaultModel || undefined }),
+        body: JSON.stringify({ validationModelId: modelId || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
