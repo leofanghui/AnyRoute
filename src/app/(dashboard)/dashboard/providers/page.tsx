@@ -142,13 +142,13 @@ function getCompatibleTemplateMode(entry: DashboardProviderEntry): CompatibleMod
     : null;
 }
 
-function buildCompatibleTemplateEntries(): DashboardProviderEntry[] {
+function buildCompatibleTemplateEntries(t: ProviderMessageTranslator): DashboardProviderEntry[] {
   return [
     {
       providerId: "__compatible-openai-template",
       provider: {
         id: "openai",
-        name: "OpenAI 兼容",
+        name: providerText(t, "openAICompatible", "OpenAI 兼容"),
         color: "#10A37F",
         compatibleMode: "openai",
         isCompatibleTemplate: true,
@@ -162,7 +162,7 @@ function buildCompatibleTemplateEntries(): DashboardProviderEntry[] {
       providerId: "__compatible-anthropic-template",
       provider: {
         id: "anthropic",
-        name: "Anthropic 兼容",
+        name: providerText(t, "anthropicCompatible", "Anthropic 兼容"),
         color: "#D97757",
         compatibleMode: "anthropic",
         isCompatibleTemplate: true,
@@ -349,6 +349,23 @@ function providerText(
   return fallback;
 }
 
+function buildCategoryTabs(
+  t: ProviderMessageTranslator
+): Array<{ id: ChannelCategory; label: string; icon: string }> {
+  return [
+    { id: "all", label: providerText(t, "all", "全部"), icon: "apps" },
+    { id: "apikey", label: providerText(t, "apiKeyLabel", "API Key"), icon: "key" },
+    { id: "oauth", label: providerText(t, "oauthLabel", "OAuth"), icon: "verified_user" },
+    { id: "compatible", label: providerText(t, "compatibleLabel", "兼容"), icon: "hub" },
+    {
+      id: "web-cookie",
+      label: providerText(t, "webSessionLabel", "网页会话"),
+      icon: "language",
+    },
+    { id: "no-auth", label: providerText(t, "noAuthLabel", "免密"), icon: "lock_open" },
+  ];
+}
+
 type ProviderBatchTestResult = {
   connectionId?: string;
   connectionName?: string;
@@ -435,7 +452,8 @@ export default function ProvidersPage() {
   >({});
   const [loadingMarketplaceModels, setLoadingMarketplaceModels] = useState(false);
   const notify = useNotificationStore();
-  const t = useTranslations("providers");
+  const t = useTranslations("providers") as ProviderMessageTranslator;
+  const tc = useTranslations("common");
   const ccCompatibleLabel = t("ccCompatibleLabel");
   const searchParams = useSearchParams();
 
@@ -665,7 +683,9 @@ export default function ProvidersPage() {
       const testedAt = result.testedAt || new Date().toISOString();
       updates.set(result.connectionId, {
         testStatus: valid ? "active" : "error",
-        lastError: valid ? null : result.error || "渠道测试失败",
+        lastError: valid
+          ? null
+          : result.error || providerText(t, "channelTestFailed", "渠道测试失败"),
         lastErrorAt: valid ? null : testedAt,
         lastTested: testedAt,
         lastErrorType: valid ? null : result.diagnosis?.type || null,
@@ -830,7 +850,7 @@ export default function ProvidersPage() {
   ] as DashboardProviderEntry[]);
   const providerPresetEntriesAll = dedupeProviderEntries([
     ...staticProviderEntriesAll,
-    ...buildCompatibleTemplateEntries(),
+    ...buildCompatibleTemplateEntries(t),
   ]);
   const dashboardProviderEntriesAll = dedupeProviderEntries([
     ...staticProviderEntriesAll,
@@ -868,14 +888,7 @@ export default function ProvidersPage() {
   const channelProviderEntryById = new Map(
     channelProviderEntries.map((entry) => [entry.providerId, entry])
   );
-  const channelCategoryTabs: Array<{ id: ChannelCategory; label: string; icon: string }> = [
-    { id: "all", label: "全部", icon: "apps" },
-    { id: "apikey", label: "API Key", icon: "key" },
-    { id: "oauth", label: "OAuth", icon: "verified_user" },
-    { id: "compatible", label: "兼容", icon: "hub" },
-    { id: "web-cookie", label: "网页会话", icon: "language" },
-    { id: "no-auth", label: "免密", icon: "lock_open" },
-  ];
+  const channelCategoryTabs = buildCategoryTabs(t);
   const channelCategoryCounts = channelCategoryTabs.reduce(
     (acc, tab) => {
       acc[tab.id] =
@@ -1109,7 +1122,7 @@ export default function ProvidersPage() {
                       type="button"
                       onClick={() => setChannelSearchQuery("")}
                       className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-text-muted hover:bg-bg-subtle hover:text-text-main"
-                      aria-label="清除"
+                      aria-label={providerText(t, "clear", "清除")}
                     >
                       <span className="material-symbols-outlined text-[16px]">close</span>
                     </button>
@@ -1226,7 +1239,9 @@ export default function ProvidersPage() {
                         <p className="mt-1 truncate font-mono text-xs text-text-muted">{item.id}</p>
                       </div>
                       <span className="shrink-0 rounded-full bg-bg-subtle px-2.5 py-1 text-xs font-medium text-text-main">
-                        {item.providers.length} 个提供商
+                        {providerText(t, "providerCount", "{count} 个提供商", {
+                          count: item.providers.length,
+                        })}
                       </span>
                     </div>
                     <div className="mt-auto flex flex-wrap items-center gap-2 pt-8">
@@ -1259,7 +1274,7 @@ export default function ProvidersPage() {
                         </span>
                       )}
                       <span className="ml-auto shrink-0 text-xs font-medium text-text-main">
-                        查看提供商
+                        {providerText(t, "viewProviders", "查看提供商")}
                       </span>
                     </div>
                   </button>
@@ -1312,7 +1327,7 @@ export default function ProvidersPage() {
       <Modal
         isOpen={selectedModelItem !== null}
         onClose={() => setSelectedModelItem(null)}
-        title={selectedModelItem?.name || "查看提供商"}
+        title={selectedModelItem?.name || providerText(t, "viewProviders", "查看提供商")}
         size="md"
       >
         {selectedModelItem && (
@@ -1320,7 +1335,9 @@ export default function ProvidersPage() {
             <div className="rounded-lg border border-border bg-bg-subtle p-3">
               <p className="truncate font-mono text-xs text-text-muted">{selectedModelItem.id}</p>
               <p className="mt-1 text-sm text-text-main">
-                {selectedModelItem.providers.length} 个提供商可用
+                {providerText(t, "providersAvailable", "{count} 个提供商可用", {
+                  count: selectedModelItem.providers.length,
+                })}
               </p>
             </div>
             <div className="flex flex-col gap-2">
@@ -1403,7 +1420,7 @@ function getAuthTypeLabel(t: ProviderMessageTranslator, authType: string): strin
   if (authType === "free") return providerText(t, "freeTierLabel", "免费");
   if (authType === "no-auth") return providerText(t, "noAuthLabel", "免密");
   if (authType === "compatible") return providerText(t, "compatibleLabel", "兼容");
-  if (authType === "web-cookie") return providerText(t, "webCookieProviders", "网页会话");
+  if (authType === "web-cookie") return providerText(t, "webSessionLabel", "网页会话");
   return providerText(t, "apiKeyLabel", "API Key");
 }
 
@@ -1465,7 +1482,7 @@ function ChannelCard({
   const channelName = pickDisplayValue(
     [connection.name, connection.displayName, connection.email],
     emailsVisible,
-    providerName || "未命名渠道"
+    providerName || providerText(t, "unnamedChannel", "未命名渠道")
   );
   const identity = pickDisplayValue([connection.displayName, connection.email], emailsVisible, "");
   const inactive = connection.isActive === false;
@@ -1475,12 +1492,12 @@ function ChannelCard({
   );
   const isHealthy = !inactive && (status === "active" || status === "success");
   const statusLabel = inactive
-    ? "已停用"
+    ? providerText(t, "channelDisabled", "已停用")
     : isHealthy
-      ? "正常"
+      ? providerText(t, "channelHealthy", "正常")
       : hasError
-        ? getConnectionErrorTag(connection) || "异常"
-        : "未检测";
+        ? getConnectionErrorTag(connection) || providerText(t, "channelError", "异常")
+        : providerText(t, "channelUntested", "未检测");
   const statusClass = inactive
     ? "bg-bg-subtle text-text-muted"
     : isHealthy
@@ -1504,13 +1521,21 @@ function ChannelCard({
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const message =
-          typeof data?.error === "string" ? data.error : data?.error?.message || "更新渠道失败";
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || providerText(t, "updateChannelFailed", "更新渠道失败");
         throw new Error(message);
       }
-      notify.success(nextActive ? "渠道已启用" : "渠道已停用");
+      notify.success(
+        nextActive
+          ? providerText(t, "channelEnabledToast", "渠道已启用")
+          : providerText(t, "channelDisabledToast", "渠道已停用")
+      );
     } catch (err) {
       onConnectionUpdated({ isActive: previousActive });
-      notify.error(err instanceof Error ? err.message : "更新渠道失败");
+      notify.error(
+        err instanceof Error ? err.message : providerText(t, "updateChannelFailed", "更新渠道失败")
+      );
     } finally {
       setToggleBusy(false);
     }
@@ -1528,14 +1553,18 @@ function ChannelCard({
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const message =
-          typeof data?.error === "string" ? data.error : data?.error?.message || "渠道测试失败";
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || providerText(t, "channelTestFailed", "渠道测试失败");
         throw new Error(message);
       }
 
       const valid = data?.valid === true;
       onConnectionUpdated({
         testStatus: valid ? "active" : "error",
-        lastError: valid ? null : data?.error || "渠道测试失败",
+        lastError: valid
+          ? null
+          : data?.error || providerText(t, "channelTestFailed", "渠道测试失败"),
         lastErrorAt: valid ? null : data?.testedAt || new Date().toISOString(),
         lastTested: data?.testedAt || new Date().toISOString(),
         lastErrorType: valid ? null : data?.diagnosis?.type || null,
@@ -1543,12 +1572,14 @@ function ChannelCard({
         errorCode: valid ? null : data?.diagnosis?.code || data?.statusCode || null,
       });
       if (valid) {
-        notify.success("渠道测试通过");
+        notify.success(providerText(t, "channelTestPassed", "渠道测试通过"));
       } else {
-        notify.error(data?.error || "渠道测试失败");
+        notify.error(data?.error || providerText(t, "channelTestFailed", "渠道测试失败"));
       }
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : "渠道测试失败");
+      notify.error(
+        err instanceof Error ? err.message : providerText(t, "channelTestFailed", "渠道测试失败")
+      );
     } finally {
       onTestEnd();
     }
@@ -1557,7 +1588,12 @@ function ChannelCard({
   const handleDelete = async () => {
     if (deleteBusy || testing) return;
     const confirmed = window.confirm(
-      `确定删除渠道「${channelName}」吗？删除后该渠道凭据和已同步模型会被移除。`
+      providerText(
+        t,
+        "deleteChannelConfirm",
+        "确定删除渠道「{name}」吗？删除后该渠道凭据和已同步模型会被移除。",
+        { name: channelName }
+      )
     );
     if (!confirmed) return;
 
@@ -1567,13 +1603,17 @@ function ChannelCard({
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const message =
-          typeof data?.error === "string" ? data.error : data?.error?.message || "删除渠道失败";
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || providerText(t, "deleteChannelFailed", "删除渠道失败");
         throw new Error(message);
       }
       onConnectionDeleted();
-      notify.success("渠道已删除");
+      notify.success(providerText(t, "channelDeletedToast", "渠道已删除"));
     } catch (err) {
-      notify.error(err instanceof Error ? err.message : "删除渠道失败");
+      notify.error(
+        err instanceof Error ? err.message : providerText(t, "deleteChannelFailed", "删除渠道失败")
+      );
     } finally {
       setDeleteBusy(false);
     }
@@ -1608,23 +1648,23 @@ function ChannelCard({
 
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">认证</p>
+          <p className="text-text-muted">{providerText(t, "authMethod", "认证")}</p>
           <p className="mt-0.5 truncate font-medium text-text-main">
             {getAuthTypeLabel(t, authType)}
           </p>
         </div>
         <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">优先级</p>
+          <p className="text-text-muted">{providerText(t, "priority", "优先级")}</p>
           <p className="mt-0.5 font-medium text-text-main">{connection.priority ?? "-"}</p>
         </div>
         <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">默认模型</p>
+          <p className="text-text-muted">{providerText(t, "defaultModel", "默认模型")}</p>
           <p className="mt-0.5 truncate font-mono text-text-main">
             {connection.defaultModel || "-"}
           </p>
         </div>
         <div className="rounded-md bg-bg-subtle px-2 py-1.5">
-          <p className="text-text-muted">最近检测</p>
+          <p className="text-text-muted">{providerText(t, "lastChecked", "最近检测")}</p>
           <p className="mt-0.5 truncate font-medium text-text-main">
             {connection.lastTested ? getRelativeTime(connection.lastTested) : "-"}
           </p>
@@ -1646,10 +1686,10 @@ function ChannelCard({
           disabled={inactive}
           onClick={handleTest}
         >
-          测试
+          {providerText(t, "test", "测试")}
         </Button>
         <Button size="sm" icon="open_in_new" variant="secondary" onClick={onOpenProvider}>
-          详情
+          {providerText(t, "details", "详情")}
         </Button>
         <Button
           size="sm"
@@ -1658,7 +1698,7 @@ function ChannelCard({
           loading={toggleBusy}
           onClick={handleToggle}
         >
-          {inactive ? "启用" : "停用"}
+          {inactive ? providerText(t, "enable", "启用") : providerText(t, "disable", "停用")}
         </Button>
         <Button
           size="sm"
@@ -1668,7 +1708,7 @@ function ChannelCard({
           disabled={testing}
           onClick={handleDelete}
         >
-          删除
+          {providerText(t, "delete", "删除")}
         </Button>
       </div>
     </div>
@@ -1689,18 +1729,7 @@ function ChannelPresetPicker({
   const sortedEntries = [...entries].sort((a, b) =>
     getProviderDisplayName(a).localeCompare(getProviderDisplayName(b))
   );
-  const categoryTabs: Array<{
-    id: ProviderPresetCategory | "all";
-    label: string;
-    icon: string;
-  }> = [
-    { id: "all", label: "全部", icon: "apps" },
-    { id: "apikey", label: "API Key", icon: "key" },
-    { id: "oauth", label: "OAuth", icon: "verified_user" },
-    { id: "compatible", label: "兼容", icon: "hub" },
-    { id: "web-cookie", label: "网页会话", icon: "language" },
-    { id: "no-auth", label: "免密", icon: "lock_open" },
-  ];
+  const categoryTabs = buildCategoryTabs(t);
   const categoryCounts = categoryTabs.reduce(
     (acc, tab) => {
       acc[tab.id] =
@@ -1736,7 +1765,9 @@ function ChannelPresetPicker({
     <div className="grid h-[min(680px,calc(100vh-190px))] min-h-[520px] grid-cols-1 md:grid-cols-[280px_1fr]">
       <aside className="flex min-h-0 flex-col border-b border-border bg-bg-subtle/60 md:border-b-0 md:border-r">
         <div className="border-b border-border p-4">
-          <h3 className="text-sm font-semibold text-text-main">服务商</h3>
+          <h3 className="text-sm font-semibold text-text-main">
+            {providerText(t, "serviceProviders", "服务商")}
+          </h3>
           <div className="relative mt-3">
             <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
               search
@@ -1744,7 +1775,7 @@ function ChannelPresetPicker({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索服务商"
+              placeholder={providerText(t, "searchProviders", "搜索服务商")}
               className="h-9 w-full rounded-control border border-border bg-surface px-9 text-sm text-text-main outline-none transition-colors placeholder:text-text-muted focus:border-primary"
             />
           </div>
@@ -1798,7 +1829,11 @@ function ChannelPresetPicker({
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-text-muted">
                       {getAuthTypeLabel(t, entryAuthType)}
-                      {entryModelCount > 0 ? ` · ${entryModelCount} 个模型` : ""}
+                      {entryModelCount > 0
+                        ? ` · ${providerText(t, "modelCount", "{count} 个模型", {
+                            count: entryModelCount,
+                          })}`
+                        : ""}
                     </span>
                   </span>
                   {Number(entry.stats?.total || 0) > 0 && (
@@ -1814,7 +1849,7 @@ function ChannelPresetPicker({
           {visibleEntries.length === 0 && (
             <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border p-6 text-sm text-text-muted">
               <span className="material-symbols-outlined text-[18px]">search_off</span>
-              <span>没有匹配的服务商</span>
+              <span>{providerText(t, "noProvidersMatch", "没有匹配的服务商")}</span>
             </div>
           )}
         </div>
@@ -1854,25 +1889,33 @@ function ChannelPresetPicker({
 
               <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                 <div className="rounded-lg border border-border bg-bg-subtle p-3">
-                  <p className="text-xs text-text-muted">认证方式</p>
+                  <p className="text-xs text-text-muted">
+                    {providerText(t, "authMethod", "认证方式")}
+                  </p>
                   <p className="mt-1 text-sm font-semibold text-text-main">
                     {getAuthTypeLabel(t, authType)}
                   </p>
                 </div>
                 <div className="rounded-lg border border-border bg-bg-subtle p-3">
-                  <p className="text-xs text-text-muted">已配置</p>
+                  <p className="text-xs text-text-muted">
+                    {providerText(t, "configured", "已配置")}
+                  </p>
                   <p className="mt-1 text-sm font-semibold text-text-main">{configuredCount}</p>
                 </div>
                 <div className="rounded-lg border border-border bg-bg-subtle p-3">
-                  <p className="text-xs text-text-muted">模型数</p>
+                  <p className="text-xs text-text-muted">
+                    {providerText(t, "modelCountLabel", "模型数")}
+                  </p>
                   <p className="mt-1 text-sm font-semibold text-text-main">
                     {selectedModels.length}
                   </p>
                 </div>
                 <div className="rounded-lg border border-border bg-bg-subtle p-3">
-                  <p className="text-xs text-text-muted">免费层</p>
+                  <p className="text-xs text-text-muted">{providerText(t, "freeTier", "免费层")}</p>
                   <p className="mt-1 text-sm font-semibold text-text-main">
-                    {selectedEntry.provider.hasFree ? "支持" : "未标记"}
+                    {selectedEntry.provider.hasFree
+                      ? providerText(t, "supported", "支持")
+                      : providerText(t, "notMarked", "未标记")}
                   </p>
                 </div>
               </div>
@@ -1889,10 +1932,14 @@ function ChannelPresetPicker({
 
                 <div className="rounded-lg border border-border p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <h4 className="text-sm font-semibold text-text-main">支持的模型</h4>
+                    <h4 className="text-sm font-semibold text-text-main">
+                      {providerText(t, "supportedModels", "支持的模型")}
+                    </h4>
                     {selectedModels.length > modelPreview.length && (
                       <span className="text-xs text-text-muted">
-                        还有 {selectedModels.length - modelPreview.length} 个
+                        {providerText(t, "moreCount", "还有 {count} 个", {
+                          count: selectedModels.length - modelPreview.length,
+                        })}
                       </span>
                     )}
                   </div>
@@ -1910,7 +1957,11 @@ function ChannelPresetPicker({
                     </div>
                   ) : (
                     <p className="mt-3 text-sm text-text-muted">
-                      暂无内置模型列表，进入配置页后可同步或手动维护模型。
+                      {providerText(
+                        t,
+                        "noBuiltinModelsHint",
+                        "暂无内置模型列表，进入配置页后可同步或手动维护模型。"
+                      )}
                     </p>
                   )}
                 </div>
@@ -1919,7 +1970,9 @@ function ChannelPresetPicker({
           )
         ) : (
           <div className="flex h-full items-center justify-center p-5">
-            <div className="text-sm text-text-muted">暂无可用的服务商预设</div>
+            <div className="text-sm text-text-muted">
+              {providerText(t, "noProviderPresets", "暂无可用的服务商预设")}
+            </div>
           </div>
         )}
       </section>
@@ -1998,6 +2051,7 @@ function CompatibleNodeInlinePanel({
   mode: CompatibleMode;
   onCreated: (node: CompatibleProviderNode) => void;
 }) {
+  const t = useTranslations("providers") as ProviderMessageTranslator;
   const notify = useNotificationStore();
   const [form, setForm] = useState<CompatibleNodeFormState>(() => createCompatibleNodeForm(mode));
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -2006,6 +2060,16 @@ function CompatibleNodeInlinePanel({
   const [validationResult, setValidationResult] = useState<"success" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const config = COMPATIBLE_MODE_CONFIG[mode];
+  const configLabel = providerText(
+    t,
+    mode === "openai" ? "openAICompatible" : "anthropicCompatible",
+    config.label
+  );
+  const configDescription = providerText(
+    t,
+    mode === "openai" ? "openAICompatibleDesc" : "anthropicCompatibleDesc",
+    config.description
+  );
   const hasRequiredFields = Boolean(form.name.trim() && form.prefix.trim() && form.baseUrl.trim());
   const canValidate = Boolean(form.checkKey.trim() && form.baseUrl.trim());
 
@@ -2055,12 +2119,13 @@ function CompatibleNodeInlinePanel({
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.valid) {
         setValidationResult("failed");
-        throw new Error(data?.error || "校验失败");
+        throw new Error(data?.error || providerText(t, "validationFailed", "校验失败"));
       }
       setValidationResult("success");
-      notify.success("兼容端点校验通过");
+      notify.success(providerText(t, "compatibleEndpointValidationPassed", "兼容端点校验通过"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "校验失败";
+      const message =
+        err instanceof Error ? err.message : providerText(t, "validationFailed", "校验失败");
       setError(message);
       notify.error(message);
     } finally {
@@ -2070,7 +2135,9 @@ function CompatibleNodeInlinePanel({
 
   const handleSubmit = async () => {
     if (!hasRequiredFields || saving) {
-      if (!hasRequiredFields) setError("请填写名称、前缀和 Base URL");
+      if (!hasRequiredFields) {
+        setError(providerText(t, "compatibleRequiredFields", "请填写名称、前缀和 Base URL"));
+      }
       return;
     }
 
@@ -2085,7 +2152,10 @@ function CompatibleNodeInlinePanel({
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.node) {
         const message =
-          typeof data?.error === "string" ? data.error : data?.error?.message || "创建兼容端点失败";
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message ||
+              providerText(t, "createCompatibleEndpointFailed", "创建兼容端点失败");
         throw new Error(message);
       }
 
@@ -2093,9 +2163,12 @@ function CompatibleNodeInlinePanel({
       setForm(createCompatibleNodeForm(mode));
       setShowAdvanced(false);
       setValidationResult(null);
-      notify.success("兼容服务商已创建");
+      notify.success(providerText(t, "compatibleProviderCreated", "兼容服务商已创建"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "创建兼容端点失败";
+      const message =
+        err instanceof Error
+          ? err.message
+          : providerText(t, "createCompatibleEndpointFailed", "创建兼容端点失败");
       setError(message);
       notify.error(message);
     } finally {
@@ -2107,29 +2180,37 @@ function CompatibleNodeInlinePanel({
     <div className="w-full rounded-lg border border-dashed border-border bg-bg-subtle p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h4 className="text-sm font-semibold text-text-main">{config.label}</h4>
+          <h4 className="text-sm font-semibold text-text-main">{configLabel}</h4>
           <p className="mt-1 text-sm text-text-muted">
-            如果服务商不在预设列表里，可以直接新增兼容端点。
+            {providerText(
+              t,
+              "customCompatibleIntro",
+              "如果服务商不在预设列表里，可以直接新增兼容端点。"
+            )}
           </p>
         </div>
       </div>
 
-      <p className="mt-3 text-xs text-text-muted">{config.description}</p>
+      <p className="mt-3 text-xs text-text-muted">{configDescription}</p>
 
       <div className="mt-4 grid gap-3">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">名称</span>
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "nameLabel", "名称")}
+            </span>
             <input
               value={form.name}
               onChange={(event) => updateForm("name", event.target.value)}
-              placeholder="例如：我的中转"
+              placeholder={providerText(t, "customProviderNamePlaceholder", "例如：我的中转")}
               className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
             />
           </label>
 
           <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">前缀</span>
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "prefixLabel", "前缀")}
+            </span>
             <input
               value={form.prefix}
               onChange={(event) => updateForm("prefix", event.target.value)}
@@ -2141,7 +2222,9 @@ function CompatibleNodeInlinePanel({
 
         {config.hasApiType && (
           <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">API 类型</span>
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "apiTypeLabel", "API 类型")}
+            </span>
             <select
               value={form.apiType}
               onChange={(event) =>
@@ -2178,7 +2261,7 @@ function CompatibleNodeInlinePanel({
           >
             chevron_right
           </span>
-          高级设置
+          {providerText(t, "advancedSettings", "高级设置")}
         </button>
 
         {showAdvanced && (
@@ -2209,7 +2292,9 @@ function CompatibleNodeInlinePanel({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
           <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">用于校验的 API Key</span>
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "validationApiKeyLabel", "用于校验的 API Key")}
+            </span>
             <input
               type="password"
               value={form.checkKey}
@@ -2225,7 +2310,7 @@ function CompatibleNodeInlinePanel({
               disabled={!canValidate}
               onClick={handleValidate}
             >
-              校验
+              {providerText(t, "validate", "校验")}
             </Button>
           </div>
         </div>
@@ -2238,7 +2323,9 @@ function CompatibleNodeInlinePanel({
                 : "border-red-500/20 bg-red-500/10 text-red-500"
             }`}
           >
-            {validationResult === "success" ? "校验通过" : "校验失败"}
+            {validationResult === "success"
+              ? providerText(t, "validationPassed", "校验通过")
+              : providerText(t, "validationFailed", "校验失败")}
           </div>
         )}
 
@@ -2250,7 +2337,7 @@ function CompatibleNodeInlinePanel({
 
         <div className="flex flex-wrap gap-2">
           <Button icon="add" loading={saving} disabled={!hasRequiredFields} onClick={handleSubmit}>
-            创建兼容端点
+            {providerText(t, "createCompatibleEndpoint", "创建兼容端点")}
           </Button>
         </div>
       </div>
@@ -2293,7 +2380,10 @@ function ChannelConfigPanel({
   const [validationResult, setValidationResult] = useState<"success" | "failed" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const credentialLabel = authType === "web-cookie" ? "会话凭据" : "API Key";
+  const credentialLabel =
+    authType === "web-cookie"
+      ? providerText(t, "sessionCredential", "会话凭据")
+      : providerText(t, "apiKeyLabel", "API Key");
   const parsedBulk = mode === "bulk" ? parseBulkApiKeys(apiKey) : { entries: [], warnings: [] };
   const canSubmit =
     mode === "bulk"
@@ -2310,7 +2400,9 @@ function ChannelConfigPanel({
   const handleValidate = async () => {
     if (mode === "bulk" || validating) return;
     if (!apiKey.trim() && !credentialOptional) {
-      setError(`请填写${credentialLabel}`);
+      setError(
+        providerText(t, "fillCredential", "请填写{credential}", { credential: credentialLabel })
+      );
       return;
     }
 
@@ -2332,12 +2424,13 @@ function ChannelConfigPanel({
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.valid) {
         setValidationResult("failed");
-        throw new Error(data?.error || "验证失败");
+        throw new Error(data?.error || providerText(t, "validationFailed", "验证失败"));
       }
       setValidationResult("success");
-      notify.success("凭据验证通过");
+      notify.success(providerText(t, "credentialValidationPassed", "凭据验证通过"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "验证失败";
+      const message =
+        err instanceof Error ? err.message : providerText(t, "validationFailed", "验证失败");
       setError(message);
       notify.error(message);
     } finally {
@@ -2348,7 +2441,9 @@ function ChannelConfigPanel({
   const handleSubmit = async () => {
     if (!canCreateWithCredential || saving) return;
     if (!canSubmit) {
-      setError(`请填写${credentialLabel}`);
+      setError(
+        providerText(t, "fillCredential", "请填写{credential}", { credential: credentialLabel })
+      );
       return;
     }
 
@@ -2372,7 +2467,9 @@ function ChannelConfigPanel({
         const data = await res.json().catch(() => null);
         if (!res.ok) {
           const message =
-            typeof data?.error === "string" ? data.error : data?.error?.message || "创建渠道失败";
+            typeof data?.error === "string"
+              ? data.error
+              : data?.error?.message || providerText(t, "createChannelFailed", "创建渠道失败");
           throw new Error(message);
         }
         return data?.connection;
@@ -2389,7 +2486,11 @@ function ChannelConfigPanel({
         }
         created.forEach(onConnectionCreated);
         setApiKey("");
-        notify.success(`已创建 ${created.length} 个渠道`);
+        notify.success(
+          providerText(t, "channelsCreated", "已创建 {count} 个渠道", {
+            count: created.length,
+          })
+        );
         return;
       }
 
@@ -2398,9 +2499,10 @@ function ChannelConfigPanel({
         onConnectionCreated(connection);
       }
       setApiKey("");
-      notify.success("渠道已创建");
+      notify.success(providerText(t, "channelCreated", "渠道已创建"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : "创建渠道失败";
+      const message =
+        err instanceof Error ? err.message : providerText(t, "createChannelFailed", "创建渠道失败");
       setError(message);
       notify.error(message);
     } finally {
@@ -2413,12 +2515,22 @@ function ChannelConfigPanel({
     return (
       <div className="rounded-lg border border-border p-4">
         <h4 className="text-sm font-semibold text-text-main">
-          {isNoAuth ? "无需配置" : "授权配置"}
+          {isNoAuth
+            ? providerText(t, "noConfigRequired", "无需配置")
+            : providerText(t, "authConfig", "授权配置")}
         </h4>
         <p className="mt-2 text-sm text-text-muted">
           {isNoAuth
-            ? "该服务商不需要创建凭据渠道，模型会直接出现在可用目录中。"
-            : "该服务商使用专属授权或导入流程，请从这里发起配置。"}
+            ? providerText(
+                t,
+                "noAuthConfigHint",
+                "该服务商不需要创建凭据渠道，模型会直接出现在可用目录中。"
+              )
+            : providerText(
+                t,
+                "authConfigHint",
+                "该服务商使用专属授权或导入流程，请从这里发起配置。"
+              )}
         </p>
         {!isNoAuth && (
           <Button
@@ -2426,7 +2538,7 @@ function ChannelConfigPanel({
             className="mt-4"
             onClick={() => onConfigureProvider(entry.providerId)}
           >
-            发起授权配置
+            {providerText(t, "startAuthConfig", "发起授权配置")}
           </Button>
         )}
       </div>
@@ -2436,12 +2548,14 @@ function ChannelConfigPanel({
   return (
     <div className="rounded-lg border border-border p-4">
       <div className="flex items-center justify-between gap-3">
-        <h4 className="text-sm font-semibold text-text-main">配置渠道</h4>
+        <h4 className="text-sm font-semibold text-text-main">
+          {providerText(t, "configureChannel", "配置渠道")}
+        </h4>
         {bulkSupported && (
           <div className="inline-flex rounded-md border border-border bg-bg-subtle p-0.5">
             {[
-              { id: "single" as const, label: "单个" },
-              { id: "bulk" as const, label: "批量" },
+              { id: "single" as const, label: providerText(t, "single", "单个") },
+              { id: "bulk" as const, label: providerText(t, "bulk", "批量") },
             ].map((item) => (
               <button
                 key={item.id}
@@ -2466,7 +2580,9 @@ function ChannelConfigPanel({
       <div className="mt-4 grid gap-3">
         {mode === "single" && (
           <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">渠道名称</span>
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "channelName", "渠道名称")}
+            </span>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -2495,7 +2611,7 @@ function ChannelConfigPanel({
         <label className="grid gap-1.5 text-sm">
           <span className="text-xs font-medium text-text-muted">
             {credentialLabel}
-            {credentialOptional ? "（可选）" : ""}
+            {credentialOptional ? providerText(t, "optionalSuffix", "（可选）") : ""}
           </span>
           <textarea
             value={apiKey}
@@ -2505,9 +2621,9 @@ function ChannelConfigPanel({
             }}
             placeholder={
               mode === "bulk"
-                ? "每行一个 Key，或使用 name|key"
+                ? providerText(t, "bulkKeyPlaceholder", "每行一个 Key，或使用 name|key")
                 : authType === "web-cookie"
-                  ? "粘贴会话凭据"
+                  ? providerText(t, "sessionCredentialPlaceholder", "粘贴会话凭据")
                   : "sk-..."
             }
             rows={mode === "bulk" ? 6 : 4}
@@ -2515,14 +2631,20 @@ function ChannelConfigPanel({
           />
           <span className="text-xs text-text-muted">
             {mode === "bulk"
-              ? "支持 name|key 格式；空行和 # 开头的注释会被跳过。"
-              : "每次创建一个渠道；专属字段和高级选项仍可在详情页继续维护。"}
+              ? providerText(t, "bulkKeyHint", "支持 name|key 格式；空行和 # 开头的注释会被跳过。")
+              : providerText(
+                  t,
+                  "singleChannelHint",
+                  "每次创建一个渠道；专属字段和高级选项仍可在详情页继续维护。"
+                )}
           </span>
         </label>
 
         {mode === "bulk" && (
           <div className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs text-text-muted">
-            已识别 {parsedBulk.entries.length} 个 Key
+            {providerText(t, "recognizedKeys", "已识别 {count} 个 Key", {
+              count: parsedBulk.entries.length,
+            })}
             {parsedBulk.warnings.length > 0 && (
               <div className="mt-1 text-amber-600 dark:text-amber-400">
                 {parsedBulk.warnings.join("；")}
@@ -2533,7 +2655,9 @@ function ChannelConfigPanel({
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-[110px_1fr]">
           <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">优先级</span>
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "priority", "优先级")}
+            </span>
             <input
               type="number"
               min={1}
@@ -2545,13 +2669,15 @@ function ChannelConfigPanel({
           </label>
 
           <label className="grid gap-1.5 text-sm">
-            <span className="text-xs font-medium text-text-muted">默认测试模型</span>
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "defaultTestModel", "默认测试模型")}
+            </span>
             <select
               value={defaultModel}
               onChange={(event) => setDefaultModel(event.target.value)}
               className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
             >
-              <option value="">不指定</option>
+              <option value="">{providerText(t, "notSpecified", "不指定")}</option>
               {selectedModels.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.name || model.id}
@@ -2575,13 +2701,17 @@ function ChannelConfigPanel({
                 : "border-red-500/20 bg-red-500/10 text-red-500"
             }`}
           >
-            {validationResult === "success" ? "验证通过" : "验证失败"}
+            {validationResult === "success"
+              ? providerText(t, "validationPassed", "验证通过")
+              : providerText(t, "validationFailed", "验证失败")}
           </div>
         )}
 
         <div className="flex flex-wrap gap-2">
           <Button icon="add" loading={saving} disabled={!canSubmit} onClick={handleSubmit}>
-            {mode === "bulk" ? "批量创建" : "创建渠道"}
+            {mode === "bulk"
+              ? providerText(t, "bulkCreate", "批量创建")
+              : providerText(t, "createChannel", "创建渠道")}
           </Button>
           {mode === "single" && (
             <Button
@@ -2591,7 +2721,7 @@ function ChannelConfigPanel({
               disabled={!canSubmit}
               onClick={handleValidate}
             >
-              验证
+              {providerText(t, "validate", "验证")}
             </Button>
           )}
           <Button
@@ -2599,7 +2729,7 @@ function ChannelConfigPanel({
             variant="secondary"
             onClick={() => onConfigureProvider(entry.providerId)}
           >
-            高级配置
+            {providerText(t, "advancedConfig", "高级配置")}
           </Button>
         </div>
       </div>
