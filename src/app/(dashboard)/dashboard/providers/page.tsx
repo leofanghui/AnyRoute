@@ -1,66 +1,92 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Card, CardSkeleton, Badge, Button, CollapsibleSection } from "@/shared/components";
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardSkeleton, Button, Modal } from "@/shared/components";
 import {
   AGGREGATOR_PROVIDER_IDS,
-  ENTERPRISE_CLOUD_PROVIDER_IDS,
-  IDE_PROVIDER_IDS,
   isClaudeCodeCompatibleProvider,
+  providerAllowsOptionalApiKey,
+  supportsBulkApiKey,
 } from "@/shared/constants/providers";
+import { getModelsByProviderId } from "@/shared/constants/models";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getErrorCode, getRelativeTime } from "@/shared/utils";
+import { parseBulkApiKeys } from "@/shared/utils/bulkApiKeyParser";
 import { pickDisplayValue } from "@/shared/utils/maskEmail";
+import { matchesSearch } from "@/shared/utils/turkishText";
 import useEmailPrivacyStore from "@/store/emailPrivacyStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useTranslations } from "next-intl";
-import {
-  buildStaticProviderEntries,
-  filterConfiguredProviderEntries,
-  shouldFilterProviderEntriesForDisplayMode,
-  shouldShowFirstProviderHint,
-} from "./providerPageUtils";
+import ProviderIcon from "@/shared/components/ProviderIcon";
+import { buildStaticProviderEntries, shouldShowFirstProviderHint } from "./providerPageUtils";
 import type { ProviderEntry } from "./providerPageUtils";
-import {
-  readProviderDisplayModePreference,
-  writeProviderDisplayModePreference,
-  type ProviderDisplayMode,
-} from "./providerPageStorage";
 import {
   getCodexEffectiveServiceTier,
   getCodexGlobalServiceMode,
   type CodexGlobalServiceMode,
 } from "@/lib/providers/codexFastTier";
-import AddCompatibleProviderModal from "./components/AddCompatibleProviderModal";
-import { CategoryDot } from "./components/CategoryDot";
-import ProviderCard from "./components/ProviderCard";
-import ProviderCountBadge from "./components/ProviderCountBadge";
-import ProviderSummaryCard from "./components/ProviderSummaryCard";
 import {
-  buildCompactProviderEntriesForPage,
-  getCompactProviderAuthType,
-} from "./providerCompactMode";
+  getProviderBaseUrlDefault,
+  getProviderBaseUrlHint,
+  getProviderBaseUrlPlaceholder,
+  isBaseUrlConfigurableProvider,
+  normalizeAndValidateHttpBaseUrl,
+} from "./[id]/providerPageHelpers";
 
 type DashboardProviderInfo = {
   id?: string;
   name: string;
   color?: string;
   apiType?: string;
+  compatibleMode?: CompatibleMode;
   deprecated?: boolean;
   deprecationReason?: string;
   hasFree?: boolean;
   freeNote?: string;
+  isCompatibleTemplate?: boolean;
   [key: string]: unknown;
 };
 
-type DashboardProviderEntry = ProviderEntry<DashboardProviderInfo>;
+type ProviderPresetCategory = "apikey" | "oauth" | "compatible" | "web-cookie" | "no-auth";
+type ChannelCategory = ProviderPresetCategory | "all";
 
-function countConfigured<T>(entries: ProviderEntry<T>[]) {
-  return {
-    configured: entries.filter((entry) => Number(entry.stats?.total || 0) > 0).length,
-    total: entries.length,
-  };
-}
+type DashboardProviderEntry = ProviderEntry<DashboardProviderInfo> & {
+  presetCategory?: ProviderPresetCategory;
+};
+
+type MarketplaceTab = "channels" | "models";
+type CompatibleMode = "openai" | "anthropic";
+type CompatibleProviderNode = { id: string } & Record<string, unknown>;
+
+type ModelMarketplaceItem = {
+  id: string;
+  name: string;
+  providers: Array<{
+    providerId: string;
+    providerName: string;
+    provider: DashboardProviderInfo;
+    hasFree: boolean;
+  }>;
+  hasFree: boolean;
+  contextLength?: number;
+  apiFormat?: string;
+  supportedEndpoints?: string[];
+  supportsReasoning?: boolean;
+  supportsVision?: boolean;
+  toolCalling?: boolean;
+};
+
+type MarketplaceModel = Pick<
+  ModelMarketplaceItem,
+  | "id"
+  | "name"
+  | "contextLength"
+  | "apiFormat"
+  | "supportedEndpoints"
+  | "supportsReasoning"
+  | "supportsVision"
+  | "toolCalling"
+>;
 
 function dedupeProviderEntries(entries: DashboardProviderEntry[]): DashboardProviderEntry[] {
   const seen = new Set<string>();
@@ -73,6 +99,232 @@ function dedupeProviderEntries(entries: DashboardProviderEntry[]): DashboardProv
 
 function providerEntryHasFree(entry: DashboardProviderEntry): boolean {
   return entry.provider.hasFree === true;
+}
+
+function withPresetCategory(
+  entries: ProviderEntry<DashboardProviderInfo>[],
+  presetCategory: ProviderPresetCategory
+): DashboardProviderEntry[] {
+  return entries.map((entry) => ({ ...entry, presetCategory }));
+}
+
+function getProviderCardAuthType(entry: DashboardProviderEntry): string {
+  if (entry.toggleAuthType === "free") return "free";
+  if (entry.presetCategory === "web-cookie") return "web-cookie";
+  return entry.displayAuthType;
+}
+
+function getChannelConnectionCategory(
+  connection: any,
+  providerEntry?: DashboardProviderEntry,
+  providerNode?: any
+): ProviderPresetCategory {
+  if (providerEntry?.presetCategory) return providerEntry.presetCategory;
+  if (providerNode?.type === "openai-compatible" || providerNode?.type === "anthropic-compatible") {
+    return "compatible";
+  }
+
+  const authType = String(connection?.authType || "").toLowerCase();
+  if (authType === "oauth") return "oauth";
+  if (authType === "cookie" || authType === "web-cookie") return "web-cookie";
+  if (authType === "none" || authType === "no-auth" || authType === "free") return "no-auth";
+  return "apikey";
+}
+
+function getProviderDisplayName(entry: DashboardProviderEntry): string {
+  return entry.provider.name || entry.providerId;
+}
+
+function getCompatibleTemplateMode(entry: DashboardProviderEntry): CompatibleMode | null {
+  if (!entry.provider.isCompatibleTemplate) return null;
+  return entry.provider.compatibleMode === "openai" || entry.provider.compatibleMode === "anthropic"
+    ? entry.provider.compatibleMode
+    : null;
+}
+
+function buildCompatibleTemplateEntries(t: ProviderMessageTranslator): DashboardProviderEntry[] {
+  return [
+    {
+      providerId: "__compatible-openai-template",
+      provider: {
+        id: "openai",
+        name: providerText(t, "openAICompatible", "OpenAI 兼容"),
+        color: "#10A37F",
+        compatibleMode: "openai",
+        isCompatibleTemplate: true,
+      },
+      stats: { total: 0 },
+      displayAuthType: "compatible",
+      toggleAuthType: "apikey",
+      presetCategory: "compatible",
+    },
+    {
+      providerId: "__compatible-anthropic-template",
+      provider: {
+        id: "anthropic",
+        name: providerText(t, "anthropicCompatible", "Anthropic 兼容"),
+        color: "#D97757",
+        compatibleMode: "anthropic",
+        isCompatibleTemplate: true,
+      },
+      stats: { total: 0 },
+      displayAuthType: "compatible",
+      toggleAuthType: "apikey",
+      presetCategory: "compatible",
+    },
+  ];
+}
+
+function matchesDashboardQuery(
+  queryValue: string | undefined | null,
+  ...values: Array<string | undefined | null>
+): boolean {
+  const query = queryValue?.trim();
+  if (!query) return true;
+
+  return values.some((value) => matchesSearch(String(value || ""), query));
+}
+
+function firstPositiveNumber(...values: unknown[]): number | undefined {
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+  }
+  return undefined;
+}
+
+function normalizeModelEndpoints(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const endpoints = Array.from(
+    new Set(
+      value.map((endpoint) => (typeof endpoint === "string" ? endpoint.trim() : "")).filter(Boolean)
+    )
+  );
+  return endpoints.length > 0 ? endpoints : undefined;
+}
+
+function normalizeMarketplaceModel(model: unknown): MarketplaceModel | null {
+  const record = model && typeof model === "object" ? (model as Record<string, any>) : {};
+  const id =
+    typeof record.id === "string" && record.id.trim()
+      ? record.id.trim()
+      : typeof record.model === "string" && record.model.trim()
+        ? record.model.trim()
+        : "";
+  if (!id) return null;
+
+  const topProvider =
+    record.top_provider && typeof record.top_provider === "object"
+      ? (record.top_provider as Record<string, unknown>)
+      : {};
+  const name =
+    (typeof record.name === "string" && record.name.trim()) ||
+    (typeof record.displayName === "string" && record.displayName.trim()) ||
+    id;
+
+  return {
+    id,
+    name,
+    contextLength: firstPositiveNumber(
+      record.contextLength,
+      record.context_length,
+      record.inputTokenLimit,
+      record.maxInputTokens,
+      topProvider.context_length
+    ),
+    apiFormat: typeof record.apiFormat === "string" ? record.apiFormat : undefined,
+    supportedEndpoints: normalizeModelEndpoints(record.supportedEndpoints),
+    supportsReasoning: record.supportsReasoning === true || record.supportsThinking === true,
+    supportsVision: record.supportsVision === true || record.vision === true,
+    toolCalling: record.toolCalling === true || record.supportsTools === true,
+  };
+}
+
+function mergeMarketplaceModel(
+  modelsById: Map<string, MarketplaceModel>,
+  model: MarketplaceModel | null
+) {
+  if (!model) return;
+  const existing = modelsById.get(model.id);
+  if (!existing) {
+    modelsById.set(model.id, model);
+    return;
+  }
+
+  modelsById.set(model.id, {
+    ...existing,
+    name: existing.name && existing.name !== existing.id ? existing.name : model.name,
+    contextLength: existing.contextLength ?? model.contextLength,
+    apiFormat: existing.apiFormat ?? model.apiFormat,
+    supportedEndpoints: existing.supportedEndpoints ?? model.supportedEndpoints,
+    supportsReasoning: existing.supportsReasoning || model.supportsReasoning,
+    supportsVision: existing.supportsVision || model.supportsVision,
+    toolCalling: existing.toolCalling || model.toolCalling,
+  });
+}
+
+function getProviderModelsFromPayload(payload: unknown, providerId: string): unknown[] {
+  const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
+  const directModels = record[providerId];
+  if (Array.isArray(directModels)) return directModels;
+
+  const models = record.models;
+  if (Array.isArray(models)) return models;
+  if (models && typeof models === "object") {
+    const providerModels = (models as Record<string, unknown>)[providerId];
+    if (Array.isArray(providerModels)) return providerModels;
+  }
+
+  return [];
+}
+
+function mergeModelMarketplaceItem(
+  itemsById: Map<string, ModelMarketplaceItem>,
+  entry: DashboardProviderEntry,
+  model: MarketplaceModel
+) {
+  const key = model.id.trim().toLowerCase();
+  const providerInfo = {
+    providerId: entry.providerId,
+    providerName: getProviderDisplayName(entry),
+    provider: entry.provider,
+    hasFree: providerEntryHasFree(entry),
+  };
+  const existing = itemsById.get(key);
+
+  if (!existing) {
+    itemsById.set(key, {
+      ...model,
+      providers: [providerInfo],
+      hasFree: providerInfo.hasFree,
+    });
+    return;
+  }
+
+  if (!existing.providers.some((provider) => provider.providerId === entry.providerId)) {
+    existing.providers.push(providerInfo);
+  }
+  existing.hasFree = existing.hasFree || providerInfo.hasFree;
+  existing.name = existing.name && existing.name !== existing.id ? existing.name : model.name;
+  existing.contextLength = existing.contextLength ?? model.contextLength;
+  existing.apiFormat = existing.apiFormat ?? model.apiFormat;
+  existing.supportedEndpoints = existing.supportedEndpoints ?? model.supportedEndpoints;
+  existing.supportsReasoning = existing.supportsReasoning || model.supportsReasoning;
+  existing.supportsVision = existing.supportsVision || model.supportsVision;
+  existing.toolCalling = existing.toolCalling || model.toolCalling;
+}
+
+function getModelInitial(item: ModelMarketplaceItem): string {
+  const text = (item.name || item.id || "M").trim();
+  return text.charAt(0).toUpperCase();
+}
+
+function getModelMarketplaceTags(item: ModelMarketplaceItem): string[] {
+  const tags: string[] = [];
+  const firstProvider = item.providers[0];
+  if (firstProvider?.providerId) tags.push(firstProvider.providerId);
+  tags.push(item.supportedEndpoints?.[0] || "chat");
+  if (item.apiFormat === "responses") tags.push("responses");
+  return Array.from(new Set(tags)).slice(0, 4);
 }
 
 type ProviderMessageTranslator = ((key: string, values?: Record<string, unknown>) => string) & {
@@ -97,13 +349,33 @@ function providerText(
   return fallback;
 }
 
+function buildCategoryTabs(
+  t: ProviderMessageTranslator
+): Array<{ id: ChannelCategory; label: string; icon: string }> {
+  return [
+    { id: "all", label: providerText(t, "all", "全部"), icon: "apps" },
+    { id: "apikey", label: providerText(t, "apiKeyLabel", "API Key"), icon: "key" },
+    { id: "oauth", label: providerText(t, "oauthLabel", "OAuth"), icon: "verified_user" },
+    { id: "compatible", label: providerText(t, "compatibleLabel", "兼容"), icon: "hub" },
+    {
+      id: "web-cookie",
+      label: providerText(t, "webSessionLabel", "网页会话"),
+      icon: "language",
+    },
+    { id: "no-auth", label: providerText(t, "noAuthLabel", "免密"), icon: "lock_open" },
+  ];
+}
+
 type ProviderBatchTestResult = {
   connectionId?: string;
   connectionName?: string;
   provider?: string;
   valid?: boolean;
   latencyMs?: number;
-  diagnosis?: { type?: string };
+  error?: string | null;
+  testedAt?: string;
+  statusCode?: number | string | null;
+  diagnosis?: { type?: string; source?: string; code?: string | number | null };
 };
 
 type ProviderBatchTestResults = {
@@ -161,64 +433,48 @@ export default function ProvidersPage() {
   const router = useRouter();
   const [connections, setConnections] = useState<any[]>([]);
   const [providerNodes, setProviderNodes] = useState<any[]>([]);
-  const [ccCompatibleProviderEnabled, setCcCompatibleProviderEnabled] = useState(false);
   const [blockedProviders, setBlockedProviders] = useState<string[]>([]);
   const [expirations, setExpirations] = useState<any>(null);
   const [codexGlobalServiceMode, setCodexGlobalServiceMode] =
     useState<CodexGlobalServiceMode>("none");
   const [loading, setLoading] = useState(true);
-  const [showAllProviders, setShowAllProviders] = useState(false);
-  const [showAddCompatibleModal, setShowAddCompatibleModal] = useState(false);
-  const [showAddAnthropicCompatibleModal, setShowAddAnthropicCompatibleModal] = useState(false);
-  const [showAddCcCompatibleModal, setShowAddCcCompatibleModal] = useState(false);
+  const [showProviderPresetModal, setShowProviderPresetModal] = useState(false);
+  const [activeMarketplaceTab, setActiveMarketplaceTab] = useState<MarketplaceTab>("channels");
+  const [activeChannelCategory, setActiveChannelCategory] = useState<ChannelCategory>("all");
+  const [channelSearchQuery, setChannelSearchQuery] = useState("");
   const [testingMode, setTestingMode] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<any>(null);
-  const [providerDisplayMode, setProviderDisplayMode] = useState<ProviderDisplayMode>("all");
-  const [displayModePreferenceReady, setDisplayModePreferenceReady] = useState(false);
-  const [oauthEnvRepairStatus, setOauthEnvRepairStatus] = useState<{
-    available: boolean;
-    missingCount: number;
-  } | null>(null);
-  const [repairingEnv, setRepairingEnv] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const [modelSearchQuery, setModelSearchQuery] = useState("");
   const [showFreeOnly, setShowFreeOnly] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [selectedModelItem, setSelectedModelItem] = useState<ModelMarketplaceItem | null>(null);
+  const [marketplaceModelsByProvider, setMarketplaceModelsByProvider] = useState<
+    Record<string, MarketplaceModel[]>
+  >({});
+  const [loadingMarketplaceModels, setLoadingMarketplaceModels] = useState(false);
   const notify = useNotificationStore();
-  const hasSearchQuery = searchQuery.trim().length > 0 || modelSearchQuery.trim().length > 0;
-  const sectionCategoryAliases: Record<string, string> = {
-    noauth: "no-auth",
-    proxy: "upstream-proxy",
-    web: "webcookie",
-  };
-  const visibleActiveCategory =
-    activeCategory === "local" || activeCategory === "upstream-proxy" ? null : activeCategory;
-  const showSection = (category: string) => {
-    const normalizedCategory = sectionCategoryAliases[category] ?? category;
-    if (showFreeOnly) return normalizedCategory === "free";
-    if (hasSearchQuery && !visibleActiveCategory) return normalizedCategory !== "free";
-    return !visibleActiveCategory || visibleActiveCategory === normalizedCategory;
-  };
-  const t = useTranslations("providers");
+  const t = useTranslations("providers") as ProviderMessageTranslator;
   const tc = useTranslations("common");
-  const webCookieProvidersDesc = providerText(
-    t,
-    "webCookieProvidersDesc",
-    "These providers use browser web sessions, cookies, or web tokens instead of API keys. Open a provider to add the required session credential."
-  );
   const ccCompatibleLabel = t("ccCompatibleLabel");
-  const addCcCompatibleLabel = t("addCcCompatible");
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    setProviderDisplayMode(readProviderDisplayModePreference());
-    setDisplayModePreferenceReady(true);
-  }, []);
+  const marketplaceConnectionSnapshot = useMemo(() => {
+    return JSON.stringify(
+      connections
+        .map((connection) => ({
+          id: String(connection.id || ""),
+          provider: String(connection.provider || ""),
+          defaultModel:
+            typeof connection.defaultModel === "string" ? connection.defaultModel.trim() : "",
+        }))
+        .filter((connection) => connection.id && connection.provider)
+        .sort((a, b) => `${a.provider}:${a.id}`.localeCompare(`${b.provider}:${b.id}`))
+    );
+  }, [connections]);
 
   useEffect(() => {
     const searchFromUrl = searchParams.get("search");
     if (searchFromUrl) {
-      setSearchQuery(searchFromUrl);
+      setChannelSearchQuery(searchFromUrl);
     }
   }, [searchParams]);
 
@@ -238,7 +494,6 @@ export default function ProvidersPage() {
         if (connectionsRes.ok) setConnections(connectionsData.connections || []);
         if (nodesRes.ok) {
           setProviderNodes(nodesData.nodes || []);
-          setCcCompatibleProviderEnabled(nodesData.ccCompatibleProviderEnabled === true);
         }
         if (expirationsRes.ok && expirationsData) setExpirations(expirationsData);
         if (settingsData && Array.isArray(settingsData.blockedProviders)) {
@@ -255,66 +510,69 @@ export default function ProvidersPage() {
   }, []);
 
   useEffect(() => {
-    if (!displayModePreferenceReady) return;
+    const connectionRefs = JSON.parse(marketplaceConnectionSnapshot) as Array<{
+      id: string;
+      provider: string;
+      defaultModel: string;
+    }>;
 
-    const storedDisplayMode =
-      connections.length === 0 && providerDisplayMode === "configured"
-        ? "all"
-        : providerDisplayMode;
-    writeProviderDisplayModePreference(storedDisplayMode);
-  }, [connections.length, displayModePreferenceReady, providerDisplayMode]);
-
-  useEffect(() => {
-    if (!displayModePreferenceReady) return;
-    if (connections.length === 0 && providerDisplayMode === "configured") {
-      setProviderDisplayMode("all");
+    if (connectionRefs.length === 0) {
+      setMarketplaceModelsByProvider({});
+      return;
     }
-  }, [connections.length, displayModePreferenceReady, providerDisplayMode]);
 
-  const fetchOauthEnvRepairStatus = useCallback(async () => {
-    try {
-      const res = await fetch("/api/system/env/repair", { cache: "no-store" });
-      const data = await res.json();
-      if (res.ok) {
-        setOauthEnvRepairStatus({
-          available: Boolean(data.available),
-          missingCount: Number(data.missingCount || 0),
-        });
-      } else {
-        setOauthEnvRepairStatus(null);
+    let cancelled = false;
+    const loadMarketplaceModels = async () => {
+      setLoadingMarketplaceModels(true);
+      try {
+        const [syncedRes, customRes] = await Promise.all([
+          fetch("/api/synced-available-models", { cache: "no-store" }),
+          fetch("/api/provider-models", { cache: "no-store" }),
+        ]);
+        const syncedData = syncedRes.ok ? await syncedRes.json() : {};
+        const customData = customRes.ok ? await customRes.json() : {};
+        const providerIds = Array.from(new Set(connectionRefs.map((ref) => ref.provider)));
+        const nextModelsByProvider: Record<string, MarketplaceModel[]> = {};
+
+        for (const providerId of providerIds) {
+          const modelsById = new Map<string, MarketplaceModel>();
+
+          for (const model of getModelsByProviderId(providerId)) {
+            mergeMarketplaceModel(modelsById, normalizeMarketplaceModel(model));
+          }
+          for (const model of getProviderModelsFromPayload(syncedData, providerId)) {
+            mergeMarketplaceModel(modelsById, normalizeMarketplaceModel(model));
+          }
+          for (const model of getProviderModelsFromPayload(customData, providerId)) {
+            mergeMarketplaceModel(modelsById, normalizeMarketplaceModel(model));
+          }
+          for (const ref of connectionRefs.filter((item) => item.provider === providerId)) {
+            if (ref.defaultModel) {
+              mergeMarketplaceModel(modelsById, {
+                id: ref.defaultModel,
+                name: ref.defaultModel,
+              });
+            }
+          }
+
+          nextModelsByProvider[providerId] = Array.from(modelsById.values());
+        }
+
+        if (!cancelled) setMarketplaceModelsByProvider(nextModelsByProvider);
+      } catch (error) {
+        console.log("Error fetching marketplace models:", error);
+        if (!cancelled) setMarketplaceModelsByProvider({});
+      } finally {
+        if (!cancelled) setLoadingMarketplaceModels(false);
       }
-    } catch {
-      setOauthEnvRepairStatus(null);
-    }
-  }, []);
+    };
 
-  useEffect(() => {
-    void fetchOauthEnvRepairStatus();
-  }, [fetchOauthEnvRepairStatus]);
+    loadMarketplaceModels();
 
-  const handleRepairEnv = async () => {
-    if (!oauthEnvRepairStatus?.available || repairingEnv) return;
-
-    setRepairingEnv(true);
-    try {
-      const res = await fetch("/api/system/env/repair", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || t("repairEnvFailed"));
-      }
-      notify.success(
-        data.backupPath ? `${t("repairEnvSuccess")} (${data.backupPath})` : t("repairEnvSuccess")
-      );
-      await fetchOauthEnvRepairStatus();
-    } catch (error) {
-      notify.error(error instanceof Error ? error.message : t("repairEnvFailed"));
-    } finally {
-      setRepairingEnv(false);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [marketplaceConnectionSnapshot]);
 
   const getProviderStats = (providerId, authType) => {
     const providerConnections = connections.filter((c) => {
@@ -403,29 +661,43 @@ export default function ProvidersPage() {
     };
   };
 
-  // Toggle all connections for a provider on/off
-  const handleToggleProvider = async (providerId: string, authType: string, newActive: boolean) => {
-    const providerConns = connections.filter((c) => {
-      if (c.provider !== providerId) return false;
-      if (authType === "free") return true;
-      return c.authType === authType;
-    });
-    // Optimistically update UI
+  const updateConnectionInState = (connectionId: string, patch: Record<string, unknown>) => {
     setConnections((prev) =>
-      prev.map((c) =>
-        c.provider === providerId && (authType === "free" || c.authType === authType)
-          ? { ...c, isActive: newActive }
-          : c
+      prev.map((connection) =>
+        connection.id === connectionId ? { ...connection, ...patch } : connection
       )
     );
-    // Fire API calls in parallel
-    await Promise.allSettled(
-      providerConns.map((c) =>
-        fetch(`/api/providers/${c.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ isActive: newActive }),
-        })
+  };
+
+  const removeConnectionFromState = (connectionId: string) => {
+    setConnections((prev) => prev.filter((connection) => connection.id !== connectionId));
+  };
+
+  const applyBatchTestResults = (results: ProviderBatchTestResult[] | undefined) => {
+    if (!Array.isArray(results) || results.length === 0) return;
+
+    const updates = new Map<string, Record<string, unknown>>();
+    for (const result of results) {
+      if (!result.connectionId || result.connectionId === "unknown") continue;
+      const valid = result.valid === true;
+      const testedAt = result.testedAt || new Date().toISOString();
+      updates.set(result.connectionId, {
+        testStatus: valid ? "active" : "error",
+        lastError: valid
+          ? null
+          : result.error || providerText(t, "channelTestFailed", "渠道测试失败"),
+        lastErrorAt: valid ? null : testedAt,
+        lastTested: testedAt,
+        lastErrorType: valid ? null : result.diagnosis?.type || null,
+        lastErrorSource: valid ? null : result.diagnosis?.source || null,
+        errorCode: valid ? null : result.diagnosis?.code || result.statusCode || null,
+      });
+    }
+
+    if (updates.size === 0) return;
+    setConnections((prev) =>
+      prev.map((connection) =>
+        updates.has(connection.id) ? { ...connection, ...updates.get(connection.id) } : connection
       )
     );
   };
@@ -450,6 +722,15 @@ export default function ProvidersPage() {
         // Response body is not valid JSON (e.g. truncated due to timeout)
         data = { error: t("providerTestFailed"), results: [], summary: null };
       }
+      if (!res.ok) {
+        const message = data?.error
+          ? typeof data.error === "object"
+            ? data.error.message || data.error.error || JSON.stringify(data.error)
+            : String(data.error)
+          : t("providerTestFailed");
+        notify.error(message);
+      }
+      applyBatchTestResults(data?.results);
       setTestResults({
         ...data,
         // Normalize error: if API returns an error object { message, details }, extract the string
@@ -507,70 +788,31 @@ export default function ProvidersPage() {
       textIcon: "CC",
     }));
 
-  const effectiveProviderDisplayMode =
-    providerDisplayMode === "configured" && connections.length === 0 ? "all" : providerDisplayMode;
-  const effectiveShowConfiguredOnly = shouldFilterProviderEntriesForDisplayMode(
-    effectiveProviderDisplayMode,
-    connections.length
-  );
-  const isCompactProviderDisplay = effectiveProviderDisplayMode === "compact";
-
-  const oauthProviderEntriesAll = buildStaticProviderEntries("oauth", getProviderStats);
-  const oauthProviderEntries = filterConfiguredProviderEntries(
-    oauthProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
+  const oauthProviderEntriesAll = withPresetCategory(
+    buildStaticProviderEntries("oauth", getProviderStats),
+    "oauth"
   );
 
   const blockedProviderSet = new Set(blockedProviders);
-  const rawNoAuthEntriesAll = buildStaticProviderEntries("no-auth", getProviderStats);
+  const rawNoAuthEntriesAll = withPresetCategory(
+    buildStaticProviderEntries("no-auth", getProviderStats),
+    "no-auth"
+  );
   const noAuthEntriesAll = rawNoAuthEntriesAll.filter(({ providerId, provider }) => {
     const alias = typeof provider.alias === "string" ? provider.alias : null;
     return !blockedProviderSet.has(providerId) && !(alias && blockedProviderSet.has(alias));
   });
-  const noAuthEntries = filterConfiguredProviderEntries(
-    noAuthEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
 
-  const apiKeyProviderEntriesAll = buildStaticProviderEntries("apikey", getProviderStats);
+  const apiKeyProviderEntriesAll = withPresetCategory(
+    buildStaticProviderEntries("apikey", getProviderStats),
+    "apikey"
+  );
   const visibleApiKeyProviderEntriesAll = apiKeyProviderEntriesAll.filter(
     (entry) => !AGGREGATOR_PROVIDER_IDS.has(entry.providerId)
   );
-  const llmProviderEntriesAll = visibleApiKeyProviderEntriesAll.filter(
-    (entry) =>
-      !AGGREGATOR_PROVIDER_IDS.has(entry.providerId) &&
-      !ENTERPRISE_CLOUD_PROVIDER_IDS.has(entry.providerId)
-  );
-  const llmProviderEntries = filterConfiguredProviderEntries(
-    llmProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-  const enterpriseProviderEntriesAll = visibleApiKeyProviderEntriesAll.filter((entry) =>
-    ENTERPRISE_CLOUD_PROVIDER_IDS.has(entry.providerId)
-  );
-  const enterpriseProviderEntries = filterConfiguredProviderEntries(
-    enterpriseProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-  const webCookieProviderEntriesAll = buildStaticProviderEntries("web-cookie", getProviderStats);
-  const webCookieProviderEntries = filterConfiguredProviderEntries(
-    webCookieProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
+  const webCookieProviderEntriesAll = withPresetCategory(
+    buildStaticProviderEntries("web-cookie", getProviderStats),
+    "web-cookie"
   );
 
   const compatibleProviderEntriesAll = [
@@ -580,6 +822,7 @@ export default function ProvidersPage() {
       stats: getProviderStats(provider.id, "apikey"),
       displayAuthType: "compatible" as const,
       toggleAuthType: "apikey" as const,
+      presetCategory: "compatible" as const,
     })),
     ...anthropicCompatibleProviders.map((provider) => ({
       providerId: provider.id,
@@ -587,6 +830,7 @@ export default function ProvidersPage() {
       stats: getProviderStats(provider.id, "apikey"),
       displayAuthType: "compatible" as const,
       toggleAuthType: "apikey" as const,
+      presetCategory: "compatible" as const,
     })),
     ...ccCompatibleProviders.map((provider) => ({
       providerId: provider.id,
@@ -594,15 +838,9 @@ export default function ProvidersPage() {
       stats: getProviderStats(provider.id, "apikey"),
       displayAuthType: "compatible" as const,
       toggleAuthType: "apikey" as const,
+      presetCategory: "compatible" as const,
     })),
   ];
-  const compatibleProviderEntries = filterConfiguredProviderEntries(
-    compatibleProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
 
   const staticProviderEntriesAll = dedupeProviderEntries([
     ...oauthProviderEntriesAll,
@@ -610,60 +848,129 @@ export default function ProvidersPage() {
     ...visibleApiKeyProviderEntriesAll,
     ...webCookieProviderEntriesAll,
   ] as DashboardProviderEntry[]);
+  const providerPresetEntriesAll = dedupeProviderEntries([
+    ...staticProviderEntriesAll,
+    ...buildCompatibleTemplateEntries(t),
+  ]);
   const dashboardProviderEntriesAll = dedupeProviderEntries([
     ...staticProviderEntriesAll,
     ...compatibleProviderEntriesAll,
   ]);
-  const freeSectionEntriesAll = dashboardProviderEntriesAll.filter(providerEntryHasFree);
-  const freeSectionEntries = filterConfiguredProviderEntries(
-    freeSectionEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    undefined,
-    modelSearchQuery
+  const providerEntryById = new Map(
+    dashboardProviderEntriesAll.map((entry) => [entry.providerId, entry])
+  );
+  const providerNodeById = new Map(providerNodes.map((node) => [node.id, node]));
+  const channelProviderEntries = dedupeProviderEntries(
+    Array.from(new Set(connections.map((connection) => connection.provider).filter(Boolean))).map(
+      (providerId) => {
+        const providerEntry = providerEntryById.get(providerId);
+        if (providerEntry) return providerEntry;
+
+        const providerNode = providerNodeById.get(providerId);
+        return {
+          providerId,
+          provider: {
+            id: providerId,
+            name: providerNode?.name || providerId,
+            color: providerNode?.color,
+            apiType: providerNode?.apiType,
+          },
+          stats: {
+            total: connections.filter((connection) => connection.provider === providerId).length,
+          },
+          displayAuthType: providerNode?.type ? "compatible" : "apikey",
+          toggleAuthType: "apikey",
+          presetCategory: providerNode?.type ? "compatible" : "apikey",
+        } as DashboardProviderEntry;
+      }
+    )
+  );
+  const channelProviderEntryById = new Map(
+    channelProviderEntries.map((entry) => [entry.providerId, entry])
+  );
+  const channelCategoryTabs = buildCategoryTabs(t);
+  const channelCategoryCounts = channelCategoryTabs.reduce(
+    (acc, tab) => {
+      acc[tab.id] =
+        tab.id === "all"
+          ? connections.length
+          : connections.filter(
+              (connection) =>
+                getChannelConnectionCategory(
+                  connection,
+                  channelProviderEntryById.get(connection.provider),
+                  providerNodeById.get(connection.provider)
+                ) === tab.id
+            ).length;
+      return acc;
+    },
+    {} as Record<ChannelCategory, number>
   );
 
-  // IDE providers: subset of oauth/apikey providers that are editors/IDEs with
-  // built-in AI subscription. Rendered in a dedicated "IDE Providers" section
-  // and excluded from the regular OAuth/API Key sections to avoid duplication.
-  const ideProviderEntriesAll = [...oauthProviderEntriesAll, ...apiKeyProviderEntriesAll].filter(
-    (e) => IDE_PROVIDER_IDS.has(e.providerId)
+  const configuredProviderEntries = dashboardProviderEntriesAll.filter(
+    (entry) => Number(entry.stats?.total || 0) > 0
   );
-  const ideProviderEntries = filterConfiguredProviderEntries(
-    ideProviderEntriesAll,
-    effectiveShowConfiguredOnly,
-    searchQuery,
-    showFreeOnly,
-    modelSearchQuery
-  );
-
-  const oauthOnlyEntriesAll = oauthProviderEntriesAll
-    .filter((e) => e.toggleAuthType === "oauth")
-    .filter((e) => !IDE_PROVIDER_IDS.has(e.providerId));
-
-  const compactProviderEntries = buildCompactProviderEntriesForPage({
-    activeCategory: visibleActiveCategory,
-    showFreeOnly,
-    freeSectionEntries,
-    compatibleProviderEntries,
-    oauthProviderEntries,
-    ideProviderEntries,
-    noAuthEntries,
-    llmProviderEntries,
-    enterpriseProviderEntries,
-    webCookieProviderEntries,
+  const visibleChannelConnections = connections.filter((connection) => {
+    const providerEntry = channelProviderEntryById.get(connection.provider);
+    const providerName = providerEntry
+      ? getProviderDisplayName(providerEntry)
+      : connection.provider;
+    if (
+      activeChannelCategory !== "all" &&
+      getChannelConnectionCategory(
+        connection,
+        providerEntry,
+        providerNodeById.get(connection.provider)
+      ) !== activeChannelCategory
+    ) {
+      return false;
+    }
+    return matchesDashboardQuery(
+      channelSearchQuery,
+      connection.name,
+      connection.displayName,
+      connection.email,
+      connection.defaultModel,
+      connection.provider,
+      providerName
+    );
   });
+  const activeConnectionCount = connections.filter(
+    (connection) => connection.isActive !== false
+  ).length;
+  const errorConnectionCount = connections.filter((connection) =>
+    ["error", "expired", "unavailable"].includes(String(connection.testStatus || ""))
+  ).length;
+  const modelMarketplaceItems: ModelMarketplaceItem[] = (() => {
+    const itemsById = new Map<string, ModelMarketplaceItem>();
+    for (const entry of channelProviderEntries) {
+      for (const model of marketplaceModelsByProvider[entry.providerId] || []) {
+        mergeModelMarketplaceItem(itemsById, entry, model);
+      }
+    }
+    return Array.from(itemsById.values())
+      .map((item) => ({
+        ...item,
+        providers: [...item.providers].sort((a, b) => a.providerName.localeCompare(b.providerName)),
+      }))
+      .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+  })();
+  const filteredModelMarketplaceItems = modelMarketplaceItems.filter(
+    (item) =>
+      (!showFreeOnly || item.hasFree) &&
+      matchesDashboardQuery(
+        modelSearchQuery,
+        item.id,
+        item.name,
+        ...item.providers.flatMap((provider) => [provider.providerId, provider.providerName])
+      )
+  );
+  const visibleModelMarketplaceItems = filteredModelMarketplaceItems.slice(0, 160);
+  const hiddenModelMarketplaceCount = Math.max(
+    filteredModelMarketplaceItems.length - visibleModelMarketplaceItems.length,
+    0
+  );
 
-  const summaryStats = {
-    all: countConfigured(dashboardProviderEntriesAll),
-    free: countConfigured(freeSectionEntriesAll),
-    noauth: countConfigured(noAuthEntriesAll),
-    oauth: countConfigured(oauthOnlyEntriesAll),
-    apikey: countConfigured(visibleApiKeyProviderEntriesAll),
-    compatible: countConfigured(compatibleProviderEntriesAll),
-    webcookie: countConfigured(webCookieProviderEntriesAll),
-    ide: countConfigured(ideProviderEntriesAll),
-  };
   if (loading) {
     return (
       <div className="flex flex-col gap-8">
@@ -673,8 +980,7 @@ export default function ProvidersPage() {
     );
   }
 
-  const showFirstProviderHint =
-    shouldShowFirstProviderHint(connections.length, searchQuery) && !showAllProviders;
+  const showFirstProviderHint = shouldShowFirstProviderHint(connections.length, channelSearchQuery);
 
   return (
     <div className="flex flex-col gap-6">
@@ -709,553 +1015,366 @@ export default function ProvidersPage() {
         </Card>
       )}
 
-      <ProviderSummaryCard
-        activeCategory={visibleActiveCategory}
-        disabledConfigured={connections.length === 0}
-        displayMode={effectiveProviderDisplayMode}
-        modelSearchQuery={modelSearchQuery}
-        onBatchTest={handleBatchTest}
-        onCategoryChange={(category, freeOnly) => {
-          setShowFreeOnly(freeOnly);
-          setActiveCategory(freeOnly ? null : category);
-        }}
-        onDisplayModeChange={setProviderDisplayMode}
-        onNewProvider={() => router.push("/dashboard/providers/new")}
-        searchQuery={searchQuery}
-        setModelSearchQuery={setModelSearchQuery}
-        setSearchQuery={setSearchQuery}
-        showFreeOnly={showFreeOnly}
-        summaryStats={summaryStats}
-        t={t}
-        tc={tc}
-        testingMode={testingMode}
-      />
-
-      {/* Expiration Banner */}
-      {expirations?.summary &&
-        (expirations.summary.expired > 0 || expirations.summary.expiringSoon > 0) && (
+      <Card padding="sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div
-            className={`p-4 rounded-xl flex items-start gap-3 border ${
-              expirations.summary.expired > 0
-                ? "bg-red-500/10 border-red-500/20"
-                : "bg-amber-500/10 border-amber-500/20"
-            }`}
+            className="inline-flex w-fit rounded-lg border border-border bg-bg-subtle p-1"
+            role="tablist"
+            aria-label={providerText(t, "providerMarketplaceTabs", "Provider marketplace tabs")}
           >
-            <span
-              className={`material-symbols-outlined text-[24px] ${
-                expirations.summary.expired > 0 ? "text-red-500" : "text-amber-500"
-              }`}
-            >
-              {expirations.summary.expired > 0 ? "error" : "warning"}
-            </span>
-            <div className="flex-1">
-              <h3
-                className={`font-semibold ${expirations.summary.expired > 0 ? "text-red-500" : "text-amber-500"}`}
+            {[
+              { id: "channels" as const, label: providerText(t, "channelMarketplace", "渠道广场") },
+              { id: "models" as const, label: providerText(t, "modelMarketplace", "模型广场") },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={activeMarketplaceTab === tab.id}
+                onClick={() => setActiveMarketplaceTab(tab.id)}
+                className={`h-8 rounded-md px-3 text-sm font-medium transition-colors ${
+                  activeMarketplaceTab === tab.id
+                    ? "bg-surface text-text-main shadow-sm"
+                    : "text-text-muted hover:text-text-main"
+                }`}
               >
-                {expirations.summary.expired > 0
-                  ? t("expirationBannerExpired", { count: expirations.summary.expired })
-                  : t("expirationBannerExpiringSoon", {
-                      count: expirations.summary.expiringSoon,
-                    })}
-              </h3>
-              <p className="text-sm mt-1 opacity-80 text-text-main">
-                {expirations.summary.expired > 0
-                  ? t("expirationBannerExpiredDesc")
-                  : t("expirationBannerExpiringSoonDesc")}
-              </p>
-            </div>
-          </div>
-        )}
-
-      {isCompactProviderDisplay ? (
-        compactProviderEntries.length > 0 ? (
-          <div
-            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3"
-            data-testid="provider-compact-grid"
-          >
-            {compactProviderEntries.map((entry) => (
-              <ProviderCard
-                key={`compact-${entry.providerId}`}
-                providerId={entry.providerId}
-                provider={entry.provider}
-                stats={entry.stats}
-                authType={getCompactProviderAuthType(entry, showFreeOnly)}
-                onToggle={(active) =>
-                  handleToggleProvider(entry.providerId, entry.toggleAuthType, active)
-                }
-              />
+                {tab.label}
+              </button>
             ))}
           </div>
-        ) : (
-          <div
-            className="flex items-center justify-center gap-2 py-8 border border-dashed border-border rounded-xl text-text-muted text-sm"
-            data-testid="provider-compact-empty"
-          >
-            <span className="material-symbols-outlined text-[18px]">search_off</span>
-            <span>{providerText(t, "noProvidersMatch", "No providers match your search.")}</span>
+          <div className="flex flex-wrap gap-2">
+            <Button icon="add" onClick={() => setShowProviderPresetModal(true)}>
+              {providerText(t, "addChannel", "新增渠道")}
+            </Button>
+            <Button
+              icon="route"
+              variant="secondary"
+              onClick={() => router.push("/dashboard/providers/new")}
+            >
+              {providerText(t, "providerOnboarding", "配置向导")}
+            </Button>
           </div>
-        )
+        </div>
+      </Card>
+
+      {activeMarketplaceTab === "channels" ? (
+        <>
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Card padding="sm">
+              <p className="text-xs text-text-muted">{providerText(t, "channels", "渠道")}</p>
+              <p className="mt-1 text-2xl font-semibold text-text-main">{connections.length}</p>
+            </Card>
+            <Card padding="sm">
+              <p className="text-xs text-text-muted">{providerText(t, "enabled", "已启用")}</p>
+              <p className="mt-1 text-2xl font-semibold text-text-main">{activeConnectionCount}</p>
+            </Card>
+            <Card padding="sm">
+              <p className="text-xs text-text-muted">{providerText(t, "providers", "供应商")}</p>
+              <p className="mt-1 text-2xl font-semibold text-text-main">
+                {configuredProviderEntries.length}
+              </p>
+            </Card>
+            <Card padding="sm">
+              <p className="text-xs text-text-muted">{providerText(t, "errors", "异常")}</p>
+              <p
+                className={`mt-1 text-2xl font-semibold ${
+                  errorConnectionCount > 0 ? "text-red-500" : "text-text-main"
+                }`}
+              >
+                {errorConnectionCount}
+              </p>
+            </Card>
+          </div>
+
+          <Card padding="sm">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-1.5">
+                {channelCategoryTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveChannelCategory(tab.id)}
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                      activeChannelCategory === tab.id
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-surface text-text-muted hover:text-text-main"
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[14px]">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                    <span className="text-[10px] opacity-70">{channelCategoryCounts[tab.id]}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="relative flex-1">
+                  <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
+                    search
+                  </span>
+                  <input
+                    value={channelSearchQuery}
+                    onChange={(event) => setChannelSearchQuery(event.target.value)}
+                    placeholder={providerText(t, "searchChannels", "搜索已配置渠道")}
+                    className="h-9 w-full rounded-control border border-border bg-bg px-9 text-sm text-text-main outline-none transition-colors placeholder:text-text-muted focus:border-primary"
+                  />
+                  {channelSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setChannelSearchQuery("")}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-text-muted hover:bg-bg-subtle hover:text-text-main"
+                      aria-label={providerText(t, "clear", "清除")}
+                    >
+                      <span className="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  )}
+                </div>
+                <Button
+                  icon={testingMode === "all" ? "sync" : "play_arrow"}
+                  variant="secondary"
+                  loading={testingMode === "all"}
+                  onClick={() => handleBatchTest("all")}
+                  disabled={!!testingMode || connections.length === 0}
+                >
+                  {providerText(t, "testAll", "测试全部")}
+                </Button>
+              </div>
+            </div>
+          </Card>
+
+          {visibleChannelConnections.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {visibleChannelConnections.map((connection) => {
+                const providerEntry = channelProviderEntryById.get(connection.provider);
+                return (
+                  <ChannelCard
+                    key={connection.id}
+                    connection={connection}
+                    providerEntry={providerEntry}
+                    testing={testingMode === connection.id}
+                    onTestStart={() => setTestingMode(connection.id)}
+                    onTestEnd={() => setTestingMode(null)}
+                    onConnectionUpdated={(patch) => updateConnectionInState(connection.id, patch)}
+                    onConnectionDeleted={() => removeConnectionFromState(connection.id)}
+                    onOpenProvider={() =>
+                      router.push(`/dashboard/providers/${connection.provider}`)
+                    }
+                  />
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-10 text-center">
+              <span className="material-symbols-outlined text-[32px] text-text-muted">hub</span>
+              <div>
+                <h2 className="font-semibold text-text-main">
+                  {providerText(t, "noConfiguredChannels", "暂无已配置渠道")}
+                </h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  {providerText(t, "chooseProviderPreset", "从供应商预设中新增一个渠道。")}
+                </p>
+              </div>
+              <Button icon="add" onClick={() => setShowProviderPresetModal(true)}>
+                {providerText(t, "addChannel", "新增渠道")}
+              </Button>
+            </div>
+          )}
+        </>
       ) : (
         <>
-          {/* API Key Compatible Providers — dynamic (OpenAI/Anthropic compatible) */}
-          {showSection("compatible") && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("compatibleProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-orange-500"
-                    title={t("compatibleLabel")}
-                  />
-                  <ProviderCountBadge {...countConfigured(compatibleProviderEntriesAll)} />
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {(compatibleProviders.length > 0 ||
-                    anthropicCompatibleProviders.length > 0 ||
-                    ccCompatibleProviders.length > 0) && (
-                    <button
-                      onClick={() => handleBatchTest("compatible")}
-                      disabled={!!testingMode}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                        testingMode === "compatible"
-                          ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                          : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                      }`}
-                      title={t("testAllCompatible")}
-                    >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {testingMode === "compatible" ? "sync" : "play_arrow"}
-                      </span>
-                      {testingMode === "compatible" ? t("testing") : t("testAll")}
-                    </button>
-                  )}
-                  {ccCompatibleProviderEnabled && (
-                    <Button size="sm" icon="add" onClick={() => setShowAddCcCompatibleModal(true)}>
-                      {addCcCompatibleLabel}
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    icon="add"
-                    onClick={() => setShowAddAnthropicCompatibleModal(true)}
-                  >
-                    {t("addAnthropicCompatible")}
-                  </Button>
-                  <Button size="sm" icon="add" onClick={() => setShowAddCompatibleModal(true)}>
-                    {t("addOpenAICompatible")}
-                  </Button>
-                </div>
+          <Card padding="sm">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="relative flex-1">
+                <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
+                  search
+                </span>
+                <input
+                  value={modelSearchQuery}
+                  onChange={(event) => setModelSearchQuery(event.target.value)}
+                  placeholder={providerText(t, "searchModels", "搜索模型或供应商")}
+                  className="h-9 w-full rounded-control border border-border bg-bg px-9 text-sm text-text-main outline-none transition-colors placeholder:text-text-muted focus:border-primary"
+                />
               </div>
-              <p className="text-sm text-text-muted -mt-2">{t("compatibleProvidersDesc")}</p>
-              {compatibleProviders.length === 0 &&
-              anthropicCompatibleProviders.length === 0 &&
-              ccCompatibleProviders.length === 0 ? (
-                <div className="flex items-center justify-center gap-2 py-2 border border-dashed border-border rounded-xl text-text-muted text-sm">
-                  <span className="material-symbols-outlined text-[18px]">extension</span>
-                  <span>{t("noCompatibleYet")}</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                  {compatibleProviderEntries.map(
-                    ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                      <ProviderCard
-                        key={providerId}
-                        providerId={providerId}
-                        provider={provider}
-                        stats={stats}
-                        authType={displayAuthType}
-                        onToggle={(active) =>
-                          handleToggleProvider(providerId, toggleAuthType, active)
-                        }
-                      />
-                    )
-                  )}
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={showFreeOnly ? "primary" : "secondary"}
+                  icon="local_offer"
+                  onClick={() => setShowFreeOnly((value) => !value)}
+                >
+                  {providerText(t, "freeOnly", "仅免费")}
+                </Button>
+                <span className="text-sm text-text-muted">
+                  {loadingMarketplaceModels ? "..." : filteredModelMarketplaceItems.length}
+                  {providerText(t, "modelsCountSuffix", " 个模型")}
+                </span>
+              </div>
             </div>
-          )}
+          </Card>
 
-          {/* OAuth Providers (including providers that expose free tiers via OAuth) */}
-          {showSection("oauth") && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("oauthProviders")}{" "}
-                  <span className="size-2.5 rounded-full bg-blue-500" title={t("oauthLabel")} />
-                  <ProviderCountBadge
-                    {...countConfigured(
-                      oauthProviderEntriesAll.filter((e) => !IDE_PROVIDER_IDS.has(e.providerId))
-                    )}
-                  />
-                </h2>
-                <div className="flex items-center gap-2">
-                  {oauthEnvRepairStatus?.available && oauthEnvRepairStatus.missingCount > 0 && (
-                    <button
-                      onClick={handleRepairEnv}
-                      disabled={repairingEnv}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                        repairingEnv
-                          ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                          : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                      }`}
-                      title={t("repairEnvHint")}
-                      aria-label={t("repairEnv")}
-                    >
-                      <span className="material-symbols-outlined text-[14px]">
-                        {repairingEnv ? "sync" : "settings_backup_restore"}
-                      </span>
-                      {repairingEnv ? t("repairEnvWorking") : t("repairEnv")}
-                    </button>
-                  )}
+          {loadingMarketplaceModels ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <CardSkeleton />
+              <CardSkeleton />
+              <CardSkeleton />
+            </div>
+          ) : visibleModelMarketplaceItems.length > 0 ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              {visibleModelMarketplaceItems.map((item) => {
+                const tags = getModelMarketplaceTags(item);
+
+                return (
                   <button
-                    onClick={() => handleBatchTest("oauth")}
-                    disabled={!!testingMode}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                      testingMode === "oauth"
-                        ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                        : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                    }`}
-                    title={t("testAllOAuth")}
-                    aria-label={t("testAllOAuth")}
+                    key={item.id.toLowerCase()}
+                    type="button"
+                    onClick={() => setSelectedModelItem(item)}
+                    className="flex min-h-[184px] flex-col rounded-lg border border-border bg-surface p-5 text-left transition-colors hover:border-primary/40 hover:bg-bg-subtle"
                   >
-                    <span className="material-symbols-outlined text-[14px]">
-                      {testingMode === "oauth" ? "sync" : "play_arrow"}
-                    </span>
-                    {testingMode === "oauth" ? t("testing") : t("testAll")}
+                    <div className="flex items-start gap-3">
+                      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-bg text-sm font-medium text-text-main">
+                        {getModelInitial(item)}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-base font-semibold text-text-main">
+                          {item.name || item.id}
+                        </h3>
+                        <p className="mt-1 truncate font-mono text-xs text-text-muted">{item.id}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-bg-subtle px-2.5 py-1 text-xs font-medium text-text-main">
+                        {providerText(t, "providerCount", "{count} 个提供商", {
+                          count: item.providers.length,
+                        })}
+                      </span>
+                    </div>
+                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-8">
+                      {tags.map((tag) => (
+                        <span
+                          key={tag}
+                          className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                      {item.hasFree && (
+                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 dark:text-emerald-400">
+                          {providerText(t, "freeTierLabel", "免费")}
+                        </span>
+                      )}
+                      {item.supportsReasoning && (
+                        <span className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main">
+                          {providerText(t, "reasoning", "推理")}
+                        </span>
+                      )}
+                      {item.supportsVision && (
+                        <span className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main">
+                          {providerText(t, "vision", "视觉")}
+                        </span>
+                      )}
+                      {item.toolCalling && (
+                        <span className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main">
+                          {providerText(t, "tools", "工具")}
+                        </span>
+                      )}
+                      <span className="ml-auto shrink-0 text-xs font-medium text-text-main">
+                        {providerText(t, "viewProviders", "查看提供商")}
+                      </span>
+                    </div>
                   </button>
-                </div>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("oauthProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {oauthProviderEntries
-                  .filter((e) => !IDE_PROVIDER_IDS.has(e.providerId))
-                  .map(({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={providerId}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  ))}
-              </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-10 text-sm text-text-muted">
+              <span className="material-symbols-outlined text-[18px]">search_off</span>
+              <span>{providerText(t, "noModelsMatch", "没有匹配的模型。")}</span>
             </div>
           )}
 
-          {/* IDE Providers (Cursor, Zed, Trae) — editors with built-in AI subscription */}
-          {showSection("ide") && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("ideProviders") || "IDE Providers"}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-cyan-500"
-                    title={t("ideProviders") || "IDE Providers"}
-                  />
-                  <ProviderCountBadge {...countConfigured(ideProviderEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("ide")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "ide"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                  aria-label={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "ide" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "ide" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">
-                {t("ideProvidersDesc") ||
-                  "Editors with built-in AI subscription. Use the provider page to import credentials directly from the IDE's keychain."}
-              </p>
-              {ideProviderEntries.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border bg-bg-subtle p-6 text-center text-sm text-text-muted">
-                  {t("noIdeProviders") || "No IDE providers match the current filters."}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                  {ideProviderEntries.map(
-                    ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                      <ProviderCard
-                        key={`ide-${providerId}`}
-                        providerId={providerId}
-                        provider={provider}
-                        stats={stats}
-                        authType={displayAuthType}
-                        onToggle={(active) =>
-                          handleToggleProvider(providerId, toggleAuthType, active)
-                        }
-                      />
-                    )
-                  )}
-                </div>
+          {hiddenModelMarketplaceCount > 0 && (
+            <p className="text-center text-xs text-text-muted">
+              {providerText(
+                t,
+                "moreModelsHidden",
+                "还有 {count} 个模型未显示，请继续搜索缩小范围。",
+                {
+                  count: hiddenModelMarketplaceCount,
+                }
               )}
-            </div>
-          )}
-
-          {/* Web / Cookie Providers */}
-          {showSection("web") && webCookieProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("webCookieProviders")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-purple-500"
-                    title={t("webCookieProviders")}
-                  />
-                  <ProviderCountBadge {...countConfigured(webCookieProviderEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("web-cookie")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "web-cookie"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "web-cookie" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "web-cookie" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("webCookieProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {webCookieProviderEntries.map(({ providerId, provider, stats, toggleAuthType }) => (
-                  <ProviderCard
-                    key={providerId}
-                    providerId={providerId}
-                    provider={provider}
-                    stats={stats}
-                    authType="web-cookie"
-                    onToggle={(active) => handleToggleProvider(providerId, toggleAuthType, active)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Free Tier Providers */}
-          {showSection("free") && freeSectionEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-start gap-2">
-                <div className="flex-1 min-w-0">
-                  <h2 className="text-xl font-semibold flex items-center gap-2">
-                    {t("freeTierProviders")}
-                    <CategoryDot color="bg-green-500" label={t("freeTierLabel")} />
-                    <ProviderCountBadge {...countConfigured(freeSectionEntriesAll)} />
-                  </h2>
-                  <p className="text-sm text-text-muted mt-1">{t("freeAggregated")}</p>
-                </div>
-                <button
-                  onClick={() => handleBatchTest("free")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "free"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "free" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "free" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {freeSectionEntries.map(
-                  ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={`free-section-${providerId}`}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={toggleAuthType === "free" ? "free" : displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* API Key Providers — fixed list */}
-          {showSection("apikey") && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("apiKeyProviders")}{" "}
-                  <span className="size-2.5 rounded-full bg-amber-500" title={t("apiKeyLabel")} />
-                  <ProviderCountBadge {...countConfigured(apiKeyProviderEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("apikey")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "apikey"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAllApiKey")}
-                  aria-label={t("testAllApiKey")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "apikey" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "apikey" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("apiKeyProvidersDesc")}</p>
-              {llmProviderEntries.length > 0 && (
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-xs font-semibold uppercase tracking-wider text-text-muted">
-                    {t("llmProviders")}
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                    {llmProviderEntries.map(
-                      ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                        <ProviderCard
-                          key={providerId}
-                          providerId={providerId}
-                          provider={provider}
-                          stats={stats}
-                          authType={displayAuthType}
-                          onToggle={(active) =>
-                            handleToggleProvider(providerId, toggleAuthType, active)
-                          }
-                        />
-                      )
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* No Auth Providers */}
-          {showSection("noauth") && !showFreeOnly && noAuthEntriesAll.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("noAuthProviders")}{" "}
-                  <span className="size-2.5 rounded-full bg-stone-500" title={t("noAuthLabel")} />
-                  <ProviderCountBadge {...countConfigured(noAuthEntriesAll)} />
-                </h2>
-                <button
-                  onClick={() => handleBatchTest("no-auth")}
-                  disabled={!!testingMode}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    testingMode === "no-auth"
-                      ? "bg-primary/20 border-primary/40 text-primary animate-pulse"
-                      : "bg-bg-subtle border-border text-text-muted hover:text-text-primary hover:border-primary/40"
-                  }`}
-                  title={t("testAll")}
-                >
-                  <span className="material-symbols-outlined text-[14px]">
-                    {testingMode === "no-auth" ? "sync" : "play_arrow"}
-                  </span>
-                  {testingMode === "no-auth" ? t("testing") : t("testAll")}
-                </button>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("noAuthProvidersDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {noAuthEntries.map(({ providerId, provider, stats, toggleAuthType }) => (
-                  <ProviderCard
-                    key={providerId}
-                    providerId={providerId}
-                    provider={provider}
-                    stats={stats}
-                    authType="no-auth"
-                    onToggle={(active) => handleToggleProvider(providerId, toggleAuthType, active)}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Enterprise & Cloud */}
-          {showSection("apikey") && enterpriseProviderEntries.length > 0 && (
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-xl font-semibold flex items-center gap-2 flex-1 min-w-0">
-                  {t("enterpriseCloud")}{" "}
-                  <span
-                    className="size-2.5 rounded-full bg-amber-500"
-                    title={t("enterpriseCloud")}
-                  />
-                  <ProviderCountBadge {...countConfigured(enterpriseProviderEntriesAll)} />
-                </h2>
-              </div>
-              <p className="text-sm text-text-muted -mt-2">{t("enterpriseCloudDesc")}</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                {enterpriseProviderEntries.map(
-                  ({ providerId, provider, stats, displayAuthType, toggleAuthType }) => (
-                    <ProviderCard
-                      key={providerId}
-                      providerId={providerId}
-                      provider={provider}
-                      stats={stats}
-                      authType={displayAuthType}
-                      onToggle={(active) =>
-                        handleToggleProvider(providerId, toggleAuthType, active)
-                      }
-                    />
-                  )
-                )}
-              </div>
-            </div>
+            </p>
           )}
         </>
       )}
 
-      <AddCompatibleProviderModal
-        isOpen={showAddCompatibleModal}
-        mode="openai"
-        onClose={() => setShowAddCompatibleModal(false)}
-        onCreated={(node) => {
-          setProviderNodes((prev) => [...prev, node]);
-          setShowAddCompatibleModal(false);
-          router.push(`/dashboard/providers/${node.id}`);
-        }}
-      />
-      <AddCompatibleProviderModal
-        isOpen={showAddAnthropicCompatibleModal}
-        mode="anthropic"
-        onClose={() => setShowAddAnthropicCompatibleModal(false)}
-        onCreated={(node) => {
-          setProviderNodes((prev) => [...prev, node]);
-          setShowAddAnthropicCompatibleModal(false);
-          router.push(`/dashboard/providers/${node.id}`);
-        }}
-      />
-      {ccCompatibleProviderEnabled && (
-        <AddCompatibleProviderModal
-          isOpen={showAddCcCompatibleModal}
-          mode="cc"
-          title={addCcCompatibleLabel}
-          onClose={() => setShowAddCcCompatibleModal(false)}
-          onCreated={(node) => {
-            setProviderNodes((prev) => [...prev, node]);
-            setShowAddCcCompatibleModal(false);
-            router.push(`/dashboard/providers/${node.id}`);
+      <Modal
+        isOpen={showProviderPresetModal}
+        onClose={() => setShowProviderPresetModal(false)}
+        title={providerText(t, "providerPresetModalTitle", "新增渠道预设")}
+        size="full"
+        className="max-w-5xl"
+        bodyClassName="p-0 overflow-hidden"
+      >
+        <ChannelPresetPicker
+          entries={providerPresetEntriesAll}
+          onCompatibleNodeCreated={(node) => setProviderNodes((prev) => [...prev, node])}
+          onConfigureProvider={(providerId) => {
+            setShowProviderPresetModal(false);
+            router.push(`/dashboard/providers/${providerId}`);
+          }}
+          onConnectionCreated={(connection) => {
+            setConnections((prev) => [...prev, connection]);
           }}
         />
-      )}
+      </Modal>
+
+      <Modal
+        isOpen={selectedModelItem !== null}
+        onClose={() => setSelectedModelItem(null)}
+        title={selectedModelItem?.name || providerText(t, "viewProviders", "查看提供商")}
+        size="md"
+      >
+        {selectedModelItem && (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-lg border border-border bg-bg-subtle p-3">
+              <p className="truncate font-mono text-xs text-text-muted">{selectedModelItem.id}</p>
+              <p className="mt-1 text-sm text-text-main">
+                {providerText(t, "providersAvailable", "{count} 个提供商可用", {
+                  count: selectedModelItem.providers.length,
+                })}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {selectedModelItem.providers.map((provider) => (
+                <button
+                  key={provider.providerId}
+                  type="button"
+                  onClick={() => {
+                    setSelectedModelItem(null);
+                    router.push(`/dashboard/providers/${provider.providerId}`);
+                  }}
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 text-left transition-colors hover:border-primary/40 hover:bg-bg-subtle"
+                >
+                  <ProviderIcon
+                    providerId={provider.provider.id || provider.providerId}
+                    size={24}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-text-main">
+                      {provider.providerName}
+                    </span>
+                    <span className="mt-0.5 block truncate font-mono text-xs text-text-muted">
+                      {provider.providerId}
+                    </span>
+                  </span>
+                  {provider.hasFree && (
+                    <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 dark:text-emerald-400">
+                      {providerText(t, "freeTierLabel", "免费")}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* Test Results Modal */}
       {testResults && (
         <div
@@ -1288,6 +1407,1335 @@ export default function ProvidersPage() {
 }
 
 // ─── Provider Test Results View (mirrors combo TestResultsView) ──────────────
+
+type ChannelPresetPickerProps = {
+  entries: DashboardProviderEntry[];
+  onCompatibleNodeCreated: (node: CompatibleProviderNode) => void;
+  onConnectionCreated: (connection: any) => void;
+  onConfigureProvider: (providerId: string) => void;
+};
+
+function getAuthTypeLabel(t: ProviderMessageTranslator, authType: string): string {
+  if (authType === "oauth") return providerText(t, "oauthLabel", "OAuth");
+  if (authType === "free") return providerText(t, "freeTierLabel", "免费");
+  if (authType === "no-auth") return providerText(t, "noAuthLabel", "免密");
+  if (authType === "compatible") return providerText(t, "compatibleLabel", "兼容");
+  if (authType === "web-cookie") return providerText(t, "webSessionLabel", "网页会话");
+  return providerText(t, "apiKeyLabel", "API Key");
+}
+
+function getAuthTypeDescription(
+  t: ProviderMessageTranslator,
+  entry: DashboardProviderEntry
+): string {
+  const authType = getProviderCardAuthType(entry);
+  if (authType === "oauth") {
+    return providerText(t, "oauthProvidersDesc", "使用 OAuth 登录授权，OmniRoute 负责维护令牌。");
+  }
+  if (authType === "compatible") {
+    return providerText(
+      t,
+      "compatibleProvidersDesc",
+      "接入 OpenAI 或 Anthropic 兼容端点，适合自建网关和第三方中转。"
+    );
+  }
+  if (authType === "no-auth") {
+    return providerText(t, "noAuthProvidersDesc", "无需凭据即可使用的公开或本地能力。");
+  }
+  if (authType === "free") {
+    return providerText(t, "freeAggregated", "包含免费额度或免费模型的服务商。");
+  }
+  return providerText(t, "apiKeyProvidersDesc", "使用 API Key 创建渠道，适合官方 API 或兼容接口。");
+}
+
+function ChannelCard({
+  connection,
+  providerEntry,
+  testing,
+  onTestStart,
+  onTestEnd,
+  onConnectionUpdated,
+  onConnectionDeleted,
+  onOpenProvider,
+}: {
+  connection: any;
+  providerEntry?: DashboardProviderEntry;
+  testing: boolean;
+  onTestStart: () => void;
+  onTestEnd: () => void;
+  onConnectionUpdated: (patch: Record<string, unknown>) => void;
+  onConnectionDeleted: () => void;
+  onOpenProvider: () => void;
+}) {
+  const t = useTranslations("providers") as ProviderMessageTranslator;
+  const notify = useNotificationStore();
+  const emailsVisible = useEmailPrivacyStore((s) => s.emailsVisible);
+  const [toggleBusy, setToggleBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const providerId = String(connection.provider || "");
+  const provider = providerEntry?.provider || { id: providerId, name: providerId };
+  const providerName = providerEntry ? getProviderDisplayName(providerEntry) : providerId;
+  const authType =
+    providerEntry?.displayAuthType === "compatible"
+      ? "compatible"
+      : String(connection.authType || providerEntry?.displayAuthType || "apikey");
+  const channelName = pickDisplayValue(
+    [connection.name, connection.displayName, connection.email],
+    emailsVisible,
+    providerName || providerText(t, "unnamedChannel", "未命名渠道")
+  );
+  const identity = pickDisplayValue([connection.displayName, connection.email], emailsVisible, "");
+  const inactive = connection.isActive === false;
+  const status = String(connection.testStatus || "").toLowerCase();
+  const hasError = ["error", "expired", "unavailable", "banned", "credits_exhausted"].includes(
+    status
+  );
+  const isHealthy = !inactive && (status === "active" || status === "success");
+  const statusLabel = inactive
+    ? providerText(t, "channelDisabled", "已停用")
+    : isHealthy
+      ? providerText(t, "channelHealthy", "正常")
+      : hasError
+        ? getConnectionErrorTag(connection) || providerText(t, "channelError", "异常")
+        : providerText(t, "channelUntested", "未检测");
+  const statusClass = inactive
+    ? "bg-bg-subtle text-text-muted"
+    : isHealthy
+      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+      : hasError
+        ? "bg-red-500/10 text-red-500"
+        : "bg-amber-500/10 text-amber-600 dark:text-amber-400";
+
+  const handleToggle = async () => {
+    if (toggleBusy) return;
+    const nextActive = inactive;
+    const previousActive = !inactive;
+    setToggleBusy(true);
+    onConnectionUpdated({ isActive: nextActive });
+    try {
+      const res = await fetch(`/api/providers/${connection.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: nextActive }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message =
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || providerText(t, "updateChannelFailed", "更新渠道失败");
+        throw new Error(message);
+      }
+      notify.success(
+        nextActive
+          ? providerText(t, "channelEnabledToast", "渠道已启用")
+          : providerText(t, "channelDisabledToast", "渠道已停用")
+      );
+    } catch (err) {
+      onConnectionUpdated({ isActive: previousActive });
+      notify.error(
+        err instanceof Error ? err.message : providerText(t, "updateChannelFailed", "更新渠道失败")
+      );
+    } finally {
+      setToggleBusy(false);
+    }
+  };
+
+  const handleTest = async () => {
+    if (testing) return;
+    onTestStart();
+    try {
+      const res = await fetch(`/api/providers/${connection.id}/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ validationModelId: connection.defaultModel || undefined }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message =
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || providerText(t, "channelTestFailed", "渠道测试失败");
+        throw new Error(message);
+      }
+
+      const valid = data?.valid === true;
+      onConnectionUpdated({
+        testStatus: valid ? "active" : "error",
+        lastError: valid
+          ? null
+          : data?.error || providerText(t, "channelTestFailed", "渠道测试失败"),
+        lastErrorAt: valid ? null : data?.testedAt || new Date().toISOString(),
+        lastTested: data?.testedAt || new Date().toISOString(),
+        lastErrorType: valid ? null : data?.diagnosis?.type || null,
+        lastErrorSource: valid ? null : data?.diagnosis?.source || null,
+        errorCode: valid ? null : data?.diagnosis?.code || data?.statusCode || null,
+      });
+      if (valid) {
+        notify.success(providerText(t, "channelTestPassed", "渠道测试通过"));
+      } else {
+        notify.error(data?.error || providerText(t, "channelTestFailed", "渠道测试失败"));
+      }
+    } catch (err) {
+      notify.error(
+        err instanceof Error ? err.message : providerText(t, "channelTestFailed", "渠道测试失败")
+      );
+    } finally {
+      onTestEnd();
+    }
+  };
+
+  const handleDelete = async () => {
+    if (deleteBusy || testing) return;
+    const confirmed = window.confirm(
+      providerText(
+        t,
+        "deleteChannelConfirm",
+        "确定删除渠道「{name}」吗？删除后该渠道凭据和已同步模型会被移除。",
+        { name: channelName }
+      )
+    );
+    if (!confirmed) return;
+
+    setDeleteBusy(true);
+    try {
+      const res = await fetch(`/api/providers/${connection.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const message =
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message || providerText(t, "deleteChannelFailed", "删除渠道失败");
+        throw new Error(message);
+      }
+      onConnectionDeleted();
+      notify.success(providerText(t, "channelDeletedToast", "渠道已删除"));
+    } catch (err) {
+      notify.error(
+        err instanceof Error ? err.message : providerText(t, "deleteChannelFailed", "删除渠道失败")
+      );
+    } finally {
+      setDeleteBusy(false);
+    }
+  };
+
+  return (
+    <div
+      className={`flex min-h-[168px] flex-col gap-4 rounded-lg border bg-surface p-4 transition-colors ${
+        inactive ? "border-border opacity-75" : "border-border hover:border-primary/40"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg"
+          style={{ backgroundColor: `${provider.color || "#64748b"}18` }}
+        >
+          <ProviderIcon providerId={provider.id || providerId} size={26} type="color" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-text-main">{channelName}</h3>
+            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] ${statusClass}`}>
+              {statusLabel}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-xs text-text-muted">
+            {providerName}
+            {identity && identity !== channelName ? ` · ${identity}` : ""}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
+          <p className="text-text-muted">{providerText(t, "authMethod", "认证")}</p>
+          <p className="mt-0.5 truncate font-medium text-text-main">
+            {getAuthTypeLabel(t, authType)}
+          </p>
+        </div>
+        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
+          <p className="text-text-muted">{providerText(t, "priority", "优先级")}</p>
+          <p className="mt-0.5 font-medium text-text-main">{connection.priority ?? "-"}</p>
+        </div>
+        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
+          <p className="text-text-muted">{providerText(t, "defaultModel", "默认模型")}</p>
+          <p className="mt-0.5 truncate font-mono text-text-main">
+            {connection.defaultModel || "-"}
+          </p>
+        </div>
+        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
+          <p className="text-text-muted">{providerText(t, "lastChecked", "最近检测")}</p>
+          <p className="mt-0.5 truncate font-medium text-text-main">
+            {connection.lastTested ? getRelativeTime(connection.lastTested) : "-"}
+          </p>
+        </div>
+      </div>
+
+      {hasError && connection.lastError && (
+        <p className="line-clamp-2 rounded-md bg-red-500/10 px-2 py-1.5 text-xs text-red-500">
+          {String(connection.lastError)}
+        </p>
+      )}
+
+      <div className="mt-auto flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          icon="play_arrow"
+          variant="secondary"
+          loading={testing}
+          disabled={inactive}
+          onClick={handleTest}
+        >
+          {providerText(t, "test", "测试")}
+        </Button>
+        <Button size="sm" icon="open_in_new" variant="secondary" onClick={onOpenProvider}>
+          {providerText(t, "details", "详情")}
+        </Button>
+        <Button
+          size="sm"
+          icon={inactive ? "toggle_on" : "toggle_off"}
+          variant={inactive ? "secondary" : "ghost"}
+          loading={toggleBusy}
+          onClick={handleToggle}
+        >
+          {inactive ? providerText(t, "enable", "启用") : providerText(t, "disable", "停用")}
+        </Button>
+        <Button
+          size="sm"
+          icon="delete"
+          variant="danger"
+          loading={deleteBusy}
+          disabled={testing}
+          onClick={handleDelete}
+        >
+          {providerText(t, "delete", "删除")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function ChannelPresetPicker({
+  entries,
+  onCompatibleNodeCreated,
+  onConnectionCreated,
+  onConfigureProvider,
+}: ChannelPresetPickerProps) {
+  const t = useTranslations("providers") as ProviderMessageTranslator;
+  const [query, setQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState<ProviderPresetCategory | "all">("all");
+  const [selectedProviderId, setSelectedProviderId] = useState("");
+
+  const sortedEntries = [...entries].sort((a, b) =>
+    getProviderDisplayName(a).localeCompare(getProviderDisplayName(b))
+  );
+  const categoryTabs = buildCategoryTabs(t);
+  const categoryCounts = categoryTabs.reduce(
+    (acc, tab) => {
+      acc[tab.id] =
+        tab.id === "all"
+          ? sortedEntries.length
+          : sortedEntries.filter((entry) => entry.presetCategory === tab.id).length;
+      return acc;
+    },
+    {} as Record<ProviderPresetCategory | "all", number>
+  );
+  const categoryEntries = sortedEntries.filter(
+    (entry) => activeCategory === "all" || entry.presetCategory === activeCategory
+  );
+  const visibleEntries = categoryEntries.filter((entry) =>
+    matchesDashboardQuery(query, getProviderDisplayName(entry), entry.providerId)
+  );
+  const selectedEntry =
+    visibleEntries.find((entry) => entry.providerId === selectedProviderId) ||
+    visibleEntries[0] ||
+    null;
+  const selectedCompatibleMode = selectedEntry ? getCompatibleTemplateMode(selectedEntry) : null;
+  const selectedModels =
+    selectedEntry && !selectedCompatibleMode ? getModelsByProviderId(selectedEntry.providerId) : [];
+  const modelPreview = selectedModels.slice(0, 10);
+  const authType = selectedEntry ? getProviderCardAuthType(selectedEntry) : "apikey";
+  const configuredCount = Number(selectedEntry?.stats?.total || 0);
+  const handleCompatibleNodeCreated = (node: CompatibleProviderNode) => {
+    onCompatibleNodeCreated(node);
+    onConfigureProvider(node.id);
+  };
+
+  return (
+    <div className="grid h-[min(680px,calc(100vh-190px))] min-h-[520px] grid-cols-1 md:grid-cols-[280px_1fr]">
+      <aside className="flex min-h-0 flex-col border-b border-border bg-bg-subtle/60 md:border-b-0 md:border-r">
+        <div className="border-b border-border p-4">
+          <h3 className="text-sm font-semibold text-text-main">
+            {providerText(t, "serviceProviders", "服务商")}
+          </h3>
+          <div className="relative mt-3">
+            <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-text-muted">
+              search
+            </span>
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={providerText(t, "searchProviders", "搜索服务商")}
+              className="h-9 w-full rounded-control border border-border bg-surface px-9 text-sm text-text-main outline-none transition-colors placeholder:text-text-muted focus:border-primary"
+            />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {categoryTabs.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveCategory(tab.id)}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-xs font-medium transition-colors ${
+                  activeCategory === tab.id
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-surface text-text-muted hover:text-text-main"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[14px]">{tab.icon}</span>
+                <span>{tab.label}</span>
+                <span className="text-[10px] opacity-70">{categoryCounts[tab.id]}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="min-h-0 flex-1 overflow-y-auto p-3">
+          <div className="flex flex-col gap-2">
+            {visibleEntries.map((entry) => {
+              const isSelected = entry.providerId === selectedEntry?.providerId;
+              const entryAuthType = getProviderCardAuthType(entry);
+              const entryModelCount = getModelsByProviderId(entry.providerId).length;
+
+              return (
+                <button
+                  key={entry.providerId}
+                  type="button"
+                  onClick={() => setSelectedProviderId(entry.providerId)}
+                  className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                    isSelected
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-surface hover:border-primary/40"
+                  }`}
+                >
+                  <span
+                    className={`size-2.5 rounded-full ${
+                      isSelected ? "bg-primary" : "bg-text-muted/30"
+                    }`}
+                  />
+                  <ProviderIcon providerId={entry.provider.id || entry.providerId} size={22} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-text-main">
+                      {getProviderDisplayName(entry)}
+                    </span>
+                    <span className="mt-0.5 block truncate text-xs text-text-muted">
+                      {getAuthTypeLabel(t, entryAuthType)}
+                      {entryModelCount > 0
+                        ? ` · ${providerText(t, "modelCount", "{count} 个模型", {
+                            count: entryModelCount,
+                          })}`
+                        : ""}
+                    </span>
+                  </span>
+                  {Number(entry.stats?.total || 0) > 0 && (
+                    <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                      {entry.stats.total}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          {visibleEntries.length === 0 && (
+            <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border p-6 text-sm text-text-muted">
+              <span className="material-symbols-outlined text-[18px]">search_off</span>
+              <span>{providerText(t, "noProvidersMatch", "没有匹配的服务商")}</span>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      <section className="min-h-0 overflow-y-auto p-5">
+        {selectedEntry ? (
+          selectedCompatibleMode ? (
+            <CompatibleNodeInlinePanel
+              mode={selectedCompatibleMode}
+              onCreated={handleCompatibleNodeCreated}
+            />
+          ) : (
+            <div className="flex min-h-full flex-col gap-5">
+              <div className="flex items-start gap-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div
+                    className="flex size-12 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: `${selectedEntry.provider.color || "#64748b"}18` }}
+                  >
+                    <ProviderIcon
+                      providerId={selectedEntry.provider.id || selectedEntry.providerId}
+                      size={30}
+                      type="color"
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="truncate text-lg font-semibold text-text-main">
+                      {getProviderDisplayName(selectedEntry)}
+                    </h3>
+                    <p className="mt-1 text-sm text-text-muted">
+                      {getAuthTypeDescription(t, selectedEntry)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <div className="rounded-lg border border-border bg-bg-subtle p-3">
+                  <p className="text-xs text-text-muted">
+                    {providerText(t, "authMethod", "认证方式")}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-text-main">
+                    {getAuthTypeLabel(t, authType)}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-bg-subtle p-3">
+                  <p className="text-xs text-text-muted">
+                    {providerText(t, "configured", "已配置")}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-text-main">{configuredCount}</p>
+                </div>
+                <div className="rounded-lg border border-border bg-bg-subtle p-3">
+                  <p className="text-xs text-text-muted">
+                    {providerText(t, "modelCountLabel", "模型数")}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-text-main">
+                    {selectedModels.length}
+                  </p>
+                </div>
+                <div className="rounded-lg border border-border bg-bg-subtle p-3">
+                  <p className="text-xs text-text-muted">{providerText(t, "freeTier", "免费层")}</p>
+                  <p className="mt-1 text-sm font-semibold text-text-main">
+                    {selectedEntry.provider.hasFree
+                      ? providerText(t, "supported", "支持")
+                      : providerText(t, "notMarked", "未标记")}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                <ChannelConfigPanel
+                  key={selectedEntry.providerId}
+                  entry={selectedEntry}
+                  authType={authType}
+                  selectedModels={selectedModels}
+                  onConfigureProvider={onConfigureProvider}
+                  onConnectionCreated={onConnectionCreated}
+                />
+
+                <div className="rounded-lg border border-border p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h4 className="text-sm font-semibold text-text-main">
+                      {providerText(t, "supportedModels", "支持的模型")}
+                    </h4>
+                    {selectedModels.length > modelPreview.length && (
+                      <span className="text-xs text-text-muted">
+                        {providerText(t, "moreCount", "还有 {count} 个", {
+                          count: selectedModels.length - modelPreview.length,
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  {modelPreview.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {modelPreview.map((model) => (
+                        <span
+                          key={model.id}
+                          className="max-w-full truncate rounded-md border border-border bg-bg-subtle px-2 py-1 font-mono text-xs text-text-muted"
+                          title={model.id}
+                        >
+                          {model.name || model.id}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-sm text-text-muted">
+                      {providerText(
+                        t,
+                        "noBuiltinModelsHint",
+                        "暂无内置模型列表，进入配置页后可同步或手动维护模型。"
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        ) : (
+          <div className="flex h-full items-center justify-center p-5">
+            <div className="text-sm text-text-muted">
+              {providerText(t, "noProviderPresets", "暂无可用的服务商预设")}
+            </div>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+type CompatibleNodeFormState = {
+  name: string;
+  prefix: string;
+  apiType: "chat" | "responses";
+  baseUrl: string;
+  chatPath: string;
+  modelsPath: string;
+  checkKey: string;
+};
+
+const COMPATIBLE_MODE_CONFIG: Record<
+  CompatibleMode,
+  {
+    label: string;
+    description: string;
+    type: "openai-compatible" | "anthropic-compatible";
+    defaultBaseUrl: string;
+    defaultChatPath: string;
+    hasApiType: boolean;
+    hasModelsPath: boolean;
+    prefixPlaceholder: string;
+    baseUrlPlaceholder: string;
+    chatPathPlaceholder: string;
+  }
+> = {
+  openai: {
+    label: "OpenAI 兼容",
+    description: "适合 One API、New API、LiteLLM 等 OpenAI 风格接口。",
+    type: "openai-compatible",
+    defaultBaseUrl: "https://api.openai.com/v1",
+    defaultChatPath: "",
+    hasApiType: true,
+    hasModelsPath: true,
+    prefixPlaceholder: "my-openai",
+    baseUrlPlaceholder: "https://api.example.com/v1",
+    chatPathPlaceholder: "/v1/chat/completions",
+  },
+  anthropic: {
+    label: "Anthropic 兼容",
+    description: "适合 Claude / Anthropic 消息接口兼容服务。",
+    type: "anthropic-compatible",
+    defaultBaseUrl: "https://api.anthropic.com/v1",
+    defaultChatPath: "",
+    hasApiType: false,
+    hasModelsPath: true,
+    prefixPlaceholder: "my-anthropic",
+    baseUrlPlaceholder: "https://api.example.com",
+    chatPathPlaceholder: "/messages",
+  },
+};
+
+function createCompatibleNodeForm(mode: CompatibleMode): CompatibleNodeFormState {
+  const config = COMPATIBLE_MODE_CONFIG[mode];
+  return {
+    name: "",
+    prefix: "",
+    apiType: "chat",
+    baseUrl: config.defaultBaseUrl,
+    chatPath: config.defaultChatPath,
+    modelsPath: "",
+    checkKey: "",
+  };
+}
+
+function CompatibleNodeInlinePanel({
+  mode,
+  onCreated,
+}: {
+  mode: CompatibleMode;
+  onCreated: (node: CompatibleProviderNode) => void;
+}) {
+  const t = useTranslations("providers") as ProviderMessageTranslator;
+  const notify = useNotificationStore();
+  const [form, setForm] = useState<CompatibleNodeFormState>(() => createCompatibleNodeForm(mode));
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<"success" | "failed" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const config = COMPATIBLE_MODE_CONFIG[mode];
+  const configLabel = providerText(
+    t,
+    mode === "openai" ? "openAICompatible" : "anthropicCompatible",
+    config.label
+  );
+  const configDescription = providerText(
+    t,
+    mode === "openai" ? "openAICompatibleDesc" : "anthropicCompatibleDesc",
+    config.description
+  );
+  const hasRequiredFields = Boolean(form.name.trim() && form.prefix.trim() && form.baseUrl.trim());
+  const canValidate = Boolean(form.checkKey.trim() && form.baseUrl.trim());
+
+  useEffect(() => {
+    setForm(createCompatibleNodeForm(mode));
+    setShowAdvanced(false);
+    setValidationResult(null);
+    setError(null);
+  }, [mode]);
+
+  const updateForm = (field: keyof CompatibleNodeFormState, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setValidationResult(null);
+  };
+
+  const buildNodeBody = () => {
+    const body: Record<string, unknown> = {
+      name: form.name.trim(),
+      prefix: form.prefix.trim(),
+      baseUrl: form.baseUrl.trim(),
+      type: config.type,
+      chatPath: form.chatPath.trim(),
+    };
+    if (config.hasApiType) body.apiType = form.apiType;
+    if (config.hasModelsPath) body.modelsPath = form.modelsPath.trim();
+    return body;
+  };
+
+  const handleValidate = async () => {
+    if (!canValidate || validating) return;
+    setValidating(true);
+    setError(null);
+    setValidationResult(null);
+    try {
+      const body: Record<string, unknown> = {
+        baseUrl: form.baseUrl.trim(),
+        apiKey: form.checkKey.trim(),
+        type: config.type,
+      };
+      if (config.hasModelsPath) body.modelsPath = form.modelsPath.trim();
+
+      const res = await fetch("/api/provider-nodes/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.valid) {
+        setValidationResult("failed");
+        throw new Error(data?.error || providerText(t, "validationFailed", "校验失败"));
+      }
+      setValidationResult("success");
+      notify.success(providerText(t, "compatibleEndpointValidationPassed", "兼容端点校验通过"));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : providerText(t, "validationFailed", "校验失败");
+      setError(message);
+      notify.error(message);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!hasRequiredFields || saving) {
+      if (!hasRequiredFields) {
+        setError(providerText(t, "compatibleRequiredFields", "请填写名称、前缀和 Base URL"));
+      }
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/provider-nodes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildNodeBody()),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.node) {
+        const message =
+          typeof data?.error === "string"
+            ? data.error
+            : data?.error?.message ||
+              providerText(t, "createCompatibleEndpointFailed", "创建兼容端点失败");
+        throw new Error(message);
+      }
+
+      onCreated(data.node);
+      setForm(createCompatibleNodeForm(mode));
+      setShowAdvanced(false);
+      setValidationResult(null);
+      notify.success(providerText(t, "compatibleProviderCreated", "兼容服务商已创建"));
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : providerText(t, "createCompatibleEndpointFailed", "创建兼容端点失败");
+      setError(message);
+      notify.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="w-full rounded-lg border border-dashed border-border bg-bg-subtle p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h4 className="text-sm font-semibold text-text-main">{configLabel}</h4>
+          <p className="mt-1 text-sm text-text-muted">
+            {providerText(
+              t,
+              "customCompatibleIntro",
+              "如果服务商不在预设列表里，可以直接新增兼容端点。"
+            )}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-xs text-text-muted">{configDescription}</p>
+
+      <div className="mt-4 grid gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "nameLabel", "名称")}
+            </span>
+            <input
+              value={form.name}
+              onChange={(event) => updateForm("name", event.target.value)}
+              placeholder={providerText(t, "customProviderNamePlaceholder", "例如：我的中转")}
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            />
+          </label>
+
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "prefixLabel", "前缀")}
+            </span>
+            <input
+              value={form.prefix}
+              onChange={(event) => updateForm("prefix", event.target.value)}
+              placeholder={config.prefixPlaceholder}
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            />
+          </label>
+        </div>
+
+        {config.hasApiType && (
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "apiTypeLabel", "API 类型")}
+            </span>
+            <select
+              value={form.apiType}
+              onChange={(event) =>
+                updateForm("apiType", event.target.value as CompatibleNodeFormState["apiType"])
+              }
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            >
+              <option value="chat">Chat Completions</option>
+              <option value="responses">Responses API</option>
+            </select>
+          </label>
+        )}
+
+        <label className="grid gap-1.5 text-sm">
+          <span className="text-xs font-medium text-text-muted">Base URL</span>
+          <input
+            value={form.baseUrl}
+            onChange={(event) => updateForm("baseUrl", event.target.value)}
+            placeholder={config.baseUrlPlaceholder}
+            className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+          />
+        </label>
+
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-sm text-text-muted hover:text-text-main"
+          onClick={() => setShowAdvanced((value) => !value)}
+          aria-expanded={showAdvanced}
+        >
+          <span
+            className={`material-symbols-outlined text-[16px] transition-transform ${
+              showAdvanced ? "rotate-90" : ""
+            }`}
+          >
+            chevron_right
+          </span>
+          {providerText(t, "advancedSettings", "高级设置")}
+        </button>
+
+        {showAdvanced && (
+          <div className="grid gap-3 border-l-2 border-border pl-3">
+            <label className="grid gap-1.5 text-sm">
+              <span className="text-xs font-medium text-text-muted">Chat Path</span>
+              <input
+                value={form.chatPath}
+                onChange={(event) => updateForm("chatPath", event.target.value)}
+                placeholder={config.chatPathPlaceholder}
+                className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+              />
+            </label>
+
+            {config.hasModelsPath && (
+              <label className="grid gap-1.5 text-sm">
+                <span className="text-xs font-medium text-text-muted">Models Path</span>
+                <input
+                  value={form.modelsPath}
+                  onChange={(event) => updateForm("modelsPath", event.target.value)}
+                  placeholder="/models"
+                  className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+                />
+              </label>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "validationApiKeyLabel", "用于校验的 API Key")}
+            </span>
+            <input
+              type="password"
+              value={form.checkKey}
+              onChange={(event) => updateForm("checkKey", event.target.value)}
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            />
+          </label>
+          <div className="flex items-end">
+            <Button
+              icon="play_arrow"
+              variant="secondary"
+              loading={validating}
+              disabled={!canValidate}
+              onClick={handleValidate}
+            >
+              {providerText(t, "validate", "校验")}
+            </Button>
+          </div>
+        </div>
+
+        {validationResult && (
+          <div
+            className={`rounded-md border px-3 py-2 text-sm ${
+              validationResult === "success"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "border-red-500/20 bg-red-500/10 text-red-500"
+            }`}
+          >
+            {validationResult === "success"
+              ? providerText(t, "validationPassed", "校验通过")
+              : providerText(t, "validationFailed", "校验失败")}
+          </div>
+        )}
+
+        {error && (
+          <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+            {error}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button icon="add" loading={saving} disabled={!hasRequiredFields} onClick={handleSubmit}>
+            {providerText(t, "createCompatibleEndpoint", "创建兼容端点")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ChannelConfigPanelProps = {
+  entry: DashboardProviderEntry;
+  authType: string;
+  selectedModels: Array<{ id: string; name: string }>;
+  onConfigureProvider: (providerId: string) => void;
+  onConnectionCreated: (connection: any) => void;
+};
+
+function ChannelConfigPanel({
+  entry,
+  authType,
+  selectedModels,
+  onConfigureProvider,
+  onConnectionCreated,
+}: ChannelConfigPanelProps) {
+  const t = useTranslations("providers") as ProviderMessageTranslator;
+  const notify = useNotificationStore();
+  const providerName = getProviderDisplayName(entry);
+  const credentialOptional = providerAllowsOptionalApiKey(entry.providerId);
+  const bulkSupported = supportsBulkApiKey(entry.providerId);
+  const usesBaseUrl = isBaseUrlConfigurableProvider(entry.providerId);
+  const defaultBaseUrl = getProviderBaseUrlDefault(entry.providerId);
+  const canCreateWithCredential =
+    authType === "apikey" || authType === "compatible" || authType === "web-cookie";
+  const [mode, setMode] = useState<"single" | "bulk">("single");
+  const [name, setName] = useState(providerName);
+  const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl);
+  const [priority, setPriority] = useState(1);
+  const [defaultModel, setDefaultModel] = useState(selectedModels[0]?.id || "");
+  const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
+  const [validationResult, setValidationResult] = useState<"success" | "failed" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const credentialLabel =
+    authType === "web-cookie"
+      ? providerText(t, "sessionCredential", "会话凭据")
+      : providerText(t, "apiKeyLabel", "API Key");
+  const parsedBulk = mode === "bulk" ? parseBulkApiKeys(apiKey) : { entries: [], warnings: [] };
+  const canSubmit =
+    mode === "bulk"
+      ? parsedBulk.entries.length > 0
+      : credentialOptional || apiKey.trim().length > 0;
+
+  const buildProviderSpecificData = () => {
+    if (!usesBaseUrl) return undefined;
+    const checked = normalizeAndValidateHttpBaseUrl(baseUrl, defaultBaseUrl);
+    if (checked.error) throw new Error(checked.error);
+    return checked.value ? { baseUrl: checked.value } : undefined;
+  };
+
+  const handleValidate = async () => {
+    if (mode === "bulk" || validating) return;
+    if (!apiKey.trim() && !credentialOptional) {
+      setError(
+        providerText(t, "fillCredential", "请填写{credential}", { credential: credentialLabel })
+      );
+      return;
+    }
+
+    setValidating(true);
+    setError(null);
+    setValidationResult(null);
+    try {
+      const providerSpecificData = buildProviderSpecificData();
+      const res = await fetch("/api/providers/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: entry.providerId,
+          apiKey: apiKey.trim() || undefined,
+          validationModelId: defaultModel || undefined,
+          baseUrl: providerSpecificData?.baseUrl || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.valid) {
+        setValidationResult("failed");
+        throw new Error(data?.error || providerText(t, "validationFailed", "验证失败"));
+      }
+      setValidationResult("success");
+      notify.success(providerText(t, "credentialValidationPassed", "凭据验证通过"));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : providerText(t, "validationFailed", "验证失败");
+      setError(message);
+      notify.error(message);
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!canCreateWithCredential || saving) return;
+    if (!canSubmit) {
+      setError(
+        providerText(t, "fillCredential", "请填写{credential}", { credential: credentialLabel })
+      );
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      const providerSpecificData = buildProviderSpecificData();
+      const createOne = async (connectionName: string, credential?: string) => {
+        const res = await fetch("/api/providers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            provider: entry.providerId,
+            name: connectionName,
+            apiKey: credential || undefined,
+            priority: Number(priority) || 1,
+            defaultModel: defaultModel || null,
+            providerSpecificData,
+          }),
+        });
+        const data = await res.json().catch(() => null);
+        if (!res.ok) {
+          const message =
+            typeof data?.error === "string"
+              ? data.error
+              : data?.error?.message || providerText(t, "createChannelFailed", "创建渠道失败");
+          throw new Error(message);
+        }
+        return data?.connection;
+      };
+
+      if (mode === "bulk") {
+        const created = [];
+        for (const item of parsedBulk.entries) {
+          const connectionName = item.name.startsWith("Key ")
+            ? `${providerName} ${item.name}`
+            : item.name;
+          const connection = await createOne(connectionName, item.apiKey);
+          if (connection) created.push(connection);
+        }
+        created.forEach(onConnectionCreated);
+        setApiKey("");
+        notify.success(
+          providerText(t, "channelsCreated", "已创建 {count} 个渠道", {
+            count: created.length,
+          })
+        );
+        return;
+      }
+
+      const connection = await createOne(name.trim() || providerName, apiKey.trim() || undefined);
+      if (connection) {
+        onConnectionCreated(connection);
+      }
+      setApiKey("");
+      notify.success(providerText(t, "channelCreated", "渠道已创建"));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : providerText(t, "createChannelFailed", "创建渠道失败");
+      setError(message);
+      notify.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!canCreateWithCredential) {
+    const isNoAuth = authType === "no-auth";
+    return (
+      <div className="rounded-lg border border-border p-4">
+        <h4 className="text-sm font-semibold text-text-main">
+          {isNoAuth
+            ? providerText(t, "noConfigRequired", "无需配置")
+            : providerText(t, "authConfig", "授权配置")}
+        </h4>
+        <p className="mt-2 text-sm text-text-muted">
+          {isNoAuth
+            ? providerText(
+                t,
+                "noAuthConfigHint",
+                "该服务商不需要创建凭据渠道，模型会直接出现在可用目录中。"
+              )
+            : providerText(
+                t,
+                "authConfigHint",
+                "该服务商使用专属授权或导入流程，请从这里发起配置。"
+              )}
+        </p>
+        {!isNoAuth && (
+          <Button
+            icon="open_in_new"
+            className="mt-4"
+            onClick={() => onConfigureProvider(entry.providerId)}
+          >
+            {providerText(t, "startAuthConfig", "发起授权配置")}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h4 className="text-sm font-semibold text-text-main">
+          {providerText(t, "configureChannel", "配置渠道")}
+        </h4>
+        {bulkSupported && (
+          <div className="inline-flex rounded-md border border-border bg-bg-subtle p-0.5">
+            {[
+              { id: "single" as const, label: providerText(t, "single", "单个") },
+              { id: "bulk" as const, label: providerText(t, "bulk", "批量") },
+            ].map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  setMode(item.id);
+                  setValidationResult(null);
+                  setError(null);
+                }}
+                className={`h-6 rounded px-2 text-xs font-medium transition-colors ${
+                  mode === item.id
+                    ? "bg-surface text-text-main shadow-sm"
+                    : "text-text-muted hover:text-text-main"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="mt-4 grid gap-3">
+        {mode === "single" && (
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "channelName", "渠道名称")}
+            </span>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            />
+          </label>
+        )}
+
+        {usesBaseUrl && (
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">Base URL</span>
+            <input
+              value={baseUrl}
+              onChange={(event) => setBaseUrl(event.target.value)}
+              placeholder={getProviderBaseUrlPlaceholder(entry.providerId)}
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            />
+            {getProviderBaseUrlHint(entry.providerId, t) && (
+              <span className="text-xs text-text-muted">
+                {getProviderBaseUrlHint(entry.providerId, t)}
+              </span>
+            )}
+          </label>
+        )}
+
+        <label className="grid gap-1.5 text-sm">
+          <span className="text-xs font-medium text-text-muted">
+            {credentialLabel}
+            {credentialOptional ? providerText(t, "optionalSuffix", "（可选）") : ""}
+          </span>
+          <textarea
+            value={apiKey}
+            onChange={(event) => {
+              setApiKey(event.target.value);
+              setValidationResult(null);
+            }}
+            placeholder={
+              mode === "bulk"
+                ? providerText(t, "bulkKeyPlaceholder", "每行一个 Key，或使用 name|key")
+                : authType === "web-cookie"
+                  ? providerText(t, "sessionCredentialPlaceholder", "粘贴会话凭据")
+                  : "sk-..."
+            }
+            rows={mode === "bulk" ? 6 : 4}
+            className="min-h-[96px] resize-y rounded-control border border-border bg-bg px-3 py-2 font-mono text-sm text-text-main outline-none focus:border-primary"
+          />
+          <span className="text-xs text-text-muted">
+            {mode === "bulk"
+              ? providerText(t, "bulkKeyHint", "支持 name|key 格式；空行和 # 开头的注释会被跳过。")
+              : providerText(
+                  t,
+                  "singleChannelHint",
+                  "每次创建一个渠道；专属字段和高级选项仍可在详情页继续维护。"
+                )}
+          </span>
+        </label>
+
+        {mode === "bulk" && (
+          <div className="rounded-md border border-border bg-bg-subtle px-3 py-2 text-xs text-text-muted">
+            {providerText(t, "recognizedKeys", "已识别 {count} 个 Key", {
+              count: parsedBulk.entries.length,
+            })}
+            {parsedBulk.warnings.length > 0 && (
+              <div className="mt-1 text-amber-600 dark:text-amber-400">
+                {parsedBulk.warnings.join("；")}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[110px_1fr]">
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "priority", "优先级")}
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={priority}
+              onChange={(event) => setPriority(Number(event.target.value))}
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            />
+          </label>
+
+          <label className="grid gap-1.5 text-sm">
+            <span className="text-xs font-medium text-text-muted">
+              {providerText(t, "defaultTestModel", "默认测试模型")}
+            </span>
+            <select
+              value={defaultModel}
+              onChange={(event) => setDefaultModel(event.target.value)}
+              className="h-9 rounded-control border border-border bg-bg px-3 text-sm text-text-main outline-none focus:border-primary"
+            >
+              <option value="">{providerText(t, "notSpecified", "不指定")}</option>
+              {selectedModels.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name || model.id}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {error && (
+          <div className="rounded-md border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-500">
+            {error}
+          </div>
+        )}
+
+        {validationResult && (
+          <div
+            className={`rounded-md border px-3 py-2 text-sm ${
+              validationResult === "success"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                : "border-red-500/20 bg-red-500/10 text-red-500"
+            }`}
+          >
+            {validationResult === "success"
+              ? providerText(t, "validationPassed", "验证通过")
+              : providerText(t, "validationFailed", "验证失败")}
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <Button icon="add" loading={saving} disabled={!canSubmit} onClick={handleSubmit}>
+            {mode === "bulk"
+              ? providerText(t, "bulkCreate", "批量创建")
+              : providerText(t, "createChannel", "创建渠道")}
+          </Button>
+          {mode === "single" && (
+            <Button
+              icon="play_arrow"
+              variant="secondary"
+              loading={validating}
+              disabled={!canSubmit}
+              onClick={handleValidate}
+            >
+              {providerText(t, "validate", "验证")}
+            </Button>
+          )}
+          <Button
+            icon="open_in_new"
+            variant="secondary"
+            onClick={() => onConfigureProvider(entry.providerId)}
+          >
+            {providerText(t, "advancedConfig", "高级配置")}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ProviderTestResultsView({ results }: { results: ProviderBatchTestResults }) {
   const t = useTranslations("providers");
