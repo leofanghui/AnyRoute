@@ -29,6 +29,7 @@ type ModelSelectModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (model: unknown) => void;
+  onDeselect?: (model: unknown) => void;
   selectedModel?: string;
   selectedModels?: string[];
   activeProviders?: Array<{ provider: string; providerSpecificData?: Record<string, unknown> }>;
@@ -47,6 +48,7 @@ type ModelSelectModalProps = {
   multiSelect?: boolean;
   showCombos?: boolean;
   alwaysIncludeProviders?: string[] | null;
+  keepOpenOnSelect?: boolean;
 };
 
 function getActiveProviderPrefix(provider: {
@@ -61,6 +63,7 @@ export default function ModelSelectModal({
   isOpen,
   onClose,
   onSelect,
+  onDeselect,
   selectedModel,
   selectedModels = [],
   activeProviders = [],
@@ -71,6 +74,7 @@ export default function ModelSelectModal({
   multiSelect = false,
   showCombos = true,
   alwaysIncludeProviders = [],
+  keepOpenOnSelect = false,
 }: ModelSelectModalProps) {
   const t = useTranslations("common");
   const resolvedTitle = title ?? t("selectModel");
@@ -414,13 +418,43 @@ export default function ModelSelectModal({
   const isValueSelected = (value: string) => resolvedSelectedModels.includes(value);
 
   const handleSelect = (model: any) => {
-    onSelect(model);
-    if (!multiSelect) {
+    const candidateValue =
+      typeof model?.value === "string"
+        ? model.value
+        : typeof model?.name === "string"
+          ? model.name
+          : typeof model === "string"
+            ? model
+            : "";
+    const isAdded = candidateValue ? addedModelValues.includes(candidateValue) : false;
+
+    if (isAdded && onDeselect) {
+      onDeselect(model);
+    } else {
+      onSelect(model);
+    }
+
+    if (!multiSelect && !keepOpenOnSelect) {
       onClose();
       setSearchQuery("");
       setSelectedProviderId("all");
     }
   };
+
+  const doneFooter =
+    keepOpenOnSelect && !multiSelect ? (
+      <button
+        type="button"
+        onClick={() => {
+          onClose();
+          setSearchQuery("");
+          setSelectedProviderId("all");
+        }}
+        className="w-full px-3 py-2 text-sm font-medium rounded border border-primary bg-primary text-white hover:bg-primary/90 transition-colors"
+      >
+        {t("done")}
+      </button>
+    ) : null;
 
   return (
     <Modal
@@ -433,6 +467,7 @@ export default function ModelSelectModal({
       title={resolvedTitle}
       size="md"
       className="p-4!"
+      footer={doneFooter}
     >
       {/* Search - compact */}
       <div className="mb-3">

@@ -18,6 +18,7 @@ import {
   isOpenAICompatibleProvider,
   isSelfHostedChatProvider,
   providerAllowsOptionalApiKey,
+  WEB_COOKIE_PROVIDERS,
 } from "@/shared/constants/providers";
 import {
   SAFE_OUTBOUND_FETCH_PRESETS,
@@ -212,6 +213,9 @@ function normalizeGigachatChatUrl(baseUrl: string) {
   if (!normalized) return "";
   return `${normalized}/chat/completions`;
 }
+
+const STANDARD_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
 function getCustomUserAgent(providerSpecificData: any = {}) {
   if (typeof providerSpecificData?.customUserAgent !== "string") return null;
@@ -3505,6 +3509,49 @@ async function validateInnerAiProvider({ apiKey, providerSpecificData = {} }: an
   }
 }
 
+export async function validateWebCookieProvider({
+  provider,
+  apiKey,
+  providerSpecificData = {},
+}: any) {
+  try {
+    const entry = getRegistryEntry(provider);
+    if (!entry) {
+      return { valid: false, error: "Provider not found in registry", unsupported: true };
+    }
+
+    const cookie = String(apiKey || "").trim();
+    if (!cookie) {
+      return { valid: false, error: "Cookie required for web-cookie provider", unsupported: false };
+    }
+
+    const baseUrl = resolveBaseUrl(entry, providerSpecificData);
+    const res = await directHttpsRequest(
+      `${baseUrl}/models`,
+      {
+        method: "GET",
+        headers: {
+          "User-Agent": STANDARD_USER_AGENT,
+        },
+      },
+      10_000
+    );
+
+    if (res.status === 401 || res.status === 403) {
+      return {
+        valid: false,
+        error: "SESSION_EXPIRED",
+        errorCode: "AUTH_007",
+        unsupported: false,
+      };
+    }
+
+    return { valid: true, error: null, unsupported: false };
+  } catch (error: any) {
+    return toValidationErrorResult(error);
+  }
+}
+
 export async function validateProviderApiKey({ provider, apiKey, providerSpecificData = {} }: any) {
   const requiresApiKey = !providerAllowsOptionalApiKey(provider);
   const isLocal = isLocalProvider(provider);
@@ -3871,6 +3918,14 @@ export async function validateProviderApiKey({ provider, apiKey, providerSpecifi
   if (SPECIALTY_VALIDATORS[provider]) {
     try {
       return await SPECIALTY_VALIDATORS[provider]({ apiKey, providerSpecificData });
+    } catch (error: any) {
+      return toValidationErrorResult(error);
+    }
+  }
+
+  if (WEB_COOKIE_PROVIDERS[provider]) {
+    try {
+      return await validateWebCookieProvider({ provider, apiKey, providerSpecificData });
     } catch (error: any) {
       return toValidationErrorResult(error);
     }
