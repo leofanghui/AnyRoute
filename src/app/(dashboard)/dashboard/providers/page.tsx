@@ -2279,6 +2279,33 @@ function findMatchingCompatibleNode(
   );
 }
 
+function getDetectedPathPrefix(inputBaseUrl: string, detectedBaseUrl: string | null) {
+  const input = normalizeCompatibleBaseUrl(inputBaseUrl);
+  const detected = normalizeCompatibleBaseUrl(detectedBaseUrl);
+  if (!input || !detected || detected === input) return "";
+  return detected.startsWith(`${input}/`) ? detected.slice(input.length) : "";
+}
+
+function getDetectedCompatiblePaths(
+  mode: ResolvedCompatibleMode,
+  apiType: CompatibleNodeFormState["apiType"],
+  inputBaseUrl: string,
+  detectedBaseUrl: string | null
+) {
+  const prefix = getDetectedPathPrefix(inputBaseUrl, detectedBaseUrl);
+  if (!prefix) return null;
+
+  return {
+    chatPath:
+      mode === "anthropic"
+        ? `${prefix}/messages`
+        : apiType === "responses"
+          ? `${prefix}/responses`
+          : `${prefix}/chat/completions`,
+    modelsPath: `${prefix}/models`,
+  };
+}
+
 function CompatibleNodeInlinePanel({
   mode,
   compatibleNodes,
@@ -2336,9 +2363,15 @@ function CompatibleNodeInlinePanel({
     setDetectedMode(null);
   };
 
-  const buildNodeBody = (nodeMode: ResolvedCompatibleMode, detectedBaseUrl?: string) => {
+  const buildNodeBody = (nodeMode: ResolvedCompatibleMode, detectedBaseUrl?: string | null) => {
     const nodeConfig = COMPATIBLE_MODE_CONFIG[nodeMode];
-    const effectiveBaseUrl = detectedBaseUrl || form.baseUrl.trim();
+    const effectiveBaseUrl = form.baseUrl.trim();
+    const detectedPaths = getDetectedCompatiblePaths(
+      nodeMode,
+      form.apiType,
+      effectiveBaseUrl,
+      detectedBaseUrl || null
+    );
     const name = form.name.trim();
     const prefix = form.prefix.trim() || deriveCompatiblePrefix(effectiveBaseUrl, name);
     const body: Record<string, unknown> = {
@@ -2346,10 +2379,12 @@ function CompatibleNodeInlinePanel({
       prefix,
       baseUrl: effectiveBaseUrl,
       type: nodeConfig.type,
-      chatPath: form.chatPath.trim(),
+      chatPath: form.chatPath.trim() || detectedPaths?.chatPath || "",
     };
     if (nodeConfig.hasApiType) body.apiType = form.apiType;
-    if (nodeConfig.hasModelsPath) body.modelsPath = form.modelsPath.trim();
+    if (nodeConfig.hasModelsPath) {
+      body.modelsPath = form.modelsPath.trim() || detectedPaths?.modelsPath || "";
+    }
     return body;
   };
 
@@ -2412,8 +2447,18 @@ function CompatibleNodeInlinePanel({
     setValidationResult(null);
     try {
       const detected = await detectCompatibleMode();
-      if (detected.baseUrl && detected.baseUrl !== form.baseUrl.trim()) {
-        setForm((prev) => ({ ...prev, baseUrl: detected.baseUrl || prev.baseUrl }));
+      const detectedPaths = getDetectedCompatiblePaths(
+        detected.mode,
+        form.apiType,
+        form.baseUrl,
+        detected.baseUrl
+      );
+      if (detectedPaths) {
+        setForm((prev) => ({
+          ...prev,
+          chatPath: prev.chatPath.trim() || detectedPaths.chatPath,
+          modelsPath: prev.modelsPath.trim() || detectedPaths.modelsPath,
+        }));
       }
       setValidationResult("success");
       notify.success(
@@ -2450,10 +2495,20 @@ function CompatibleNodeInlinePanel({
         validationResult === "success" && detectedMode
           ? { mode: detectedMode, baseUrl: null }
           : await detectCompatibleMode();
-      if (detected.baseUrl && detected.baseUrl !== form.baseUrl.trim()) {
-        setForm((prev) => ({ ...prev, baseUrl: detected.baseUrl || prev.baseUrl }));
+      const detectedPaths = getDetectedCompatiblePaths(
+        detected.mode,
+        form.apiType,
+        form.baseUrl,
+        detected.baseUrl
+      );
+      if (detectedPaths) {
+        setForm((prev) => ({
+          ...prev,
+          chatPath: prev.chatPath.trim() || detectedPaths.chatPath,
+          modelsPath: prev.modelsPath.trim() || detectedPaths.modelsPath,
+        }));
       }
-      const nodeBody = buildNodeBody(detected.mode, detected.baseUrl || undefined);
+      const nodeBody = buildNodeBody(detected.mode, detected.baseUrl);
       let node = findMatchingCompatibleNode(compatibleNodes, nodeBody);
 
       if (!node) {

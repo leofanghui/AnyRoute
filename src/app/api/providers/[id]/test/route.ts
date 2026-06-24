@@ -3,9 +3,11 @@ import { z } from "zod";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import {
   getProviderConnectionById,
+  getProviderNodeById,
   updateProviderConnection,
   resolveProxyForConnection,
 } from "@/lib/localDb";
+import { getSyncedAvailableModels, getSyncedAvailableModelsForConnection } from "@/lib/db/models";
 import { validateProviderApiKey } from "@/lib/providers/validation";
 import { getCliRuntimeStatus } from "@/shared/services/cliRuntime";
 // Use the shared open-sse token refresh with built-in dedup/race-condition cache
@@ -112,6 +114,64 @@ function toSafeMessage(value: any, fallback = "Unknown error"): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed || fallback;
+}
+
+function toNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+async function resolveConnectionValidationModelId(
+  connection: any,
+  explicitModelId?: string
+): Promise<string> {
+  const explicit = toNonEmptyString(explicitModelId);
+  if (explicit) return explicit;
+
+  const configured = toNonEmptyString(connection?.providerSpecificData?.validationModelId);
+  if (configured) return configured;
+
+  const provider = toNonEmptyString(connection?.provider);
+  const connectionId = toNonEmptyString(connection?.id);
+  if (!provider || !connectionId) return "";
+
+  try {
+    const connectionModels = await getSyncedAvailableModelsForConnection(provider, connectionId);
+    const firstConnectionModel = toNonEmptyString(connectionModels[0]?.id);
+    if (firstConnectionModel) return firstConnectionModel;
+
+    const providerModels = await getSyncedAvailableModels(provider);
+    return toNonEmptyString(providerModels[0]?.id) || "";
+  } catch {
+    return "";
+  }
+}
+
+async function buildApiKeyTestProviderSpecificData(
+  connection: any,
+  validationModelId: string
+): Promise<Record<string, unknown>> {
+  const providerSpecificData =
+    connection?.providerSpecificData && typeof connection.providerSpecificData === "object"
+      ? { ...connection.providerSpecificData }
+      : {};
+  const provider = toNonEmptyString(connection?.provider);
+  const node = provider
+    ? ((await getProviderNodeById(provider)) as Record<string, unknown> | null)
+    : null;
+
+  for (const key of ["baseUrl", "apiType", "chatPath", "modelsPath"] as const) {
+    if (!toNonEmptyString(providerSpecificData[key]) && toNonEmptyString(node?.[key])) {
+      providerSpecificData[key] = node?.[key];
+    }
+  }
+
+  if (validationModelId) {
+    providerSpecificData.validationModelId = validationModelId;
+  }
+
+  return providerSpecificData;
 }
 
 function makeDiagnosis(
@@ -673,15 +733,20 @@ export async function testSingleConnection(connectionId: string, validationModel
       diagnosis: (runtime as any).diagnosis,
     };
   } else if (connection.authType === "apikey") {
-    const enrichedConnection = validationModelId
+    const resolvedValidationModelId = await resolveConnectionValidationModelId(
+      connection,
+      validationModelId
+    );
+    const providerSpecificData = await buildApiKeyTestProviderSpecificData(
+      connection,
+      resolvedValidationModelId
+    );
+    const enrichedConnection = resolvedValidationModelId
       ? {
           ...connection,
-          providerSpecificData: {
-            ...((connection.providerSpecificData as any) || {}),
-            validationModelId,
-          },
+          providerSpecificData,
         }
-      : connection;
+      : { ...connection, providerSpecificData };
     result = await runWithProxyContext(proxyInfo?.proxy || null, () =>
       testApiKeyConnection(enrichedConnection)
     );

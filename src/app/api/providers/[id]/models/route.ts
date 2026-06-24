@@ -24,6 +24,7 @@ import {
 } from "@/shared/network/safeOutboundFetch";
 import { getProviderOutboundGuard } from "@/shared/network/outboundUrlGuard";
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
+import tlsClient from "@omniroute/open-sse/utils/tlsClient.ts";
 import { getStaticQoderModels } from "@omniroute/open-sse/services/qoderCli.ts";
 import { fetchGitHubCopilotModels } from "@omniroute/open-sse/services/githubCopilotModels.ts";
 import { fetchKiroAvailableModels } from "@omniroute/open-sse/services/kiroModels.ts";
@@ -184,6 +185,55 @@ function buildNamedOpenAiStyleHeaders(
   }
 
   return headers;
+}
+
+async function fetchModelsDiscoveryUrl(
+  url: string,
+  init: Parameters<typeof safeOutboundFetch>[1]
+): Promise<Response> {
+  try {
+    return await safeOutboundFetch(url, init);
+  } catch (error) {
+    if (
+      error instanceof SafeOutboundFetchError &&
+      (error.code === "NETWORK_ERROR" || error.code === "TIMEOUT") &&
+      error.isRetryable !== false
+    ) {
+      return tlsClient.fetch(url, {
+        method: init?.method,
+        headers: init?.headers,
+        body: init?.body,
+        redirect: init?.allowRedirect ? "follow" : "manual",
+        signal: init?.signal,
+      });
+    }
+    throw error;
+  }
+}
+
+async function readModelsResponseJson(
+  response: Response
+): Promise<{ data: any; models: any[] } | null> {
+  if (!response.ok) return null;
+  const text = await response
+    .clone()
+    .text()
+    .catch(() => "");
+  if (!text.trim()) return null;
+
+  try {
+    const data = JSON.parse(text);
+    const models = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.models)
+          ? data.models
+          : null;
+    return models ? { data, models } : null;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeAntigravityModelsResponse(data: unknown): Array<{ id: string; name: string }> {
@@ -1175,7 +1225,7 @@ export async function GET(
 
       for (const modelsUrl of uniqueEndpoints) {
         try {
-          const response = await safeOutboundFetch(modelsUrl, {
+          const response = await fetchModelsDiscoveryUrl(modelsUrl, {
             ...SAFE_OUTBOUND_FETCH_PRESETS.modelsProbe,
             guard: getProviderOutboundGuard(),
             proxyConfig: proxy,
@@ -1185,11 +1235,11 @@ export async function GET(
               : buildOptionalBearerHeaders(token),
           });
 
-          if (response.ok) {
-            const data = await response.json();
+          const parsed = await readModelsResponseJson(response);
+          if (parsed) {
             models = isNamedOpenAIStyleProvider(provider)
-              ? normalizeOpenAiLikeModelsResponse(data, provider)
-              : data.data || data.models || [];
+              ? normalizeOpenAiLikeModelsResponse(parsed.data, provider)
+              : parsed.models;
             break; // Success!
           }
 
@@ -2295,9 +2345,10 @@ export async function GET(
 
       let response: Response | null = null;
       let lastError: unknown;
+      let models: any[] | null = null;
       for (const url of endpoints) {
         try {
-          response = await safeOutboundFetch(url, {
+          response = await fetchModelsDiscoveryUrl(url, {
             ...SAFE_OUTBOUND_FETCH_PRESETS.modelsDiscovery,
             guard: getProviderOutboundGuard(),
             proxyConfig: proxy,
@@ -2309,9 +2360,13 @@ export async function GET(
               ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
           });
-          if (response.ok) break;
           // Auth failures are terminal — don't try other endpoints
           if (response.status === 401 || response.status === 403) break;
+          const parsed = await readModelsResponseJson(response);
+          if (parsed) {
+            models = parsed.models;
+            break;
+          }
         } catch (error) {
           lastError = error;
           if (endpoints.length === 1) {
@@ -2321,7 +2376,7 @@ export async function GET(
         }
       }
 
-      if (!response?.ok) {
+      if (models === null) {
         const errorText = response ? await response.text() : String(lastError);
         console.log("Error fetching models from provider", { provider, errorText, endpoints });
         const fallback = buildDiscoveryFallbackResponse();
@@ -2331,9 +2386,6 @@ export async function GET(
           { status: response?.status || 502 }
         );
       }
-
-      const data = await response.json();
-      const models = data.data || data.models || [];
 
       return buildApiDiscoveryResponse(models);
     }

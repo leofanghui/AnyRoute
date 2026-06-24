@@ -34,6 +34,7 @@ import {
   normalizeSessionCookieHeader,
 } from "@/lib/providers/webCookieAuth";
 import { resolveNvidiaValidationModel } from "@/lib/providers/nvidiaValidationModel";
+import tlsClient from "@omniroute/open-sse/utils/tlsClient.ts";
 import { getGigachatAccessToken } from "@omniroute/open-sse/services/gigachatAuth.ts";
 import { validateQoderCliPat } from "@omniroute/open-sse/services/qoderCli.ts";
 import {
@@ -122,6 +123,31 @@ function addModelsSuffix(baseUrl: string) {
   }
 
   return `${normalized}/models`;
+}
+
+function buildOpenAICompatibleModelsUrls(baseUrl: string, modelsPath?: unknown): string[] {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (!normalized) return [];
+
+  const explicitPath = typeof modelsPath === "string" ? modelsPath.trim() : "";
+  if (explicitPath) {
+    return [joinBaseUrlAndPath(normalized, explicitPath)];
+  }
+
+  let base = normalized;
+  if (base.endsWith("/chat/completions")) {
+    base = base.slice(0, -"/chat/completions".length);
+  } else if (base.endsWith("/responses")) {
+    base = base.slice(0, -"/responses".length);
+  } else if (base.endsWith("/completions")) {
+    base = base.slice(0, -"/completions".length);
+  }
+
+  const candidates = [`${base}/models`];
+  if (!/\/v\d+$/i.test(base)) {
+    candidates.push(`${base}/v1/models`);
+  }
+  return [...new Set(candidates)];
 }
 
 function resolveBaseUrl(entry: any, providerSpecificData: any = {}) {
@@ -327,13 +353,28 @@ async function fetchWithProxyFallback(
     if (!isValidTarget) throw err;
 
     const proxyUrl = await selectProxyForValidation(url);
-    if (!proxyUrl) throw err;
+    if (proxyUrl) {
+      try {
+        return await safeOutboundFetch(url, {
+          ...presets,
+          guard: isLocal ? "none" : getProviderOutboundGuard(),
+          ...init,
+          proxyConfig: proxyUrl,
+        });
+      } catch (proxyErr: unknown) {
+        const fallbackErr = proxyErr as SafeOutboundFetchError;
+        const proxyNetworkIssue =
+          fallbackErr?.code === "NETWORK_ERROR" || fallbackErr?.code === "TIMEOUT";
+        if (!proxyNetworkIssue || fallbackErr?.isRetryable === false) throw proxyErr;
+      }
+    }
 
-    return safeOutboundFetch(url, {
-      ...presets,
-      guard: isLocal ? "none" : getProviderOutboundGuard(),
-      ...init,
-      proxyConfig: proxyUrl,
+    return tlsClient.fetch(url, {
+      method: init.method,
+      headers: init.headers,
+      body: init.body,
+      redirect: presets.allowRedirect ? "follow" : "manual",
+      signal: init.signal || undefined,
     });
   }
 }
@@ -356,6 +397,46 @@ async function validationRead(url: string, init: RequestInit, isLocal: boolean =
 
 async function validationWrite(url: string, init: RequestInit, isLocal: boolean = false) {
   return fetchWithProxyFallback(url, init, SAFE_OUTBOUND_FETCH_PRESETS.validationWrite, isLocal);
+}
+
+async function isModelsJsonResponse(response: Response) {
+  if (!response.ok) return false;
+  const text = await response
+    .clone()
+    .text()
+    .catch(() => "");
+  if (!text.trim()) return false;
+
+  try {
+    const json = JSON.parse(text);
+    return Array.isArray(json) || Array.isArray(json?.data) || Array.isArray(json?.models);
+  } catch {
+    return false;
+  }
+}
+
+async function isApiLikeResponse(response: Response) {
+  const contentType = response.headers.get("content-type")?.toLowerCase() || "";
+  if (
+    contentType.includes("application/json") ||
+    contentType.includes("text/event-stream") ||
+    contentType.includes("application/x-ndjson")
+  ) {
+    return true;
+  }
+  if (contentType.includes("text/html")) return false;
+
+  const text = await response
+    .clone()
+    .text()
+    .catch(() => "");
+  if (!text.trim()) return false;
+  try {
+    JSON.parse(text);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // A validation failure should only be flagged `securityBlocked` (which the route
@@ -1894,33 +1975,44 @@ async function validateOpenAICompatibleProvider({ apiKey, providerSpecificData =
 
   // Step 1: Try GET /models
   let modelsReachable = false;
-  try {
-    const modelsRes = await validationRead(`${baseUrl}/models`, {
-      method: "GET",
-      headers: buildBearerHeaders(apiKey, providerSpecificData),
-    });
+  let sawAuthFailure = false;
+  for (const modelsUrl of buildOpenAICompatibleModelsUrls(
+    baseUrl,
+    providerSpecificData.modelsPath
+  )) {
+    try {
+      const modelsRes = await validationRead(modelsUrl, {
+        method: "GET",
+        headers: buildBearerHeaders(apiKey, providerSpecificData),
+      });
 
-    modelsReachable = true;
+      modelsReachable = true;
 
-    if (modelsRes.ok) {
-      return { valid: true, error: null, method: "models_endpoint" };
+      if (await isModelsJsonResponse(modelsRes)) {
+        return { valid: true, error: null, method: "models_endpoint" };
+      }
+
+      if (modelsRes.status === 401 || modelsRes.status === 403) {
+        sawAuthFailure = true;
+        continue;
+      }
+
+      // Endpoint responded and auth seems valid, but quota is exhausted/rate-limited.
+      if (modelsRes.status === 429) {
+        return {
+          valid: true,
+          error: null,
+          method: "models_endpoint",
+          warning: "Rate limited, but credentials are valid",
+        };
+      }
+    } catch {
+      // /models fetch failed (network error, etc.) — try the next candidate.
     }
+  }
 
-    if (modelsRes.status === 401 || modelsRes.status === 403) {
-      return { valid: false, error: "Invalid API key" };
-    }
-
-    // Endpoint responded and auth seems valid, but quota is exhausted/rate-limited.
-    if (modelsRes.status === 429) {
-      return {
-        valid: true,
-        error: null,
-        method: "models_endpoint",
-        warning: "Rate limited, but credentials are valid",
-      };
-    }
-  } catch {
-    // /models fetch failed (network error, etc.) — fall through to chat test
+  if (sawAuthFailure && !validationModelId) {
+    return { valid: false, error: "Invalid API key" };
   }
 
   // T25: if /models cannot be used and no custom model was provided, return a
@@ -1936,21 +2028,33 @@ async function validateOpenAICompatibleProvider({ apiKey, providerSpecificData =
   // Many providers don't expose /models but accept chat completions fine
   const apiType = providerSpecificData.apiType || "chat";
   const chatSuffix = apiType === "responses" ? "/responses" : "/chat/completions";
-  const chatUrl = `${baseUrl}${chatSuffix}`;
+  const chatUrl =
+    typeof providerSpecificData.chatPath === "string" && providerSpecificData.chatPath.trim()
+      ? joinBaseUrlAndPath(baseUrl, providerSpecificData.chatPath)
+      : `${baseUrl}${chatSuffix}`;
   const testModelId = validationModelId;
+  const requestBody =
+    apiType === "responses"
+      ? {
+          model: testModelId,
+          input: "test",
+          max_output_tokens: 1,
+        }
+      : {
+          model: testModelId,
+          messages: [{ role: "user", content: "test" }],
+          max_tokens: 1,
+        };
 
   try {
     const chatRes = await validationWrite(chatUrl, {
       method: "POST",
       headers: buildBearerHeaders(apiKey, providerSpecificData),
-      body: JSON.stringify({
-        model: testModelId,
-        messages: [{ role: "user", content: "test" }],
-        max_tokens: 1,
-      }),
+      body: JSON.stringify(requestBody),
     });
+    const apiLikeResponse = await isApiLikeResponse(chatRes);
 
-    if (chatRes.ok) {
+    if (chatRes.ok && apiLikeResponse) {
       return { valid: true, error: null, method: "chat_completions" };
     }
 
@@ -1969,7 +2073,7 @@ async function validateOpenAICompatibleProvider({ apiKey, providerSpecificData =
 
     // If /models was reachable but returned non-auth error, and chat succeeds
     // auth-wise, this still confirms credentials are valid.
-    if (chatRes.status === 400) {
+    if (chatRes.status === 400 && apiLikeResponse) {
       return {
         valid: true,
         error: null,
@@ -1979,7 +2083,7 @@ async function validateOpenAICompatibleProvider({ apiKey, providerSpecificData =
     }
 
     // 4xx other than auth (e.g. 400 bad model, 422) usually means auth passed
-    if (chatRes.status >= 400 && chatRes.status < 500) {
+    if (chatRes.status >= 400 && chatRes.status < 500 && apiLikeResponse) {
       return {
         valid: true,
         error: null,
