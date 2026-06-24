@@ -28,6 +28,18 @@ export interface ToolDetailClientProps {
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL;
 
+function getConnectionPrefix(conn: any, providerNode?: any) {
+  const specificPrefix = conn?.providerSpecificData?.prefix;
+  if (typeof specificPrefix === "string" && specificPrefix.trim()) {
+    return specificPrefix.trim();
+  }
+  const nodePrefix = providerNode?.prefix;
+  if (typeof nodePrefix === "string" && nodePrefix.trim()) {
+    return nodePrefix.trim();
+  }
+  return PROVIDER_ID_TO_ALIAS[conn.provider] || conn.provider;
+}
+
 export default function ToolDetailClient({ toolId, category }: ToolDetailClientProps) {
   const tCommon = useTranslations("cliCommon");
   const tool = CLI_TOOLS[toolId];
@@ -36,6 +48,7 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [cloudEnabled, setCloudEnabled] = useState(false);
   const [dynamicModels, setDynamicModels] = useState<any[]>([]);
+  const [providerNodes, setProviderNodes] = useState<any[]>([]);
   const [modelMappings, setModelMappings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
@@ -87,6 +100,18 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
     }
   }, []);
 
+  const fetchProviderNodes = useCallback(async () => {
+    try {
+      const res = await fetch("/api/provider-nodes");
+      if (res.ok) {
+        const data = await res.json();
+        setProviderNodes(data.nodes || []);
+      }
+    } catch (error) {
+      console.log("Error fetching provider nodes:", error);
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     // "Load data on mount" pattern: fetch* callbacks call setState internally
@@ -100,6 +125,7 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
       fetchApiKeys(),
       fetchCloudSettings(),
       fetchDynamicModels(),
+      fetchProviderNodes(),
     ]).finally(() => {
       if (!cancelled) setLoading(false);
     });
@@ -107,7 +133,7 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
     return () => {
       cancelled = true;
     };
-  }, [fetchConnections, fetchApiKeys, fetchCloudSettings, fetchDynamicModels]);
+  }, [fetchConnections, fetchApiKeys, fetchCloudSettings, fetchDynamicModels, fetchProviderNodes]);
 
   const getActiveProviders = useCallback(() => {
     return connections.filter((c) => c.isActive !== false);
@@ -117,9 +143,11 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
     const activeProviders = getActiveProviders();
     const models: any[] = [];
     const seenModels = new Set<string>();
+    const providerNodeById = new Map(providerNodes.map((node) => [node.id, node]));
 
     activeProviders.forEach((conn) => {
-      const alias = PROVIDER_ID_TO_ALIAS[conn.provider] || conn.provider;
+      const providerNode = providerNodeById.get(conn.provider);
+      const alias = getConnectionPrefix(conn, providerNode);
       const providerModels = getModelsByProviderId(conn.provider);
       providerModels.forEach((m: any) => {
         const modelValue = `${alias}/${m.id}`;
@@ -138,7 +166,10 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
     });
 
     const activeAliases = new Set(
-      activeProviders.map((c) => PROVIDER_ID_TO_ALIAS[c.provider] || c.provider)
+      activeProviders.map((c) => {
+        const providerNode = providerNodeById.get(c.provider);
+        return getConnectionPrefix(c, providerNode);
+      })
     );
     const activeProviderIds = new Set(activeProviders.map((c) => c.provider));
     dynamicModels.forEach((dm) => {
@@ -149,20 +180,28 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
       if (slashIdx === -1) return;
       const alias = modelId.substring(0, slashIdx);
       const bareModel = modelId.substring(slashIdx + 1);
-      if (!activeAliases.has(alias) && !activeProviderIds.has(alias)) return;
+      const ownedBy = typeof dm?.owned_by === "string" ? dm.owned_by : "";
+      const matchedConnection = activeProviders.find(
+        (conn) =>
+          conn.provider === ownedBy ||
+          conn.provider === alias ||
+          getConnectionPrefix(conn, providerNodeById.get(conn.provider)) === alias
+      );
+      if (!matchedConnection && !activeAliases.has(alias) && !activeProviderIds.has(alias)) return;
       seenModels.add(modelId);
       models.push({
         value: modelId,
         label: modelId,
-        provider: alias,
+        provider: matchedConnection?.provider || alias,
         alias,
-        connectionName: "",
+        connectionName: matchedConnection?.name || "",
         modelId: bareModel,
+        source: "imported",
       });
     });
 
     return models;
-  }, [getActiveProviders, dynamicModels]);
+  }, [getActiveProviders, dynamicModels, providerNodes]);
 
   const handleModelMappingChange = useCallback((alias: string, targetModel: string) => {
     setModelMappings((prev) => {

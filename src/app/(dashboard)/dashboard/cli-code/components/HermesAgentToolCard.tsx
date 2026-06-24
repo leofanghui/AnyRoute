@@ -32,6 +32,7 @@ export default function HermesAgentToolCard({
   baseUrl,
   apiKeys,
   activeProviders = [],
+  availableModels = [],
   hasActiveProviders,
   cloudEnabled,
   batchStatus,
@@ -521,6 +522,7 @@ export default function HermesAgentToolCard({
         }}
         showCombos={true}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         alwaysIncludeProviders={HERMES_AGENT_ZERO_CONFIG_PROVIDERS}
       />
     </Card>

@@ -10,6 +10,7 @@ import type { KeyHealth } from "../services/apiKeyRotator.ts";
 import {
   buildClaudeCodeCompatibleHeaders,
   CLAUDE_CODE_COMPATIBLE_DEFAULT_CHAT_PATH,
+  joinBaseUrlAndPath,
   joinClaudeCodeCompatibleUrl,
 } from "../services/claudeCodeCompatible.ts";
 import { getGigachatAccessToken } from "../services/gigachatAuth.ts";
@@ -196,8 +197,7 @@ export class DefaultExecutor extends BaseExecutor {
           customPath || CLAUDE_CODE_COMPATIBLE_DEFAULT_CHAT_PATH
         );
       }
-      const normalized = baseUrl.replace(/\/$/, "");
-      return `${normalized}${customPath || "/messages"}`;
+      return joinBaseUrlAndPath(baseUrl, customPath || "/v1/messages");
     }
     switch (this.provider) {
       case "bailian-coding-plan": {

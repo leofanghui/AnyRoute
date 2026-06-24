@@ -1,5 +1,11 @@
 // Re-export from open-sse with localDb integration
-import { getModelAliases, getComboByName, getProviderNodes, getCustomModels } from "@/lib/localDb";
+import {
+  getModelAliases,
+  getComboByName,
+  getProviderNodes,
+  getCustomModels,
+  getProviderConnections,
+} from "@/lib/localDb";
 import { getCachedSettings } from "@/lib/localDb";
 import { getComboStepTarget } from "@/lib/combos/steps";
 import {
@@ -70,6 +76,32 @@ async function lookupCustomModelMeta(
   }
 }
 
+async function getActiveProviderIds(): Promise<Set<string>> {
+  try {
+    const connections = await getProviderConnections();
+    return new Set(
+      connections
+        .filter((connection: any) => connection?.isActive !== false)
+        .map((connection: any) => connection.provider)
+        .filter((provider: unknown): provider is string => typeof provider === "string")
+    );
+  } catch {
+    return new Set();
+  }
+}
+
+function findProviderNodeByPrefixOrId(
+  nodes: any[],
+  prefixOrId: string,
+  activeProviderIds: Set<string>
+) {
+  const idMatch = nodes.find((node) => node.id === prefixOrId);
+  if (idMatch) return idMatch;
+
+  const prefixMatches = nodes.filter((node) => node.prefix === prefixOrId);
+  return prefixMatches.find((node) => activeProviderIds.has(node.id)) || prefixMatches[0] || null;
+}
+
 /**
  * Get full model info (parse or resolve)
  */
@@ -102,9 +134,14 @@ export async function getModelInfo(modelStr) {
     // Match by node.prefix (user-defined alias) OR node.id (internal UUID id stored by
     // combo steps), so that combo targets using the internal node id still resolve
     // correctly (#2778).
-    const openaiNodes = await getProviderNodes({ type: "openai-compatible" });
-    const matchedOpenAI = openaiNodes.find(
-      (node) => node.prefix === prefixToCheck || node.id === prefixToCheck
+    const [openaiNodes, activeProviderIds] = await Promise.all([
+      getProviderNodes({ type: "openai-compatible" }),
+      getActiveProviderIds(),
+    ]);
+    const matchedOpenAI = findProviderNodeByPrefixOrId(
+      openaiNodes,
+      prefixToCheck,
+      activeProviderIds
     );
     if (matchedOpenAI) {
       const { apiFormat, targetFormat } = await lookupCustomModelMeta(
@@ -122,8 +159,10 @@ export async function getModelInfo(modelStr) {
 
     // Check Anthropic Compatible nodes
     const anthropicNodes = await getProviderNodes({ type: "anthropic-compatible" });
-    const matchedAnthropic = anthropicNodes.find(
-      (node) => node.prefix === prefixToCheck || node.id === prefixToCheck
+    const matchedAnthropic = findProviderNodeByPrefixOrId(
+      anthropicNodes,
+      prefixToCheck,
+      activeProviderIds
     );
     if (matchedAnthropic) {
       const { apiFormat, targetFormat } = await lookupCustomModelMeta(

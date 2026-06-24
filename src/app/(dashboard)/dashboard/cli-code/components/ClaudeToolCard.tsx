@@ -17,6 +17,7 @@ export default function ClaudeToolCard({
   isExpanded = false,
   onToggle = () => {},
   activeProviders,
+  availableModels,
   modelMappings,
   onModelMappingChange,
   baseUrl,
@@ -574,6 +575,7 @@ export default function ClaudeToolCard({
         onSelect={handleModelSelect}
         selectedModel={currentEditingAlias ? modelMappings[currentEditingAlias] : null}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         modelAliases={modelAliases}
         title={t("selectModelForAlias", { alias: currentEditingAlias || "" })}
       />

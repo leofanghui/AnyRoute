@@ -18,6 +18,7 @@ export default function DefaultToolCard({
   baseUrl,
   apiKeys,
   activeProviders = [],
+  availableModels = [],
   cloudEnabled = false,
   batchStatus,
 }) {
@@ -66,9 +67,6 @@ export default function DefaultToolCard({
         ? [modelValue]
         : [];
 
-    const availableModels = Array.isArray(activeProviders)
-      ? activeProviders.flatMap((provider) => provider?.models || [])
-      : [];
     const modelMap = new Map(
       availableModels.filter((model) => model?.value).map((model) => [model.value, model])
     );
@@ -80,7 +78,7 @@ export default function DefaultToolCard({
         label: matched?.name || matched?.label || value,
       };
     });
-  }, [activeProviders, isMultiModelTool, modelValue, modelValues]);
+  }, [availableModels, isMultiModelTool, modelValue, modelValues]);
 
   const getSelectedModelLabels = useCallback(
     () => getSelectedModelEntries().map((entry) => entry.label),
@@ -737,6 +735,7 @@ export default function DefaultToolCard({
         selectedModel={modelValue}
         selectedModels={isMultiModelTool ? getSelectedModels() : []}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         title={t("selectModel")}
         multiSelect={isMultiModelTool}
         showCombos={!tool.hideComboModels}

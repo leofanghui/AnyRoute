@@ -13,6 +13,7 @@ export default function AntigravityToolCard({
   baseUrl,
   apiKeys,
   activeProviders,
+  availableModels,
   hasActiveProviders,
   cloudEnabled,
 }) {
@@ -457,6 +458,7 @@ export default function AntigravityToolCard({
         onSelect={handleModelSelect}
         selectedModel={currentEditingAlias ? modelMappings[currentEditingAlias] : null}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         title={t("selectModelForAlias", { alias: currentEditingAlias || "" })}
       />
     </Card>

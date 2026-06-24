@@ -15,6 +15,7 @@ export default function CodexToolCard({
   baseUrl,
   apiKeys,
   activeProviders,
+  availableModels,
   cloudEnabled,
   batchStatus,
   lastConfiguredAt,
@@ -927,6 +928,7 @@ openai_base_url = "${getEffectiveBaseUrl()}"
         onSelect={handleModelSelect}
         selectedModel={selectedModel}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         modelAliases={modelAliases}
         title={t("selectModelForTool", { tool: "Codex" })}
       />

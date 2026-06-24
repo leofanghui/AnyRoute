@@ -25,6 +25,7 @@ export default function ClaudeDesktopToolCard({
   isExpanded = false,
   onToggle = () => {},
   activeProviders,
+  availableModels,
   hasActiveProviders,
   apiKeys,
   baseUrl,
@@ -356,6 +357,7 @@ export default function ClaudeDesktopToolCard({
         onSelect={handleModelSelect}
         selectedModel={editingModel ? mappings[editingModel] : ""}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         title="选择要路由到的 OmniRoute 模型"
       />
 

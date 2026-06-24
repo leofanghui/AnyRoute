@@ -16,6 +16,7 @@ export default function OpenClawToolCard({
   hasActiveProviders,
   apiKeys,
   activeProviders,
+  availableModels,
   cloudEnabled,
   batchStatus,
   lastConfiguredAt,
@@ -546,6 +547,7 @@ export default function OpenClawToolCard({
         onSelect={handleModelSelect}
         selectedModel={selectedModel}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         modelAliases={modelAliases}
         title={t("selectModelForTool", { tool: "Open Claw" })}
       />

@@ -17,6 +17,7 @@ export default function ClineToolCard({
   hasActiveProviders,
   apiKeys,
   activeProviders,
+  availableModels,
   cloudEnabled,
   batchStatus,
   lastConfiguredAt,
@@ -470,6 +471,7 @@ export default function ClineToolCard({
         onSelect={handleSelectModel}
         selectedModel={selectedModel}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         title={t("selectModelForTool", { tool: "Cline" })}
       />
       {showManualConfigModal && (

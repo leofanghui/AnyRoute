@@ -2168,7 +2168,7 @@ async function validateAnthropicCompatibleProvider({
   const testModelId = providerSpecificData?.validationModelId || "claude-3-5-sonnet-20241022";
   try {
     const messagesRes = await validationWrite(
-      joinBaseUrlAndPath(baseUrl, providerSpecificData?.chatPath || "/messages"),
+      joinBaseUrlAndPath(baseUrl, providerSpecificData?.chatPath || "/v1/messages"),
       {
         method: "POST",
         headers,

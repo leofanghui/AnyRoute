@@ -4,6 +4,7 @@ import { getRegistryEntry } from "../config/providerRegistry.ts";
 import {
   buildClaudeCodeCompatibleHeaders,
   CLAUDE_CODE_COMPATIBLE_DEFAULT_CHAT_PATH,
+  joinBaseUrlAndPath,
   joinClaudeCodeCompatibleUrl,
 } from "./claudeCodeCompatible.ts";
 import { getClaudeCodeCompatibleRequestDefaults } from "@/lib/providers/requestDefaults";
@@ -59,8 +60,7 @@ function buildOpenAICompatibleUrl(baseUrl, apiType) {
 }
 
 function buildAnthropicCompatibleUrl(baseUrl) {
-  const normalized = baseUrl.replace(/\/$/, "");
-  return `${normalized}/messages`;
+  return joinBaseUrlAndPath(baseUrl, "/v1/messages");
 }
 
 // Detect request format from endpoint first when the route is known.
@@ -237,10 +237,19 @@ export function buildProviderUrl(
     return buildOpenAICompatibleUrl(baseUrl, apiType);
   }
   if (isAnthropicCompatible(provider)) {
-    const baseUrl = options?.baseUrl || ANTHROPIC_COMPATIBLE_DEFAULTS.baseUrl;
+    const providerSpecificData = options?.providerSpecificData || null;
+    const baseUrl =
+      options?.baseUrl ||
+      (typeof providerSpecificData?.baseUrl === "string" ? providerSpecificData.baseUrl : null) ||
+      ANTHROPIC_COMPATIBLE_DEFAULTS.baseUrl;
     if (isClaudeCodeCompatible(provider)) {
       return joinClaudeCodeCompatibleUrl(baseUrl, CLAUDE_CODE_COMPATIBLE_DEFAULT_CHAT_PATH);
     }
+    const customPath =
+      typeof providerSpecificData?.chatPath === "string" && providerSpecificData.chatPath
+        ? providerSpecificData.chatPath
+        : null;
+    if (customPath) return joinBaseUrlAndPath(baseUrl, customPath);
     return buildAnthropicCompatibleUrl(baseUrl);
   }
 

@@ -19,6 +19,19 @@ import { getApiKeyById } from "@/lib/localDb";
 // Get claude settings path based on OS
 const getClaudeSettingsPath = () => getCliPrimaryConfigPath("claude");
 
+const CLAUDE_MODEL_ENV_KEYS = [
+  "ANTHROPIC_MODEL",
+  "ANTHROPIC_SMALL_FAST_MODEL",
+  "ANTHROPIC_DEFAULT_OPUS_MODEL",
+  "ANTHROPIC_DEFAULT_SONNET_MODEL",
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
+  "ANTHROPIC_DEFAULT_FABLE_MODEL",
+  "ANTHROPIC_DEFAULT_OPUS_MODEL_NAME",
+  "ANTHROPIC_DEFAULT_SONNET_MODEL_NAME",
+  "ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME",
+  "ANTHROPIC_DEFAULT_FABLE_MODEL_NAME",
+];
+
 // Read current settings
 const readSettings = async () => {
   try {
@@ -153,10 +166,15 @@ export async function POST(request: Request) {
     }
 
     // Merge new env with existing settings
+    const cleanedEnv = { ...(currentSettings.env || {}) };
+    for (const key of CLAUDE_MODEL_ENV_KEYS) {
+      delete cleanedEnv[key];
+    }
+
     const newSettings = {
       ...currentSettings,
       env: {
-        ...(currentSettings.env || {}),
+        ...cleanedEnv,
         ...env,
       },
     };
@@ -186,10 +204,8 @@ const RESET_ENV_KEYS = [
   "ANTHROPIC_BASE_URL",
   "ANTHROPIC_AUTH_TOKEN",
   "ANTHROPIC_API_KEY",
-  "ANTHROPIC_DEFAULT_OPUS_MODEL",
-  "ANTHROPIC_DEFAULT_SONNET_MODEL",
-  "ANTHROPIC_DEFAULT_HAIKU_MODEL",
   "API_TIMEOUT_MS",
+  ...CLAUDE_MODEL_ENV_KEYS,
 ];
 
 // DELETE - Reset settings (remove env fields)

@@ -17,6 +17,7 @@ export default function KiloToolCard({
   hasActiveProviders,
   apiKeys,
   activeProviders,
+  availableModels,
   cloudEnabled,
   batchStatus,
   lastConfiguredAt,
@@ -472,6 +473,7 @@ export default function KiloToolCard({
         onSelect={handleSelectModel}
         selectedModel={selectedModel}
         activeProviders={activeProviders}
+        availableModels={availableModels}
         title={t("selectModelForTool", { tool: "Kilo Code" })}
       />
       {showManualConfigModal && (
