@@ -2282,39 +2282,53 @@ export async function GET(
         baseUrl = baseUrl.slice(0, -9);
       }
 
-      // Use modelsPath from provider node if available, otherwise default to /models
+      // Use modelsPath from provider node if explicitly configured, otherwise
+      // try /v1/models first, then /models (many Anthropic-compatible proxies
+      // serve their API under /v1/ like OpenAI-style endpoints).
       const psd = asRecord(connection.providerSpecificData);
-      const modelsPath = toNonEmptyString(psd.modelsPath) || "/models";
-      const url = `${baseUrl}${modelsPath}`;
+      const explicitModelsPath = toNonEmptyString(psd.modelsPath);
       const token = accessToken || apiKey;
-      let response: Response;
-      try {
-        response = await safeOutboundFetch(url, {
-          ...SAFE_OUTBOUND_FETCH_PRESETS.modelsDiscovery,
-          guard: getProviderOutboundGuard(),
-          proxyConfig: proxy,
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            ...(apiKey ? { "x-api-key": apiKey } : {}),
-            "anthropic-version": "2023-06-01",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-      } catch (error) {
-        const fallback = buildDiscoveryErrorFallbackResponse(error);
-        if (fallback) return fallback;
-        throw error;
+
+      const endpoints: string[] = explicitModelsPath
+        ? [`${baseUrl}${explicitModelsPath}`]
+        : [`${baseUrl}/v1/models`, `${baseUrl}/models`];
+
+      let response: Response | null = null;
+      let lastError: unknown;
+      for (const url of endpoints) {
+        try {
+          response = await safeOutboundFetch(url, {
+            ...SAFE_OUTBOUND_FETCH_PRESETS.modelsDiscovery,
+            guard: getProviderOutboundGuard(),
+            proxyConfig: proxy,
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              ...(apiKey ? { "x-api-key": apiKey } : {}),
+              "anthropic-version": "2023-06-01",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+          if (response.ok) break;
+          // Auth failures are terminal — don't try other endpoints
+          if (response.status === 401 || response.status === 403) break;
+        } catch (error) {
+          lastError = error;
+          if (endpoints.length === 1) {
+            throw error;
+          }
+          continue;
+        }
       }
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log("Error fetching models from provider", { provider, errorText });
+      if (!response?.ok) {
+        const errorText = response ? await response.text() : String(lastError);
+        console.log("Error fetching models from provider", { provider, errorText, endpoints });
         const fallback = buildDiscoveryFallbackResponse();
         if (fallback) return fallback;
         return NextResponse.json(
-          { error: `Failed to fetch models: ${response.status}` },
-          { status: response.status }
+          { error: `Failed to fetch models: ${response?.status || 502}` },
+          { status: response?.status || 502 }
         );
       }
 

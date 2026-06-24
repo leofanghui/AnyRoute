@@ -19,6 +19,7 @@ import { useNotificationStore } from "@/store/notificationStore";
 import { useTranslations } from "next-intl";
 import ProviderIcon from "@/shared/components/ProviderIcon";
 import { buildStaticProviderEntries, shouldShowFirstProviderHint } from "./providerPageUtils";
+import CcSwitchImportPanel from "./components/CcSwitchImportPanel";
 import type { ProviderEntry } from "./providerPageUtils";
 import {
   getCodexEffectiveServiceTier,
@@ -318,10 +319,18 @@ function getModelInitial(item: ModelMarketplaceItem): string {
   return text.charAt(0).toUpperCase();
 }
 
+function formatContextLength(tokens?: number): string | null {
+  if (typeof tokens !== "number" || !Number.isFinite(tokens) || tokens <= 0) return null;
+  if (tokens >= 1_000_000) {
+    const millions = tokens / 1_000_000;
+    return `${millions >= 10 ? Math.round(millions) : Number(millions.toFixed(1))}M`;
+  }
+  if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
+  return String(tokens);
+}
+
 function getModelMarketplaceTags(item: ModelMarketplaceItem): string[] {
   const tags: string[] = [];
-  const firstProvider = item.providers[0];
-  if (firstProvider?.providerId) tags.push(firstProvider.providerId);
   tags.push(item.supportedEndpoints?.[0] || "chat");
   if (item.apiFormat === "responses") tags.push("responses");
   return Array.from(new Set(tags)).slice(0, 4);
@@ -439,6 +448,7 @@ export default function ProvidersPage() {
     useState<CodexGlobalServiceMode>("none");
   const [loading, setLoading] = useState(true);
   const [showProviderPresetModal, setShowProviderPresetModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [activeMarketplaceTab, setActiveMarketplaceTab] = useState<MarketplaceTab>("channels");
   const [activeChannelCategory, setActiveChannelCategory] = useState<ChannelCategory>("all");
   const [channelSearchQuery, setChannelSearchQuery] = useState("");
@@ -688,6 +698,7 @@ export default function ProvidersPage() {
           : result.error || providerText(t, "channelTestFailed", "渠道测试失败"),
         lastErrorAt: valid ? null : testedAt,
         lastTested: testedAt,
+        latencyMs: typeof result.latencyMs === "number" ? result.latencyMs : undefined,
         lastErrorType: valid ? null : result.diagnosis?.type || null,
         lastErrorSource: valid ? null : result.diagnosis?.source || null,
         errorCode: valid ? null : result.diagnosis?.code || result.statusCode || null,
@@ -1046,6 +1057,9 @@ export default function ProvidersPage() {
             <Button icon="add" onClick={() => setShowProviderPresetModal(true)}>
               {providerText(t, "addChannel", "新增渠道")}
             </Button>
+            <Button icon="download" variant="secondary" onClick={() => setShowImportModal(true)}>
+              {providerText(t, "importChannels", "导入渠道")}
+            </Button>
             <Button
               icon="route"
               variant="secondary"
@@ -1238,6 +1252,20 @@ export default function ProvidersPage() {
                         </h3>
                         <p className="mt-1 truncate font-mono text-xs text-text-muted">{item.id}</p>
                       </div>
+                      {(() => {
+                        const ctx = formatContextLength(item.contextLength);
+                        if (!ctx) return null;
+                        return (
+                          <span
+                            className="shrink-0 rounded-full bg-bg-subtle px-2.5 py-1 text-xs font-medium text-text-main"
+                            title={providerText(t, "contextWindowLabel", "{context} 上下文", {
+                              context: ctx,
+                            })}
+                          >
+                            {ctx}
+                          </span>
+                        );
+                      })()}
                       <span className="shrink-0 rounded-full bg-bg-subtle px-2.5 py-1 text-xs font-medium text-text-main">
                         {providerText(t, "providerCount", "{count} 个提供商", {
                           count: item.providers.length,
@@ -1321,6 +1349,22 @@ export default function ProvidersPage() {
           onConnectionCreated={(connection) => {
             setConnections((prev) => [...prev, connection]);
           }}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={showImportModal}
+        onClose={() => setShowImportModal(false)}
+        title={providerText(t, "importChannelsTitle", "导入渠道")}
+        size="lg"
+      >
+        <CcSwitchImportPanel
+          onImported={(newConnections, newNodes) => {
+            setConnections((prev) => [...prev, ...newConnections]);
+            setProviderNodes((prev) => [...prev, ...newNodes]);
+            setShowImportModal(false);
+          }}
+          onClose={() => setShowImportModal(false)}
         />
       </Modal>
 
@@ -1567,6 +1611,7 @@ function ChannelCard({
           : data?.error || providerText(t, "channelTestFailed", "渠道测试失败"),
         lastErrorAt: valid ? null : data?.testedAt || new Date().toISOString(),
         lastTested: data?.testedAt || new Date().toISOString(),
+        latencyMs: typeof data?.latencyMs === "number" ? data.latencyMs : undefined,
         lastErrorType: valid ? null : data?.diagnosis?.type || null,
         lastErrorSource: valid ? null : data?.diagnosis?.source || null,
         errorCode: valid ? null : data?.diagnosis?.code || data?.statusCode || null,
@@ -1667,6 +1712,14 @@ function ChannelCard({
           <p className="text-text-muted">{providerText(t, "lastChecked", "最近检测")}</p>
           <p className="mt-0.5 truncate font-medium text-text-main">
             {connection.lastTested ? getRelativeTime(connection.lastTested) : "-"}
+          </p>
+        </div>
+        <div className="rounded-md bg-bg-subtle px-2 py-1.5">
+          <p className="text-text-muted">{providerText(t, "latency", "延迟")}</p>
+          <p className="mt-0.5 truncate font-medium text-text-main">
+            {typeof connection.latencyMs === "number" && connection.latencyMs >= 0
+              ? providerText(t, "latencySuffix", "{ms}ms", { ms: connection.latencyMs })
+              : "-"}
           </p>
         </div>
       </div>

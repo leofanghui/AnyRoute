@@ -3,7 +3,7 @@
 // Phase 1t.2 extraction — Issue #3501
 import { useRouter } from "next/navigation";
 import { Card, Button } from "@/shared/components";
-import { getApiLabel, getApiPath } from "../providerPageHelpers";
+import { getApiLabel } from "../providerPageHelpers";
 import type { ProviderMessageTranslator } from "../providerPageHelpers";
 
 interface ProviderNode {
@@ -51,26 +51,25 @@ export default function CompatibleNodeCard({
                 : t("openaiCompatibleDetails")}
           </h2>
           <p className="text-sm text-text-muted">
-            {getApiLabel(t, isAnthropicProtocolCompatible, providerNode?.apiType)} ·{" "}
-            {(providerNode.baseUrl || "").replace(/\/$/, "")}/
-            {getApiPath(
-              isCcCompatible,
-              isAnthropicCompatible,
-              providerNode?.apiType,
-              providerNode?.chatPath
-            )}
+            <span
+              className={`mr-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+                isAnthropicProtocolCompatible
+                  ? "bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                  : providerNode?.apiType === "responses"
+                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
+              {getApiLabel(t, isAnthropicProtocolCompatible, providerNode?.apiType)}
+            </span>
+            {(providerNode.baseUrl || "").replace(/\/$/, "")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" icon="add" onClick={() => gateConnectionFlow(openApiKeyAddFlow)}>
             {t("add")}
           </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            icon="edit"
-            onClick={onOpenEditNodeModal}
-          >
+          <Button size="sm" variant="secondary" icon="edit" onClick={onOpenEditNodeModal}>
             {t("edit")}
           </Button>
           <Button
