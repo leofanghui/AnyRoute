@@ -2212,7 +2212,7 @@ const COMPATIBLE_MODE_CONFIG: Record<
     hasModelsPath: true,
     prefixPlaceholder: "my-anthropic",
     baseUrlPlaceholder: "https://api.example.com",
-    chatPathPlaceholder: "/messages",
+    chatPathPlaceholder: "/v1/messages",
   },
 };
 

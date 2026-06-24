@@ -221,7 +221,7 @@ export default function EditCompatibleNodeModal({
                 isCcCompatible
                   ? CC_COMPATIBLE_DEFAULT_CHAT_PATH
                   : isAnthropic
-                    ? "/messages"
+                    ? "/v1/messages"
                     : t("chatPathPlaceholder")
               }
               hint={isCcCompatible ? t("ccCompatibleChatPathHint") : t("chatPathHint")}

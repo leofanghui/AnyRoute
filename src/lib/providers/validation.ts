@@ -1963,7 +1963,9 @@ async function validatePoeProvider({ apiKey, providerSpecificData = {} }: any) {
 }
 
 async function validateOpenAICompatibleProvider({ apiKey, providerSpecificData = {} }: any) {
-  const baseUrl = normalizeBaseUrl(providerSpecificData.baseUrl);
+  const baseUrl = normalizeBaseUrl(providerSpecificData.baseUrl)
+    .replace(/\/models(?:\?[^#]*)?$/i, "")
+    .replace(/\/(?:chat\/completions|responses|completions)(?:\?[^#]*)?$/i, "");
   if (!baseUrl) {
     return { valid: false, error: "No base URL configured for OpenAI compatible provider" };
   }

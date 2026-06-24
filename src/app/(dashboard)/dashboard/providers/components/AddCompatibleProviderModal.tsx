@@ -145,7 +145,11 @@ export default function AddCompatibleProviderModal({
           type: mode === "openai" ? t("openai") : t("anthropic"),
         });
   const chatPathPlaceholder =
-    mode === "openai" ? "/v1/chat/completions" : mode === "cc" ? CC_DEFAULT_CHAT_PATH : "/messages";
+    mode === "openai"
+      ? "/v1/chat/completions"
+      : mode === "cc"
+        ? CC_DEFAULT_CHAT_PATH
+        : "/v1/messages";
   const chatPathHint = mode === "cc" ? t("ccCompatibleChatPathHint") : t("chatPathHint");
   const advancedId = `advanced-settings-${mode}`;
   const hasRequiredFields = Boolean(

@@ -17,6 +17,13 @@ function asRecord(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonRecord) : {};
 }
 
+function sanitizeOpenAICompatibleBaseUrl(baseUrl: string) {
+  return (baseUrl || "")
+    .trim()
+    .replace(/\/$/, "")
+    .replace(/\/(?:chat\/completions|responses|completions|models)(?:\?[^#]*)?$/i, "");
+}
+
 function sanitizeAnthropicBaseUrl(baseUrl: string) {
   return (baseUrl || "")
     .trim()
@@ -74,6 +81,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       sanitizedBaseUrl = isClaudeCodeCompatibleProvider(id)
         ? sanitizeClaudeCodeCompatibleBaseUrl(sanitizedBaseUrl)
         : sanitizeAnthropicBaseUrl(sanitizedBaseUrl);
+    } else if (node.type === "openai-compatible") {
+      sanitizedBaseUrl = sanitizeOpenAICompatibleBaseUrl(sanitizedBaseUrl);
     }
 
     const updates: Record<string, unknown> = {

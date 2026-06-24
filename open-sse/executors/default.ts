@@ -138,7 +138,9 @@ function normalizeGigachatChatUrl(baseUrl) {
 }
 
 function normalizeOpenAIChatUrl(baseUrl) {
-  const normalized = normalizeBaseUrl(baseUrl);
+  const normalized = normalizeBaseUrl(baseUrl)
+    .replace(/\/models(?:\?[^#]*)?$/i, "")
+    .replace(/\/(?:chat\/completions|responses|completions)(?:\?[^#]*)?$/i, "");
   if (
     normalized.endsWith("/chat/completions") ||
     normalized.endsWith("/responses") ||
@@ -178,7 +180,9 @@ export class DefaultExecutor extends BaseExecutor {
     if (this.provider?.startsWith?.("openai-compatible-")) {
       const psd = credentials?.providerSpecificData;
       const baseUrl = psd?.baseUrl || "https://api.openai.com/v1";
-      const normalized = baseUrl.replace(/\/$/, "");
+      const normalized = normalizeBaseUrl(baseUrl)
+        .replace(/\/models(?:\?[^#]*)?$/i, "")
+        .replace(/\/(?:chat\/completions|responses|completions)(?:\?[^#]*)?$/i, "");
       const customPath = typeof psd?.chatPath === "string" && psd.chatPath ? psd.chatPath : null;
       if (customPath) return `${normalized}${customPath}`;
       const path =

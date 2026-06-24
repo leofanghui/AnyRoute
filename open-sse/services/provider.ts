@@ -51,7 +51,10 @@ export function getOpenAICompatibleType(
 }
 
 function buildOpenAICompatibleUrl(baseUrl, apiType) {
-  const normalized = baseUrl.replace(/\/$/, "");
+  const normalized = baseUrl
+    .replace(/\/$/, "")
+    .replace(/\/models(?:\?[^#]*)?$/i, "")
+    .replace(/\/(?:chat\/completions|responses|completions)(?:\?[^#]*)?$/i, "");
   let path = "/chat/completions";
   if (apiType === "responses") {
     path = "/responses";

@@ -9,6 +9,7 @@ import {
   safeOutboundFetch,
 } from "@/shared/network/safeOutboundFetch";
 import tlsClient from "@omniroute/open-sse/utils/tlsClient.ts";
+import { joinBaseUrlAndPath } from "@omniroute/open-sse/services/claudeCodeCompatible.ts";
 import {
   PROVIDER_URL_BLOCKED_MESSAGE,
   getProviderOutboundGuard,
@@ -43,6 +44,13 @@ function sanitizeAuditBaseUrl(baseUrl: string) {
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
+}
+
+function sanitizeOpenAICompatibleBaseUrl(baseUrl: string) {
+  return (baseUrl || "")
+    .trim()
+    .replace(/\/$/, "")
+    .replace(/\/(?:chat\/completions|responses|completions|models)(?:\?[^#]*)?$/i, "");
 }
 
 function hasVersionPath(baseUrl: string) {
@@ -96,6 +104,18 @@ async function isModelsResponse(response: Response) {
   }
 }
 
+async function isJsonObjectResponse(response: Response) {
+  const text = await response.text().catch(() => "");
+  if (!text.trim()) return false;
+
+  try {
+    const parsed = JSON.parse(text);
+    return !!parsed && typeof parsed === "object";
+  } catch {
+    return false;
+  }
+}
+
 async function validateModelsCandidates(
   candidates: Array<{ url: string; baseUrl: string }>,
   init: Parameters<typeof safeOutboundFetch>[1]
@@ -120,6 +140,59 @@ async function validateModelsCandidates(
   }
 
   return { valid: false, baseUrl: null, error: sawUnauthorized ? "Invalid API key" : lastError };
+}
+
+async function validateAnthropicMessagesCandidate(
+  baseUrl: string,
+  apiKey: string | undefined,
+  chatPath: string | undefined
+) {
+  const url = joinBaseUrlAndPath(baseUrl, chatPath || "/v1/messages");
+  try {
+    const response = await fetchValidationUrl(url, {
+      ...SAFE_OUTBOUND_FETCH_PRESETS.validationWrite,
+      guard: getProviderOutboundGuard(),
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey || "",
+        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey || ""}`,
+      },
+      body: JSON.stringify({
+        model: "claude-3-5-sonnet-20241022",
+        max_tokens: 1,
+        messages: [{ role: "user", content: "test" }],
+      }),
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      return { valid: false, baseUrl: null, error: "Invalid API key" };
+    }
+
+    if (response.ok && (await isJsonObjectResponse(response))) {
+      return { valid: true, baseUrl, error: null, method: "messages_endpoint" };
+    }
+
+    if (
+      (response.status === 400 || response.status === 422 || response.status === 429) &&
+      (await isJsonObjectResponse(response))
+    ) {
+      return { valid: true, baseUrl, error: null, method: "messages_endpoint" };
+    }
+
+    return {
+      valid: false,
+      baseUrl: null,
+      error: `Messages endpoint unavailable: ${response.status}`,
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      baseUrl: null,
+      error: error instanceof Error ? error.message : "Messages endpoint unavailable",
+    };
+  }
 }
 
 // POST /api/provider-nodes/validate - Validate API key against base URL
@@ -193,15 +266,29 @@ export async function POST(request) {
         }
       );
 
+      if (!result.valid && result.error !== "Invalid API key") {
+        const messagesResult = await validateAnthropicMessagesCandidate(
+          normalizedBase,
+          apiKey,
+          chatPath || undefined
+        );
+        if (messagesResult.valid || messagesResult.error === "Invalid API key") {
+          return NextResponse.json(messagesResult);
+        }
+      }
+
       return NextResponse.json(result);
     }
 
     // OpenAI Compatible Validation (Default)
-    const result = await validateModelsCandidates(buildModelsCandidates(baseUrl, modelsPath), {
-      ...SAFE_OUTBOUND_FETCH_PRESETS.validationRead,
-      guard: getProviderOutboundGuard(),
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    const result = await validateModelsCandidates(
+      buildModelsCandidates(sanitizeOpenAICompatibleBaseUrl(baseUrl), modelsPath),
+      {
+        ...SAFE_OUTBOUND_FETCH_PRESETS.validationRead,
+        guard: getProviderOutboundGuard(),
+        headers: { Authorization: `Bearer ${apiKey}` },
+      }
+    );
 
     return NextResponse.json(result);
   } catch (error) {

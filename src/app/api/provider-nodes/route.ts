@@ -18,6 +18,13 @@ const ANTHROPIC_COMPATIBLE_DEFAULTS = {
   baseUrl: "https://api.anthropic.com/v1",
 };
 
+function sanitizeOpenAICompatibleBaseUrl(baseUrl: string) {
+  return (baseUrl || "")
+    .trim()
+    .replace(/\/$/, "")
+    .replace(/\/(?:chat\/completions|responses|completions|models)(?:\?[^#]*)?$/i, "");
+}
+
 function sanitizeAnthropicBaseUrl(baseUrl: string) {
   return (baseUrl || "")
     .trim()
@@ -109,10 +116,11 @@ export async function POST(request) {
     const nodeType = type || "openai-compatible";
 
     if (nodeType === "openai-compatible") {
+      const rawBaseUrl = baseUrl || OPENAI_COMPATIBLE_DEFAULTS.baseUrl;
       const target = {
         type: "openai-compatible",
         apiType,
-        baseUrl: (baseUrl || OPENAI_COMPATIBLE_DEFAULTS.baseUrl).trim(),
+        baseUrl: sanitizeOpenAICompatibleBaseUrl(rawBaseUrl),
         chatPath: chatPath || null,
         modelsPath: modelsPath || null,
       };

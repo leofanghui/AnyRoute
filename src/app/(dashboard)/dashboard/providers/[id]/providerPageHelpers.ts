@@ -896,7 +896,7 @@ export function getApiDefaultPath(
   apiType: string | undefined
 ): string {
   if (isCcCompatible) return CC_COMPATIBLE_DEFAULT_CHAT_PATH;
-  if (isAnthropicCompatible) return "/messages";
+  if (isAnthropicCompatible) return "/v1/messages";
   switch (apiType) {
     case "responses":
       return "/responses";
