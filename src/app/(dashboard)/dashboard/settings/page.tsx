@@ -1,7 +1,13 @@
 import { redirect } from "next/navigation";
 
 const LEGACY_TAB_ROUTES: Record<string, string> = {
+  appearance: "/dashboard/settings/appearance",
   general: "/dashboard/settings/general",
+  modelsDev: "/dashboard/settings/models-dev",
+  "models-dev": "/dashboard/settings/models-dev",
+  resilience: "/dashboard/settings/resilience",
+  routing: "/dashboard/settings/routing",
+  security: "/dashboard/settings/security",
   sidebar: "/dashboard/settings/sidebar",
 };
 

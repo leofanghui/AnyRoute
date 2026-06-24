@@ -35,14 +35,7 @@ type ProxyResolutionCacheEntry = {
 };
 
 const PROXY_RESOLUTION_CACHE_MAX_ENTRIES = 100;
-const REMOVED_SETTINGS_KEYS = new Set([
-  "cloudEnabled",
-  "tailscaleEnabled",
-  "tailscaleUrl",
-  "hideEndpointCloudflaredTunnel",
-  "hideEndpointTailscaleFunnel",
-  "hideEndpointNgrokTunnel",
-]);
+const REMOVED_SETTINGS_KEYS = new Set(["cloudEnabled", "tailscaleEnabled", "tailscaleUrl"]);
 
 function isTruthyEnvFlag(value: string | undefined): boolean {
   return typeof value === "string" && /^(1|true|yes|on)$/i.test(value.trim());

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button, Card, Input, Toggle } from "@/shared/components";
+import { useTranslations } from "next-intl";
 
 type MinimalSettings = {
   instanceName?: string;
@@ -13,6 +14,8 @@ type MinimalSettings = {
 };
 
 export default function SystemStorageTab() {
+  const t = useTranslations("settings");
+  const tc = useTranslations("common");
   const [settings, setSettings] = useState<MinimalSettings>({});
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
@@ -26,7 +29,7 @@ export default function SystemStorageTab() {
         if (!cancelled) setSettings(data);
       })
       .catch(() => {
-        if (!cancelled) setStatus("Failed to load settings.");
+        if (!cancelled) setStatus(t("failedToLoad"));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -34,7 +37,7 @@ export default function SystemStorageTab() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
   const save = async () => {
     setSaving(true);
@@ -51,10 +54,10 @@ export default function SystemStorageTab() {
       });
       if (!res.ok) throw new Error("save failed");
       const data = await res.json();
-      setSettings((prev) => ({ ...prev, ...data.settings }));
-      setStatus("Settings saved.");
+      setSettings((prev) => ({ ...prev, ...(data.settings || data) }));
+      setStatus(t("savedSuccessfully"));
     } catch {
-      setStatus("Failed to save settings.");
+      setStatus(t("failedUpdate"));
     } finally {
       setSaving(false);
     }
@@ -64,13 +67,13 @@ export default function SystemStorageTab() {
     <div className="space-y-4">
       <Card className="p-5">
         <div className="mb-5">
-          <h2 className="text-lg font-semibold">General</h2>
-          <p className="text-sm text-text-muted">Minimal runtime settings for the local router.</p>
+          <h2 className="text-lg font-semibold">{t("generalSettingsTitle")}</h2>
+          <p className="text-sm text-text-muted">{t("generalSettingsDesc")}</p>
         </div>
 
         <div className="space-y-5">
           <label className="block space-y-2">
-            <span className="text-sm font-medium">Instance name</span>
+            <span className="text-sm font-medium">{t("appName")}</span>
             <Input
               value={settings.instanceName || ""}
               disabled={loading}
@@ -83,8 +86,8 @@ export default function SystemStorageTab() {
 
           <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
             <div>
-              <p className="font-medium">Require dashboard login</p>
-              <p className="text-sm text-text-muted">Protect dashboard management pages.</p>
+              <p className="font-medium">{t("requireLogin")}</p>
+              <p className="text-sm text-text-muted">{t("requireLoginDesc")}</p>
             </div>
             <Toggle
               checked={settings.requireLogin === true}
@@ -94,8 +97,8 @@ export default function SystemStorageTab() {
 
           <div className="flex items-center justify-between gap-4 rounded-lg border border-border p-4">
             <div>
-              <p className="font-medium">Require API key</p>
-              <p className="text-sm text-text-muted">Require bearer keys for API requests.</p>
+              <p className="font-medium">{t("requireApiKey")}</p>
+              <p className="text-sm text-text-muted">{t("requireApiKeyDesc")}</p>
             </div>
             <Toggle
               checked={settings.requireApiKey === true}
@@ -104,13 +107,17 @@ export default function SystemStorageTab() {
           </div>
 
           <div className="grid gap-3 text-sm text-text-muted sm:grid-cols-2">
-            <div>API port: {settings.apiPort ?? "unknown"}</div>
-            <div>Dashboard port: {settings.dashboardPort ?? "unknown"}</div>
+            <div>
+              {t("apiPort")}: {settings.apiPort ?? t("unknown")}
+            </div>
+            <div>
+              {t("dashboardPort")}: {settings.dashboardPort ?? t("unknown")}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
             <Button onClick={save} disabled={loading || saving}>
-              {saving ? "Saving..." : "Save"}
+              {saving ? tc("saving") : tc("save")}
             </Button>
             {status && <span className="text-sm text-text-muted">{status}</span>}
           </div>
