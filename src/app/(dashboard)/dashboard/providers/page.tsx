@@ -461,6 +461,8 @@ export default function ProvidersPage() {
     Record<string, MarketplaceModel[]>
   >({});
   const [loadingMarketplaceModels, setLoadingMarketplaceModels] = useState(false);
+  const [modelProviderFilter, setModelProviderFilter] = useState<string | null>(null);
+  const [modelSortMode, setModelSortMode] = useState<"name" | "context" | "providers">("name");
   const notify = useNotificationStore();
   const t = useTranslations("providers") as ProviderMessageTranslator;
   const tc = useTranslations("common");
@@ -966,16 +968,37 @@ export default function ProvidersPage() {
       }))
       .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
   })();
-  const filteredModelMarketplaceItems = modelMarketplaceItems.filter(
-    (item) =>
-      (!showFreeOnly || item.hasFree) &&
-      matchesDashboardQuery(
-        modelSearchQuery,
-        item.id,
-        item.name,
-        ...item.providers.flatMap((provider) => [provider.providerId, provider.providerName])
-      )
-  );
+  const modelProviderFilterOptions = useMemo(() => {
+    const providerMap = new Map<string, string>();
+    for (const item of modelMarketplaceItems) {
+      for (const p of item.providers) {
+        if (!providerMap.has(p.providerId)) {
+          providerMap.set(p.providerId, p.providerName);
+        }
+      }
+    }
+    return Array.from(providerMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [modelMarketplaceItems]);
+  const filteredModelMarketplaceItems = modelMarketplaceItems
+    .filter(
+      (item) =>
+        (!showFreeOnly || item.hasFree) &&
+        (!modelProviderFilter ||
+          item.providers.some((p) => p.providerId === modelProviderFilter)) &&
+        matchesDashboardQuery(
+          modelSearchQuery,
+          item.id,
+          item.name,
+          ...item.providers.flatMap((provider) => [provider.providerId, provider.providerName])
+        )
+    )
+    .sort((a, b) => {
+      if (modelSortMode === "context") return (b.contextLength ?? 0) - (a.contextLength ?? 0);
+      if (modelSortMode === "providers") return b.providers.length - a.providers.length;
+      return 0;
+    });
   const visibleModelMarketplaceItems = filteredModelMarketplaceItems.slice(0, 160);
   const hiddenModelMarketplaceCount = Math.max(
     filteredModelMarketplaceItems.length - visibleModelMarketplaceItems.length,
@@ -1217,12 +1240,58 @@ export default function ProvidersPage() {
                 >
                   {providerText(t, "freeOnly", "仅免费")}
                 </Button>
+                <select
+                  value={modelSortMode}
+                  onChange={(e) =>
+                    setModelSortMode(e.target.value as "name" | "context" | "providers")
+                  }
+                  className="h-9 rounded-control border border-border bg-bg px-2.5 text-xs text-text-main outline-none transition-colors focus:border-primary"
+                >
+                  <option value="name">{providerText(t, "sortByName", "名称")}</option>
+                  <option value="context">{providerText(t, "sortByContext", "上下文长度")}</option>
+                  <option value="providers">
+                    {providerText(t, "sortByProviders", "提供商数量")}
+                  </option>
+                </select>
                 <span className="text-sm text-text-muted">
                   {loadingMarketplaceModels ? "..." : filteredModelMarketplaceItems.length}
                   {providerText(t, "modelsCountSuffix", " 个模型")}
                 </span>
               </div>
             </div>
+            {modelProviderFilterOptions.length > 1 && (
+              <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3">
+                <button
+                  type="button"
+                  onClick={() => setModelProviderFilter(null)}
+                  className={`inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors ${
+                    modelProviderFilter === null
+                      ? "bg-primary/10 text-primary"
+                      : "border border-border bg-surface text-text-muted hover:text-text-main"
+                  }`}
+                >
+                  {providerText(t, "allProviders", "全部")}
+                </button>
+                {modelProviderFilterOptions.map((provider) => (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    onClick={() =>
+                      setModelProviderFilter(
+                        modelProviderFilter === provider.id ? null : provider.id
+                      )
+                    }
+                    className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors ${
+                      modelProviderFilter === provider.id
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border bg-surface text-text-muted hover:text-text-main"
+                    }`}
+                  >
+                    {provider.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </Card>
 
           {loadingMarketplaceModels ? (
@@ -1267,17 +1336,30 @@ export default function ProvidersPage() {
                           </span>
                         );
                       })()}
-                      <span className="shrink-0 rounded-full bg-bg-subtle px-2.5 py-1 text-xs font-medium text-text-main">
-                        {providerText(t, "providerCount", "{count} 个提供商", {
-                          count: item.providers.length,
-                        })}
-                      </span>
+                      <div className="flex shrink-0 items-center -space-x-1">
+                        {item.providers.slice(0, 3).map((provider) => (
+                          <span
+                            key={provider.providerId}
+                            className="rounded-full ring-1 ring-border"
+                          >
+                            <ProviderIcon
+                              providerId={provider.provider.id || provider.providerId}
+                              size={18}
+                            />
+                          </span>
+                        ))}
+                        {item.providers.length > 3 && (
+                          <span className="flex size-[18px] items-center justify-center rounded-full bg-bg text-[10px] font-medium text-text-muted ring-1 ring-border">
+                            +{item.providers.length - 3}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-auto flex flex-wrap items-center gap-2 pt-8">
+                    <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-8">
                       {tags.map((tag) => (
                         <span
                           key={tag}
-                          className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main"
+                          className="rounded-full bg-bg px-2 py-0.5 text-xs font-medium text-text-main"
                         >
                           {tag}
                         </span>
@@ -1288,21 +1370,21 @@ export default function ProvidersPage() {
                         </span>
                       )}
                       {item.supportsReasoning && (
-                        <span className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main">
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-text-muted">
                           {providerText(t, "reasoning", "推理")}
                         </span>
                       )}
                       {item.supportsVision && (
-                        <span className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main">
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-text-muted">
                           {providerText(t, "vision", "视觉")}
                         </span>
                       )}
                       {item.toolCalling && (
-                        <span className="rounded-full border border-border bg-bg-subtle px-2 py-0.5 text-xs text-text-main">
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-text-muted">
                           {providerText(t, "tools", "工具")}
                         </span>
                       )}
-                      <span className="ml-auto shrink-0 text-xs font-medium text-text-main">
+                      <span className="ml-auto shrink-0 text-xs font-medium text-primary">
                         {providerText(t, "viewProviders", "查看提供商")}
                       </span>
                     </div>
@@ -1387,33 +1469,44 @@ export default function ProvidersPage() {
             </div>
             <div className="flex flex-col gap-2">
               {selectedModelItem.providers.map((provider) => (
-                <button
+                <div
                   key={provider.providerId}
-                  type="button"
-                  onClick={() => {
-                    setSelectedModelItem(null);
-                    router.push(`/dashboard/providers/${provider.providerId}`);
-                  }}
-                  className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 text-left transition-colors hover:border-primary/40 hover:bg-bg-subtle"
+                  className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 transition-colors hover:border-primary/40 hover:bg-bg-subtle"
                 >
                   <ProviderIcon
                     providerId={provider.provider.id || provider.providerId}
                     size={24}
                   />
-                  <span className="min-w-0 flex-1">
+                  <div
+                    className="min-w-0 flex-1 cursor-pointer"
+                    onClick={() => {
+                      setSelectedModelItem(null);
+                      router.push(`/dashboard/providers/${provider.providerId}`);
+                    }}
+                  >
                     <span className="block truncate text-sm font-medium text-text-main">
                       {provider.providerName}
                     </span>
                     <span className="mt-0.5 block truncate font-mono text-xs text-text-muted">
                       {provider.providerId}
                     </span>
-                  </span>
+                  </div>
                   {provider.hasFree && (
                     <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 dark:text-emerald-400">
                       {providerText(t, "freeTierLabel", "免费")}
                     </span>
                   )}
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedModelItem(null);
+                      router.push(`/dashboard/providers/${provider.providerId}`);
+                    }}
+                    className="shrink-0 rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10"
+                  >
+                    {providerText(t, "configureChannel", "配置渠道")}
+                  </button>
+                </div>
               ))}
             </div>
           </div>
