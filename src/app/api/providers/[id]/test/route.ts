@@ -23,6 +23,7 @@ import {
 } from "@/lib/oauth/gitlab";
 import { providerAllowsOptionalApiKey } from "@/shared/constants/providers";
 import { removeConnectionHealth } from "@omniroute/open-sse/services/apiKeyRotator.ts";
+import { getRegistryEntry } from "@omniroute/open-sse/config/providerRegistry.ts";
 
 // OAuth provider test endpoints
 const OAUTH_TEST_CONFIG = {
@@ -686,6 +687,29 @@ async function testApiKeyConnection(connection: any) {
 }
 
 /**
+ * Measure network latency to a connection's baseUrl origin via a lightweight HEAD request.
+ */
+async function pingBaseUrl(connection: any): Promise<number> {
+  try {
+    const psd = connection?.providerSpecificData as Record<string, unknown> | undefined;
+    let baseUrl = typeof psd?.baseUrl === "string" ? psd.baseUrl.trim() : "";
+    if (!baseUrl) {
+      const entry = getRegistryEntry(connection.provider);
+      baseUrl = typeof entry?.baseUrl === "string" ? entry.baseUrl : "";
+    }
+    if (!baseUrl) return -1;
+    const origin = new URL(baseUrl).origin;
+    const start = Date.now();
+    await fetch(origin, { method: "HEAD", signal: AbortSignal.timeout(10_000) }).catch(() =>
+      fetch(origin, { method: "GET", signal: AbortSignal.timeout(10_000) })
+    );
+    return Date.now() - start;
+  } catch {
+    return -1;
+  }
+}
+
+/**
  * Core test logic — reusable by test-batch without HTTP self-calls.
  * @param {string} connectionId
  * @param {string} validationModelId Optional custom model ID to test connection with
@@ -722,7 +746,7 @@ export async function testSingleConnection(connectionId: string, validationModel
   }
 
   let result;
-  const startTime = Date.now();
+  const latencyPromise = pingBaseUrl(connection);
   const runtime = await getProviderRuntimeStatus(connection);
 
   if ((runtime as any)?.diagnosis) {
@@ -756,7 +780,7 @@ export async function testSingleConnection(connectionId: string, validationModel
     );
   }
 
-  const latencyMs = Date.now() - startTime;
+  const latencyMs = await latencyPromise;
 
   // Build update data
   const now = new Date().toISOString();

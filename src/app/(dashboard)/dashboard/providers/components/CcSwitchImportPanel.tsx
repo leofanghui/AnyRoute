@@ -15,6 +15,9 @@ type PreviewProvider = {
   apiType?: "chat" | "responses";
   category?: string;
   iconColor?: string;
+  siteType?: string;
+  username?: string;
+  disabled?: boolean;
 };
 
 type ImportResult = {
@@ -29,6 +32,27 @@ type ImportResult = {
 type ProviderMessageTranslator = ((key: string, values?: Record<string, unknown>) => string) & {
   has?: (key: string) => boolean;
 };
+
+type ImportSource = "cc-switch-local" | "cc-switch-upload" | "all-api-hub-upload";
+
+const ALL_API_HUB_SOURCE = "all-api-hub-upload";
+const CC_SWITCH_LOCAL_SOURCE = "cc-switch-local";
+const CC_SWITCH_UPLOAD_SOURCE = "cc-switch-upload";
+const SOURCE_TABS = [
+  { id: CC_SWITCH_LOCAL_SOURCE, labelKey: "importSourceLocal", fallback: "本地探测" },
+  { id: CC_SWITCH_UPLOAD_SOURCE, labelKey: "importSourceUpload", fallback: "上传导出文件" },
+  {
+    id: ALL_API_HUB_SOURCE,
+    labelKey: "importSourceAllApiHub",
+    fallback: "ALL-API-Hub JSON",
+  },
+] as const;
+
+const APP_TYPE_TABS = [
+  { id: "all", labelKey: "all", fallback: "All" },
+  { id: "claude", labelKey: "claude", fallback: "Claude" },
+  { id: "codex", labelKey: "codex", fallback: "Codex" },
+] as const;
 
 function pt(
   t: ProviderMessageTranslator,
@@ -56,20 +80,42 @@ export default function CcSwitchImportPanel({
   const t = useTranslations("providers") as ProviderMessageTranslator;
   const notify = useNotificationStore();
 
-  const [source, setSource] = useState<"local" | "upload">("local");
+  const [source, setSource] = useState<ImportSource>(CC_SWITCH_LOCAL_SOURCE);
   const [providers, setProviders] = useState<PreviewProvider[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [detecting, setDetecting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [detected, setDetected] = useState(false);
   const [uploadSql, setUploadSql] = useState<string | null>(null);
+  const [uploadJson, setUploadJson] = useState<string | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [appTypeFilter, setAppTypeFilter] = useState<"all" | "claude" | "codex">("all");
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const isAllApiHubSource = source === ALL_API_HUB_SOURCE;
+  const hasAppTypeTabs = providers.some((p) => p.appType === "claude" || p.appType === "codex");
   const filteredProviders =
     appTypeFilter === "all" ? providers : providers.filter((p) => p.appType === appTypeFilter);
+
+  const resetPreview = () => {
+    setDetected(false);
+    setProviders([]);
+    setSelectedIds(new Set());
+    setResult(null);
+    setError(null);
+    setAppTypeFilter("all");
+  };
+
+  const getPreviewEndpoint = () =>
+    isAllApiHubSource ? "/api/providers/all-api-hub/preview" : "/api/providers/cc-switch/preview";
+
+  const getImportEndpoint = () =>
+    isAllApiHubSource ? "/api/providers/all-api-hub/import" : "/api/providers/cc-switch/import";
+
+  const getUploadPayloadKey = () => (isAllApiHubSource ? "json" : "sql");
+
+  const getUploadContent = () => (isAllApiHubSource ? uploadJson : uploadSql);
 
   const handleDetect = async () => {
     setDetecting(true);
@@ -78,10 +124,18 @@ export default function CcSwitchImportPanel({
     setSelectedIds(new Set());
     setResult(null);
     try {
-      const body: Record<string, unknown> = { source };
-      if (source === "upload" && uploadSql) body.sql = uploadSql;
+      const body: Record<string, unknown> = {};
+      if (!isAllApiHubSource) {
+        body.source = source === CC_SWITCH_UPLOAD_SOURCE ? "upload" : "local";
+      }
+      const uploadContent = getUploadContent();
+      if ((source === CC_SWITCH_UPLOAD_SOURCE || source === ALL_API_HUB_SOURCE) && uploadContent) {
+        body[getUploadPayloadKey()] = uploadContent;
+      } else if (source !== CC_SWITCH_LOCAL_SOURCE) {
+        throw new Error("Missing upload content");
+      }
 
-      const res = await fetch("/api/providers/cc-switch/preview", {
+      const res = await fetch(getPreviewEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -91,17 +145,23 @@ export default function CcSwitchImportPanel({
         const msg =
           data?.code === "no_local_db"
             ? pt(t, "importNoLocalDb", "未找到本地 cc-switch 安装")
-            : data?.error?.message || data?.error || pt(t, "importInvalidSql", "无效的导出文件");
+            : data?.error?.message ||
+              data?.error ||
+              (isAllApiHubSource
+                ? pt(t, "importInvalidJson", "无效的 JSON 文件")
+                : pt(t, "importInvalidSql", "无效的导出文件"));
         setError(typeof msg === "string" ? msg : String(msg));
         return;
       }
       const list: PreviewProvider[] = data.providers || [];
       setProviders(list);
-      setSelectedIds(new Set(list.map((p) => p.id)));
+      setSelectedIds(new Set(list.filter((p) => p.disabled !== true).map((p) => p.id)));
       setDetected(true);
       if (list.length === 0) {
         setError(
-          pt(t, "importNoProviders", "未找到可导入的供应商（仅支持有 API Key 的第三方供应商）")
+          isAllApiHubSource
+            ? pt(t, "importNoProvidersAllApiHub", "未找到可导入的 ALL-API-Hub 供应商")
+            : pt(t, "importNoProviders", "未找到可导入的供应商（仅支持有 API Key 的第三方供应商）")
         );
       }
     } catch {
@@ -116,11 +176,12 @@ export default function CcSwitchImportPanel({
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
-      setUploadSql(reader.result as string);
-      setDetected(false);
-      setProviders([]);
-      setResult(null);
-      setError(null);
+      if (isAllApiHubSource) {
+        setUploadJson(reader.result as string);
+      } else {
+        setUploadSql(reader.result as string);
+      }
+      resetPreview();
     };
     reader.readAsText(file);
   };
@@ -141,12 +202,17 @@ export default function CcSwitchImportPanel({
     setResult(null);
     try {
       const body: Record<string, unknown> = {
-        source,
         selectedIds: Array.from(selectedIds),
       };
-      if (source === "upload" && uploadSql) body.sql = uploadSql;
+      if (!isAllApiHubSource) {
+        body.source = source === CC_SWITCH_UPLOAD_SOURCE ? "upload" : "local";
+      }
+      const uploadContent = getUploadContent();
+      if ((source === CC_SWITCH_UPLOAD_SOURCE || source === ALL_API_HUB_SOURCE) && uploadContent) {
+        body[getUploadPayloadKey()] = uploadContent;
+      }
 
-      const res = await fetch("/api/providers/cc-switch/import", {
+      const res = await fetch(getImportEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -183,10 +249,7 @@ export default function CcSwitchImportPanel({
         className="inline-flex w-fit rounded-lg border border-border bg-bg-subtle p-1"
         role="tablist"
       >
-        {[
-          { id: "local" as const, label: pt(t, "importSourceLocal", "本地探测") },
-          { id: "upload" as const, label: pt(t, "importSourceUpload", "上传导出文件") },
-        ].map((tab) => (
+        {SOURCE_TABS.map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -194,10 +257,10 @@ export default function CcSwitchImportPanel({
             aria-selected={source === tab.id}
             onClick={() => {
               setSource(tab.id);
-              setDetected(false);
-              setProviders([]);
-              setResult(null);
-              setError(null);
+              resetPreview();
+              if (fileRef.current) {
+                fileRef.current.value = "";
+              }
             }}
             className={`h-8 rounded-md px-3 text-sm font-medium transition-colors ${
               source === tab.id
@@ -205,20 +268,22 @@ export default function CcSwitchImportPanel({
                 : "text-text-muted hover:text-text-main"
             }`}
           >
-            {tab.label}
+            {pt(t, tab.labelKey, tab.fallback)}
           </button>
         ))}
       </div>
 
-      {source === "upload" && (
+      {source !== CC_SWITCH_LOCAL_SOURCE && (
         <div className="flex flex-col gap-2">
           <p className="text-sm text-text-muted">
-            {pt(t, "importUploadHint", "上传 cc-switch 导出的 .sql 文件")}
+            {isAllApiHubSource
+              ? pt(t, "importAllApiHubUploadHint", "上传 ALL-API-Hub 导出的 JSON 文件")
+              : pt(t, "importUploadHint", "上传 cc-switch 导出的 .sql 文件")}
           </p>
           <input
             ref={fileRef}
             type="file"
-            accept=".sql"
+            accept={isAllApiHubSource ? ".json,application/json" : ".sql"}
             onChange={handleFileChange}
             className="text-sm text-text-main file:mr-3 file:rounded-md file:border file:border-border file:bg-bg-subtle file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-text-main hover:file:bg-bg"
           />
@@ -229,12 +294,18 @@ export default function CcSwitchImportPanel({
         <Button
           icon="search"
           loading={detecting}
-          disabled={detecting || (source === "upload" && !uploadSql)}
+          disabled={
+            detecting ||
+            ((source === CC_SWITCH_UPLOAD_SOURCE || source === ALL_API_HUB_SOURCE) &&
+              !getUploadContent())
+          }
           onClick={handleDetect}
         >
           {detecting
             ? pt(t, "importDetecting", "正在探测...")
-            : pt(t, "importDetect", "探测 cc-switch")}
+            : isAllApiHubSource
+              ? pt(t, "importDetectAllApiHub", "解析 ALL-API-Hub")
+              : pt(t, "importDetect", "探测 cc-switch")}
         </Button>
       )}
 
@@ -246,38 +317,36 @@ export default function CcSwitchImportPanel({
 
       {providers.length > 0 && !result && (
         <>
-          <div
-            className="inline-flex w-fit rounded-lg border border-border bg-bg-subtle p-1"
-            role="tablist"
-          >
-            {[
-              { id: "all" as const, label: "全部" },
-              { id: "claude" as const, label: "Claude" },
-              { id: "codex" as const, label: "Codex" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={appTypeFilter === tab.id}
-                onClick={() => setAppTypeFilter(tab.id)}
-                className={`h-7 rounded-md px-3 text-xs font-medium transition-colors ${
-                  appTypeFilter === tab.id
-                    ? "bg-surface text-text-main shadow-sm"
-                    : "text-text-muted hover:text-text-main"
-                }`}
-              >
-                {tab.label}
-                <span className="ml-1 text-text-muted">
-                  (
-                  {tab.id === "all"
-                    ? providers.length
-                    : providers.filter((p) => p.appType === tab.id).length}
-                  )
-                </span>
-              </button>
-            ))}
-          </div>
+          {hasAppTypeTabs && (
+            <div
+              className="inline-flex w-fit rounded-lg border border-border bg-bg-subtle p-1"
+              role="tablist"
+            >
+              {APP_TYPE_TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={appTypeFilter === tab.id}
+                  onClick={() => setAppTypeFilter(tab.id)}
+                  className={`h-7 rounded-md px-3 text-xs font-medium transition-colors ${
+                    appTypeFilter === tab.id
+                      ? "bg-surface text-text-main shadow-sm"
+                      : "text-text-muted hover:text-text-main"
+                  }`}
+                >
+                  {pt(t, tab.labelKey, tab.fallback)}
+                  <span className="ml-1 text-text-muted">
+                    (
+                    {tab.id === "all"
+                      ? providers.length
+                      : providers.filter((p) => p.appType === tab.id).length}
+                    )
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <button
@@ -316,7 +385,9 @@ export default function CcSwitchImportPanel({
                   <tr
                     key={p.id}
                     onClick={() => toggleSelection(p.id)}
-                    className="cursor-pointer border-t border-border transition-colors hover:bg-bg-subtle"
+                    className={`cursor-pointer border-t border-border transition-colors hover:bg-bg-subtle ${
+                      p.disabled ? "opacity-60" : ""
+                    }`}
                   >
                     <td className="px-3 py-2 text-center">
                       <input
@@ -326,7 +397,16 @@ export default function CcSwitchImportPanel({
                         className="accent-primary"
                       />
                     </td>
-                    <td className="px-3 py-2 font-medium text-text-main">{p.name}</td>
+                    <td className="px-3 py-2 font-medium text-text-main">
+                      <div className="flex items-center gap-2">
+                        <span>{p.name}</span>
+                        {p.disabled && (
+                          <span className="rounded-full bg-text-muted/10 px-2 py-0.5 text-[11px] text-text-muted">
+                            {pt(t, "importDisabled", "已停用")}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="max-w-[200px] truncate px-3 py-2 font-mono text-xs text-text-muted">
                       {p.baseUrl}
                     </td>
@@ -340,6 +420,9 @@ export default function CcSwitchImportPanel({
                       >
                         {p.protocol === "anthropic" ? "Anthropic" : "OpenAI"}
                       </span>
+                      {p.siteType && (
+                        <div className="mt-1 text-[11px] text-text-muted">{p.siteType}</div>
+                      )}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs text-text-muted">
                       {p.apiKeyMasked}
