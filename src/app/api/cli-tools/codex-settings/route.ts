@@ -222,9 +222,7 @@ export async function POST(request: Request) {
     const { baseUrl, model, reasoningEffort, wireApi, modelMappings } = validation.data;
     const isDesktopTarget = validation.data.codexTarget === "desktop";
     const toolStateId = isDesktopTarget ? "codex-desktop" : "codex";
-    const preserveOfficialAuth = isDesktopTarget
-      ? validation.data.preserveOfficialAuth !== false
-      : validation.data.preserveOfficialAuth === true;
+    const preserveOfficialAuth = validation.data.preserveOfficialAuth !== false;
     let { apiKey } = validation.data;
     if (!apiKey) {
       return NextResponse.json(
@@ -264,7 +262,7 @@ export async function POST(request: Request) {
       /* No existing config */
     }
 
-    // Update only OmniRoute related fields (api_key goes to auth.json, not config.toml)
+    // Update only OmniRoute related fields; auth.json is touched only in legacy mode.
     parsed._root.model = model;
 
     if (reasoningEffort && reasoningEffort !== "none") {

@@ -284,6 +284,14 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
     }
 
     const updated = await updateProviderConnection(id, updateData);
+    if (updateData.apiKey !== undefined || updateData.providerSpecificData !== undefined) {
+      try {
+        const { deleteModelPoolVerificationsForConnection } = await import("@/lib/db/cliToolState");
+        deleteModelPoolVerificationsForConnection(id);
+      } catch (e) {
+        console.error(`Failed to invalidate model pool verifications for ${id}:`, e);
+      }
+    }
 
     // If rateLimitOverrides was included in the request, refresh the in-memory
     // rate limiter state so the change takes effect without a server restart.
@@ -358,6 +366,12 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         `Failed to clean up synced models for deleted ${connection.provider} connection:`,
         e
       );
+    }
+    try {
+      const { deleteModelPoolVerificationsForConnection } = await import("@/lib/db/cliToolState");
+      deleteModelPoolVerificationsForConnection(id);
+    } catch (e) {
+      console.error(`Failed to clean up model pool verifications for deleted ${id}:`, e);
     }
 
     logAuditEvent({

@@ -14,6 +14,7 @@ import {
   KiroOAuthWrapper,
   OAuthModal,
 } from "@/shared/components";
+import { buildModelPoolOptions } from "@/shared/utils/modelPool";
 
 import {
   buildProviderSpecificData,
@@ -23,14 +24,17 @@ import {
   type WizardProviderOption,
 } from "./providerOnboardingCatalog";
 import {
-  createCompatibleProviderNode,
+  createCompatibleProviderNodeFromDetection,
   createOnboardingConnection,
   fetchOnboardingConnections,
   fetchOnboardingProviderNodes,
   testOnboardingConnection,
+  validateCompatibleProviderAuto,
   validateOnboardingApiKey,
+  verifyOnboardingModelPoolConnection,
   type CompatibleNodeMode,
   type OnboardingConnection,
+  type OnboardingModelPoolVerificationResult,
   type OnboardingTestResult,
 } from "./providerOnboardingApi";
 
@@ -67,7 +71,7 @@ const DEFAULT_CUSTOM_FORM: CustomFormState = {
   mode: "openai",
   name: "",
   prefix: "",
-  baseUrl: "https://api.openai.com/v1",
+  baseUrl: "",
   apiKey: "",
   chatPath: "",
   modelsPath: "",
@@ -179,19 +183,136 @@ function ProviderOptionCard({
   );
 }
 
+function getAutoDetection(connection: OnboardingConnection | null) {
+  const providerSpecificData =
+    connection?.providerSpecificData && typeof connection.providerSpecificData === "object"
+      ? (connection.providerSpecificData as Record<string, unknown>)
+      : null;
+  const autoDetection = providerSpecificData?.autoDetection;
+  return autoDetection && typeof autoDetection === "object"
+    ? (autoDetection as Record<string, any>)
+    : null;
+}
+
+function getDetectionCapabilities(detection: Record<string, any> | null) {
+  const capabilities =
+    detection?.capabilities && typeof detection.capabilities === "object"
+      ? (detection.capabilities as Record<string, boolean>)
+      : null;
+  return [
+    capabilities?.openaiModels ? "OpenAI Models" : "",
+    capabilities?.openaiChat ? "Chat Completions" : "",
+    capabilities?.openaiResponses ? "Responses" : "",
+    capabilities?.claudeMessages ? "Claude Messages" : "",
+  ].filter(Boolean);
+}
+
+function getDetectionModelCategories(detection: Record<string, any> | null) {
+  const models = Array.isArray(detection?.discoveredModels) ? detection.discoveredModels : [];
+  if (models.length === 0) return [];
+
+  const capabilities =
+    detection?.capabilities && typeof detection.capabilities === "object"
+      ? detection.capabilities
+      : undefined;
+
+  return buildModelPoolOptions(
+    models.map((model: any) => {
+      const id = String(model?.id || model?.name || model || "").trim();
+      return {
+        value: id,
+        modelId: id,
+        name: String(model?.name || id).trim(),
+        source: "detected",
+        capabilities,
+      };
+    })
+  )
+    .map((model) => model.poolDisplayName)
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+function DetectionSummary({
+  detection,
+  t,
+}: {
+  detection: Record<string, any>;
+  t: ProviderMessageTranslator;
+}) {
+  const detectedType = typeof detection.detectedType === "string" ? detection.detectedType : "";
+  const detectedTypes = Array.isArray(detection.detectedTypes)
+    ? detection.detectedTypes.filter((item: unknown): item is string => typeof item === "string")
+    : detectedType
+      ? [detectedType]
+      : [];
+  const modelCount =
+    typeof detection.modelCount === "number"
+      ? detection.modelCount
+      : Array.isArray(detection.discoveredModels)
+        ? detection.discoveredModels.length
+        : null;
+  const capabilityLabels = getDetectionCapabilities(detection);
+  const modelCategories = getDetectionModelCategories(detection);
+
+  return (
+    <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-text-muted">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="info">{providerText(t, "onboardingAutoDetected", "Auto-detected")}</Badge>
+        {detectedTypes.length > 0 && <span>{detectedTypes.join(" / ")}</span>}
+        {typeof modelCount === "number" && (
+          <span>
+            {providerText(t, "onboardingDetectedModels", "{count} models", {
+              count: modelCount,
+            })}
+          </span>
+        )}
+      </div>
+      {capabilityLabels.length > 0 && <p className="mt-2">{capabilityLabels.join(" / ")}</p>}
+      {modelCategories.length > 0 && (
+        <p className="mt-2">
+          {providerText(t, "onboardingDetectedModelCategories", "Model categories: {models}", {
+            models: modelCategories.join(" / "),
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function ResultSummary({
   connection,
   testResult,
+  modelPoolResult,
   error,
   t,
 }: {
   connection: OnboardingConnection | null;
   testResult: OnboardingTestResult | null;
+  modelPoolResult: OnboardingModelPoolVerificationResult | null;
   error: string | null;
   t: ProviderMessageTranslator;
 }) {
   const valid = testResult?.valid === true;
   const failed = Boolean(error || testResult?.valid === false);
+  const autoDetection = getAutoDetection(connection);
+  const detectedType =
+    typeof autoDetection?.detectedType === "string" ? autoDetection.detectedType : "";
+  const detectedTypes = Array.isArray(autoDetection?.detectedTypes)
+    ? autoDetection.detectedTypes.filter(
+        (item: unknown): item is string => typeof item === "string"
+      )
+    : detectedType
+      ? [detectedType]
+      : [];
+  const modelCount =
+    typeof autoDetection?.modelCount === "number"
+      ? autoDetection.modelCount
+      : Array.isArray(autoDetection?.discoveredModels)
+        ? autoDetection.discoveredModels.length
+        : null;
+  const capabilityLabels = getDetectionCapabilities(autoDetection);
+  const modelCategories = getDetectionModelCategories(autoDetection);
 
   return (
     <Card padding="lg">
@@ -251,6 +372,65 @@ function ResultSummary({
           </div>
         )}
 
+        {modelPoolResult && (
+          <div className="rounded-lg border border-border bg-bg-subtle p-3 text-sm text-text-muted">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={Number(modelPoolResult.passed || 0) > 0 ? "success" : "info"}>
+                {providerText(t, "onboardingModelPoolVerified", "Model pool verified")}
+              </Badge>
+              <span>
+                {providerText(
+                  t,
+                  "onboardingModelPoolVerifySummary",
+                  "{passed}/{verified} models passed",
+                  {
+                    passed: Number(modelPoolResult.passed || 0),
+                    verified: Number(modelPoolResult.verified || 0),
+                  }
+                )}
+              </span>
+              {Number(modelPoolResult.failed || 0) > 0 && (
+                <span>
+                  {providerText(t, "onboardingModelPoolVerifyFailed", "{count} failed", {
+                    count: Number(modelPoolResult.failed || 0),
+                  })}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {autoDetection && (
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-text-muted">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="info">
+                {providerText(t, "onboardingAutoDetected", "Auto-detected")}
+              </Badge>
+              {detectedTypes.length > 0 && <span>{detectedTypes.join(" / ")}</span>}
+              {typeof modelCount === "number" && (
+                <span>
+                  {providerText(t, "onboardingDetectedModels", "{count} models", {
+                    count: modelCount,
+                  })}
+                </span>
+              )}
+            </div>
+            {capabilityLabels.length > 0 && <p className="mt-2">{capabilityLabels.join(" / ")}</p>}
+            {modelCategories.length > 0 && (
+              <p className="mt-2">
+                {providerText(
+                  t,
+                  "onboardingDetectedModelCategories",
+                  "Model categories: {models}",
+                  {
+                    models: modelCategories.join(" / "),
+                  }
+                )}
+              </p>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
             {error}
@@ -287,16 +467,21 @@ export default function ProviderOnboardingWizard() {
     text("onboardingDefaultConnectionName", "{provider} Primary", { provider });
   const apiKeyOptions = useMemo(() => getWizardApiKeyProviderOptions(), []);
   const oauthOptions = useMemo(() => getWizardOAuthProviderOptions(), []);
-  const [kind, setKind] = useState<WizardKind>("apikey");
-  const [step, setStep] = useState<WizardStep>("type");
+  const [kind, setKind] = useState<WizardKind>("custom");
+  const [step, setStep] = useState<WizardStep>("credentials");
   const [query, setQuery] = useState("");
   const [selectedProvider, setSelectedProvider] = useState<WizardProviderOption | null>(null);
   const [apiKeyForm, setApiKeyForm] = useState<ApiKeyFormState>(EMPTY_API_KEY_FORM);
   const [customForm, setCustomForm] = useState<CustomFormState>(DEFAULT_CUSTOM_FORM);
+  const [customDetection, setCustomDetection] = useState<Record<string, unknown> | null>(null);
+  const [customDetectionKey, setCustomDetectionKey] = useState("");
+  const [showCustomAdvanced, setShowCustomAdvanced] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [createdConnection, setCreatedConnection] = useState<OnboardingConnection | null>(null);
   const [testResult, setTestResult] = useState<OnboardingTestResult | null>(null);
+  const [modelPoolResult, setModelPoolResult] =
+    useState<OnboardingModelPoolVerificationResult | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showOAuthModal, setShowOAuthModal] = useState(false);
   const [knownOAuthConnectionIds, setKnownOAuthConnectionIds] = useState<Set<string>>(new Set());
@@ -324,9 +509,23 @@ export default function ProviderOnboardingWizard() {
 
   useEffect(() => {
     if (!ccCompatibleProviderEnabled && customForm.mode === "cc") {
-      setCustomForm((prev) => ({ ...prev, mode: "openai", baseUrl: "https://api.openai.com/v1" }));
+      setCustomForm((prev) => ({ ...prev, mode: "openai", baseUrl: "" }));
     }
   }, [ccCompatibleProviderEnabled, customForm.mode]);
+
+  const currentCustomDetectionKey = JSON.stringify({
+    baseUrl: customForm.baseUrl.trim(),
+    apiKey: customForm.apiKey.trim(),
+    chatPath: customForm.chatPath.trim(),
+    modelsPath: customForm.modelsPath.trim(),
+  });
+
+  useEffect(() => {
+    if (customDetection && customDetectionKey !== currentCustomDetectionKey) {
+      setCustomDetection(null);
+      setCustomDetectionKey("");
+    }
+  }, [customDetection, customDetectionKey, currentCustomDetectionKey]);
 
   const resetProviderSelection = (nextKind: WizardKind) => {
     setKind(nextKind);
@@ -335,8 +534,12 @@ export default function ProviderOnboardingWizard() {
     setError(null);
     setTestResult(null);
     setCreatedConnection(null);
+    setModelPoolResult(null);
     setApiKeyForm(EMPTY_API_KEY_FORM);
     setCustomForm(DEFAULT_CUSTOM_FORM);
+    setCustomDetection(null);
+    setCustomDetectionKey("");
+    setShowCustomAdvanced(false);
     setStep(nextKind === "custom" ? "credentials" : "provider");
   };
 
@@ -355,11 +558,27 @@ export default function ProviderOnboardingWizard() {
     return result;
   };
 
+  const runModelPoolVerification = async (connection: OnboardingConnection) => {
+    setStatus(text("onboardingVerifyingModelPool", "Verifying model pool models…"));
+    try {
+      const result = await verifyOnboardingModelPoolConnection(connection.id);
+      setModelPoolResult(result);
+      return result;
+    } catch (verificationError) {
+      console.log("Model pool verification failed:", verificationError);
+      setModelPoolResult({ verified: 0, passed: 0, failed: 0 });
+      return null;
+    } finally {
+      setStatus("");
+    }
+  };
+
   const submitApiKeyProvider = async () => {
     if (!selectedProvider) return;
     setSubmitting(true);
     setError(null);
     setTestResult(null);
+    setModelPoolResult(null);
     try {
       const providerSpecificData = buildProviderSpecificData(apiKeyForm);
       if (apiKeyForm.apiKey.trim()) {
@@ -382,6 +601,7 @@ export default function ProviderOnboardingWizard() {
       });
       setCreatedConnection(connection);
       await runConnectionTest(connection);
+      await runModelPoolVerification(connection);
       setStep("result");
     } catch (submitError) {
       setError(
@@ -396,26 +616,80 @@ export default function ProviderOnboardingWizard() {
     }
   };
 
+  const detectCustomProvider = async () => {
+    setSubmitting(true);
+    setError(null);
+    setTestResult(null);
+    setModelPoolResult(null);
+    try {
+      setStatus(
+        text(
+          "onboardingDetectingCompatibleProvider",
+          "Detecting compatible provider protocol and models…"
+        )
+      );
+      const detected = await validateCompatibleProviderAuto(customForm);
+      setCustomDetection(detected);
+      setCustomDetectionKey(currentCustomDetectionKey);
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : text("onboardingCustomProviderFailed", "Custom provider onboarding failed")
+      );
+    } finally {
+      setSubmitting(false);
+      setStatus("");
+    }
+  };
+
   const submitCustomProvider = async () => {
+    if (!customDetection) {
+      await detectCustomProvider();
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setTestResult(null);
     try {
-      setStatus(text("onboardingCreatingCompatibleProvider", "Creating compatible provider…"));
-      const node = await createCompatibleProviderNode(customForm);
       setStatus(
         text("onboardingSavingCompatibleConnection", "Saving compatible provider connection…")
       );
+      const node = await createCompatibleProviderNodeFromDetection(customForm, customDetection);
       const providerName =
         node.name || text("onboardingCustomProviderFallbackName", "Custom provider");
+      const compatibleProviderSpecificData: Record<string, unknown> = {
+        autoDetection: node.detected || null,
+      };
+      if (typeof node.baseUrl === "string" && node.baseUrl.trim()) {
+        compatibleProviderSpecificData.baseUrl = node.baseUrl;
+      }
+      if (typeof node.apiType === "string" && node.apiType.trim()) {
+        compatibleProviderSpecificData.apiType = node.apiType;
+      }
+      if (typeof node.chatPath === "string" && node.chatPath.trim()) {
+        compatibleProviderSpecificData.chatPath = node.chatPath;
+      }
+      if (typeof node.modelsPath === "string" && node.modelsPath.trim()) {
+        compatibleProviderSpecificData.modelsPath = node.modelsPath;
+      }
       const connection = await createOnboardingConnection({
         provider: node.id,
         name: customForm.name.trim() || defaultConnectionName(providerName),
         apiKey: customForm.apiKey.trim() || undefined,
+        providerSpecificData: compatibleProviderSpecificData,
         testStatus: "unknown",
       });
-      setCreatedConnection(connection);
+      setCreatedConnection({
+        ...connection,
+        providerSpecificData: {
+          ...((connection.providerSpecificData as Record<string, unknown>) || {}),
+          ...compatibleProviderSpecificData,
+        },
+      });
       await runConnectionTest(connection);
+      await runModelPoolVerification(connection);
       setStep("result");
     } catch (submitError) {
       setError(
@@ -477,9 +751,8 @@ export default function ProviderOnboardingWizard() {
     }
   };
 
-  const customReady = Boolean(
-    customForm.name.trim() && customForm.prefix.trim() && customForm.baseUrl.trim()
-  );
+  const isRouteConnectionFlow = kind === "custom" && (step === "credentials" || step === "result");
+  const customReady = Boolean(customForm.baseUrl.trim() && customForm.apiKey.trim());
   const apiKeyReady = Boolean(
     selectedProvider &&
     apiKeyForm.name.trim() &&
@@ -497,12 +770,12 @@ export default function ProviderOnboardingWizard() {
             ← {text("backToProviders", "Back to providers")}
           </Link>
           <h1 className="mt-2 text-3xl font-bold text-text-main">
-            {text("onboardingWizard", "Provider Onboarding Wizard")}
+            {text("onboardingRouteConnectionTitle", "Add route connection")}
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-text-muted">
             {text(
-              "onboardingWizardDescription",
-              "Connect API-key, custom compatible, and OAuth providers with validation, persistence, and an immediate connection test."
+              "onboardingRouteConnectionDescription",
+              "Enter a base URL and key. OmniRoute will detect the protocol, discover models, and add them to the shared model pool."
             )}
           </p>
         </div>
@@ -512,21 +785,31 @@ export default function ProviderOnboardingWizard() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <StepPill
-          label={text("onboardingStepType", "Type")}
-          active={step === "type"}
-          done={currentStepIndex > 0}
-        />
-        <StepPill
-          label={text("onboardingStepProvider", "Provider")}
-          active={step === "provider"}
-          done={currentStepIndex > 1}
-        />
-        <StepPill
-          label={text("onboardingStepCredentials", "Credentials")}
-          active={step === "credentials" || step === "oauth"}
-          done={currentStepIndex > 3}
-        />
+        {isRouteConnectionFlow ? (
+          <StepPill
+            label={text("onboardingStepRouteConnection", "Route connection")}
+            active={step === "credentials"}
+            done={step === "result"}
+          />
+        ) : (
+          <>
+            <StepPill
+              label={text("onboardingStepType", "Type")}
+              active={step === "type"}
+              done={currentStepIndex > 0}
+            />
+            <StepPill
+              label={text("onboardingStepProvider", "Provider")}
+              active={step === "provider"}
+              done={currentStepIndex > 1}
+            />
+            <StepPill
+              label={text("onboardingStepCredentials", "Credentials")}
+              active={step === "credentials" || step === "oauth"}
+              done={currentStepIndex > 3}
+            />
+          </>
+        )}
         <StepPill
           label={text("onboardingStepResult", "Result")}
           active={step === "result"}
@@ -710,71 +993,20 @@ export default function ProviderOnboardingWizard() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold text-text-main">
-                  {text(
-                    "onboardingCreateCustomCompatibleProvider",
-                    "Create custom compatible provider"
-                  )}
+                  {text("onboardingRouteConnectionFormTitle", "Add route connection")}
                 </h2>
                 <p className="text-sm text-text-muted">
                   {text(
-                    "onboardingCreateCustomCompatibleDescription",
-                    "The wizard creates a provider node first, then stores and tests its API-key connection."
+                    "onboardingRouteConnectionFormDescription",
+                    "Enter a base URL and API key. The system detects OpenAI, Claude, or Claude Code compatibility, discovers available models, then saves and tests the connection."
                   )}
                 </p>
               </div>
               <Button variant="secondary" onClick={() => setStep("type")}>
-                {text("onboardingChangeType", "Change type")}
+                {text("onboardingMoreConnectionMethods", "More connection methods")}
               </Button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm font-medium text-text-main">
-                {text("onboardingProtocol", "Protocol")}
-                <select
-                  className="rounded-lg border border-border bg-bg-card px-3 py-2 text-sm text-text-main outline-none focus:border-primary"
-                  value={customForm.mode}
-                  onChange={(event) =>
-                    setCustomForm({
-                      ...customForm,
-                      mode: event.target.value as CompatibleNodeMode,
-                      baseUrl:
-                        event.target.value === "openai"
-                          ? "https://api.openai.com/v1"
-                          : event.target.value === "anthropic"
-                            ? "https://api.anthropic.com/v1"
-                            : "",
-                      chatPath: event.target.value === "cc" ? "/v1/messages?beta=true" : "",
-                    })
-                  }
-                >
-                  <option value="openai">
-                    {text("onboardingOpenAiCompatible", "OpenAI-compatible")}
-                  </option>
-                  <option value="anthropic">
-                    {text("onboardingAnthropicCompatible", "Anthropic-compatible")}
-                  </option>
-                  {ccCompatibleProviderEnabled && (
-                    <option value="cc">
-                      {text("onboardingClaudeCodeCompatible", "Claude Code-compatible")}
-                    </option>
-                  )}
-                </select>
-              </label>
-              <Input
-                label={text("displayName", "Display name")}
-                value={customForm.name}
-                onChange={(event) => setCustomForm({ ...customForm, name: event.target.value })}
-                placeholder="My Gateway"
-              />
-              <Input
-                label={text("onboardingProviderPrefix", "Provider prefix")}
-                value={customForm.prefix}
-                onChange={(event) => setCustomForm({ ...customForm, prefix: event.target.value })}
-                placeholder="my-gateway"
-                hint={text(
-                  "onboardingProviderPrefixHint",
-                  "Used to generate the managed provider id."
-                )}
-              />
               <Input
                 label={text("baseUrlLabel", "Base URL")}
                 value={customForm.baseUrl}
@@ -788,15 +1020,47 @@ export default function ProviderOnboardingWizard() {
                 onChange={(event) => setCustomForm({ ...customForm, apiKey: event.target.value })}
                 placeholder="sk-…"
               />
-              <Input
-                label={text("onboardingChatPath", "Chat path")}
-                value={customForm.chatPath}
-                onChange={(event) => setCustomForm({ ...customForm, chatPath: event.target.value })}
-                placeholder={
-                  customForm.mode === "cc" ? "/v1/messages?beta=true" : text("optional", "Optional")
-                }
-              />
-              {customForm.mode !== "cc" && (
+            </div>
+            <button
+              type="button"
+              className="flex items-center gap-1 text-sm text-text-muted hover:text-text-main"
+              onClick={() => setShowCustomAdvanced(!showCustomAdvanced)}
+              aria-expanded={showCustomAdvanced}
+            >
+              <span
+                className={`transition-transform ${showCustomAdvanced ? "rotate-90" : ""}`}
+                aria-hidden="true"
+              >
+                {">"}
+              </span>
+              {text("advancedSettings", "Advanced settings")}
+            </button>
+            {showCustomAdvanced && (
+              <div className="grid gap-4 border-l-2 border-border pl-3 md:grid-cols-2">
+                <Input
+                  label={text("displayName", "Display name")}
+                  value={customForm.name}
+                  onChange={(event) => setCustomForm({ ...customForm, name: event.target.value })}
+                  placeholder="My Gateway"
+                />
+                <Input
+                  label={text("onboardingProviderPrefix", "Provider prefix")}
+                  value={customForm.prefix}
+                  onChange={(event) => setCustomForm({ ...customForm, prefix: event.target.value })}
+                  placeholder="my-gateway"
+                  hint={text(
+                    "onboardingProviderPrefixHint",
+                    "Used to generate the managed provider id."
+                  )}
+                />
+                <Input
+                  label={text("onboardingChatPath", "Chat path")}
+                  value={customForm.chatPath}
+                  onChange={(event) =>
+                    setCustomForm({ ...customForm, chatPath: event.target.value })
+                  }
+                  placeholder={text("optional", "Optional")}
+                />
                 <Input
                   label={text("onboardingModelsPath", "Models path")}
                   value={customForm.modelsPath}
@@ -805,16 +1069,31 @@ export default function ProviderOnboardingWizard() {
                   }
                   placeholder={text("optional", "Optional")}
                 />
-              )}
-            </div>
+              </div>
+            )}
+            {customDetection && (
+              <DetectionSummary detection={customDetection as Record<string, any>} t={t} />
+            )}
+            {error && (
+              <div className="rounded-lg border border-error/30 bg-error/10 p-3 text-sm text-error">
+                {error}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
-              <Button onClick={submitCustomProvider} disabled={!customReady || submitting}>
+              <Button onClick={detectCustomProvider} disabled={!customReady || submitting}>
                 {submitting
                   ? text("onboardingWorking", "Working…")
-                  : text("onboardingCreateSaveTest", "Create, save and test")}
+                  : text("onboardingDetectRouteConnection", "Detect route connection")}
               </Button>
+              {customDetection && (
+                <Button onClick={submitCustomProvider} disabled={submitting}>
+                  {submitting
+                    ? text("onboardingWorking", "Working…")
+                    : text("onboardingConfirmSaveRouteConnection", "Confirm and save")}
+                </Button>
+              )}
               <Button variant="ghost" onClick={() => setStep("type")}>
-                {text("onboardingBack", "Back")}
+                {text("onboardingMoreConnectionMethods", "More connection methods")}
               </Button>
             </div>
           </div>
@@ -856,7 +1135,13 @@ export default function ProviderOnboardingWizard() {
       )}
 
       {step === "result" && (
-        <ResultSummary connection={createdConnection} testResult={testResult} error={error} t={t} />
+        <ResultSummary
+          connection={createdConnection}
+          testResult={testResult}
+          modelPoolResult={modelPoolResult}
+          error={error}
+          t={t}
+        />
       )}
 
       {selectedProvider &&

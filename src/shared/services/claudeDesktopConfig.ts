@@ -4,6 +4,7 @@ import path from "path";
 
 import { getClaudeCodeDefaultModels } from "@omniroute/open-sse/config/providerRegistry";
 import { getDbInstance, isBuildPhase, isCloud } from "@/lib/db/core";
+import { createMultiBackup } from "@/shared/services/backupService";
 
 const PROFILE_ID = "00000000-0000-4000-8000-000000201280";
 const PROFILE_NAME = "AnyRoute";
@@ -48,6 +49,7 @@ export const CLAUDE_DESKTOP_DEFAULT_MAPPINGS: ClaudeDesktopModelMapping[] = [
 
 type JsonRecord = Record<string, any>;
 type MetaEntry = { id: string; name: string };
+type FileSnapshot = { filePath: string; content: string | null };
 
 interface StatementLike<TRow = unknown> {
   get: (...params: unknown[]) => TRow | undefined;
@@ -179,6 +181,31 @@ async function writeJson(filePath: string, value: JsonRecord) {
   await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
 }
 
+async function captureFileSnapshots(filePaths: string[]): Promise<FileSnapshot[]> {
+  const uniquePaths = [...new Set(filePaths)];
+  return Promise.all(
+    uniquePaths.map(async (filePath) => {
+      try {
+        return { filePath, content: await fs.readFile(filePath, "utf-8") };
+      } catch (error: any) {
+        if (error?.code === "ENOENT") return { filePath, content: null };
+        throw error;
+      }
+    })
+  );
+}
+
+async function restoreFileSnapshots(snapshots: FileSnapshot[]) {
+  for (const snapshot of snapshots) {
+    if (snapshot.content === null) {
+      await fs.rm(snapshot.filePath, { force: true });
+      continue;
+    }
+    await fs.mkdir(path.dirname(snapshot.filePath), { recursive: true });
+    await fs.writeFile(snapshot.filePath, snapshot.content, "utf-8");
+  }
+}
+
 function normalizeMappings(value: unknown): ClaudeDesktopModelMapping[] {
   const byId = new Map(CLAUDE_DESKTOP_DEFAULT_MAPPINGS.map((mapping) => [mapping.id, mapping]));
   const incoming = Array.isArray(value) ? value : [];
@@ -292,49 +319,69 @@ export async function writeClaudeDesktopProfile({
   const normalizedBaseUrl = normalizeBaseUrl(gatewayBaseUrl);
   const nextMappings = normalizeMappings(mappings);
 
-  const normalConfig = (await readJson(paths.normalConfigPath)) || {};
-  await writeJson(paths.normalConfigPath, {
-    ...normalConfig,
-    deploymentMode: "3p",
-  });
+  const writeTargets = [
+    paths.normalConfigPath,
+    paths.threePConfigPath,
+    paths.profilePath,
+    paths.metaPath,
+  ].filter((filePath): filePath is string => typeof filePath === "string");
 
-  const threePConfig = (await readJson(paths.threePConfigPath)) || {};
-  await writeJson(paths.threePConfigPath, {
-    ...threePConfig,
-    deploymentMode: "3p",
-  });
+  await createMultiBackup("claude-desktop", writeTargets);
+  const snapshots = await captureFileSnapshots(writeTargets);
 
-  const profile = {
-    coworkEgressAllowedHosts: ["*"],
-    disableDeploymentModeChooser: true,
-    inferenceGatewayApiKey: apiKey,
-    inferenceGatewayAuthScheme: "bearer",
-    inferenceGatewayBaseUrl: normalizedBaseUrl,
-    inferenceProvider: "gateway",
-    inferenceModels: nextMappings.map((mapping) => ({
-      name: mapping.id,
-      labelOverride: mapping.targetModel,
-      supports1m: mapping.supports1m,
-    })),
-  };
-  await writeJson(paths.profilePath, profile);
-  saveStoredMappings(nextMappings);
-
-  if (paths.metaPath) {
-    const meta = (await readJson(paths.metaPath)) || {};
-    const entries = normalizeMetaEntries(meta.entries);
-    await writeJson(paths.metaPath, {
-      ...meta,
-      appliedId: PROFILE_ID,
-      entries: [
-        ...entries,
-        {
-          id: PROFILE_ID,
-          name: PROFILE_NAME,
-        },
-      ],
+  try {
+    const normalConfig = (await readJson(paths.normalConfigPath)) || {};
+    await writeJson(paths.normalConfigPath, {
+      ...normalConfig,
+      deploymentMode: "3p",
     });
+
+    const threePConfig = (await readJson(paths.threePConfigPath)) || {};
+    await writeJson(paths.threePConfigPath, {
+      ...threePConfig,
+      deploymentMode: "3p",
+    });
+
+    const profile = {
+      coworkEgressAllowedHosts: ["*"],
+      disableDeploymentModeChooser: true,
+      inferenceGatewayApiKey: apiKey,
+      inferenceGatewayAuthScheme: "bearer",
+      inferenceGatewayBaseUrl: normalizedBaseUrl,
+      inferenceProvider: "gateway",
+      inferenceModels: nextMappings.map((mapping) => ({
+        name: mapping.id,
+        labelOverride: mapping.targetModel,
+        supports1m: mapping.supports1m,
+      })),
+    };
+    await writeJson(paths.profilePath, profile);
+
+    if (paths.metaPath) {
+      const meta = (await readJson(paths.metaPath)) || {};
+      const entries = normalizeMetaEntries(meta.entries);
+      await writeJson(paths.metaPath, {
+        ...meta,
+        appliedId: PROFILE_ID,
+        entries: [
+          ...entries,
+          {
+            id: PROFILE_ID,
+            name: PROFILE_NAME,
+          },
+        ],
+      });
+    }
+  } catch (error) {
+    try {
+      await restoreFileSnapshots(snapshots);
+    } catch (restoreError) {
+      console.log("Failed to roll back Claude Desktop profile write:", restoreError);
+    }
+    throw error;
   }
+
+  saveStoredMappings(nextMappings);
 
   return getClaudeDesktopStatus();
 }
@@ -342,6 +389,13 @@ export async function writeClaudeDesktopProfile({
 export async function resetClaudeDesktopProfile() {
   const paths = resolveClaudeDesktopPaths();
   if (!paths.supported) return getClaudeDesktopStatus();
+
+  await createMultiBackup(
+    "claude-desktop",
+    [paths.normalConfigPath, paths.threePConfigPath, paths.profilePath, paths.metaPath].filter(
+      (filePath): filePath is string => typeof filePath === "string"
+    )
+  );
 
   if (paths.normalConfigPath) {
     const normalConfig = (await readJson(paths.normalConfigPath)) || {};

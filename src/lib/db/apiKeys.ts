@@ -11,6 +11,7 @@ import { getKeyGroupsForApiKey, checkKeyModelAccess } from "./apiKeyGroups";
 import { setNoLog } from "../compliance/noLog";
 import { resolveModelAlias } from "@omniroute/open-sse/services/modelDeprecation.ts";
 import { getSyncedAvailableModelsByConnection, getCustomModels, getModelIsHidden } from "./models";
+import { getProviderConnections } from "./providers";
 
 // ──────────────── Performance Optimizations ────────────────
 
@@ -1538,12 +1539,18 @@ export async function isModelAllowedForKey(
       if (!providerId || !shortModelId) return false;
 
       const syncedModelsByConnection = await getSyncedAvailableModelsByConnection(providerId);
+      const activeConnectionIds = new Set(
+        (await getProviderConnections({ provider: providerId, isActive: true }))
+          .map((connection) => connection.id)
+          .filter((id): id is string => typeof id === "string")
+      );
       const customModels = await getCustomModels(providerId);
 
-      // Combine synced and custom models
-      const allDiscoveredModels = Object.values(syncedModelsByConnection)
-        .flat()
-        .concat(customModels);
+      // Combine active synced models and custom models.
+      const activeSyncedModels = Object.entries(syncedModelsByConnection)
+        .filter(([connectionId]) => activeConnectionIds.has(connectionId))
+        .flatMap(([, models]) => models);
+      const allDiscoveredModels = activeSyncedModels.concat(customModels);
       const discovered = allDiscoveredModels.some((m) => m.id === shortModelId);
       if (!discovered) return false;
 

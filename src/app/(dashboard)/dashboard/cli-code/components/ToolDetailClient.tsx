@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CLI_TOOLS } from "@/shared/constants/cliTools";
 import { PROVIDER_ID_TO_ALIAS, getModelsByProviderId } from "@/shared/constants/models";
+import type { ModelPoolClient } from "@/shared/utils/modelPool";
 import {
   AntigravityToolCard,
   ClaudeDesktopToolCard,
@@ -27,6 +28,13 @@ export interface ToolDetailClientProps {
 }
 
 const CLOUD_URL = process.env.NEXT_PUBLIC_CLOUD_URL;
+const MODEL_POOL_TOOL_IDS = new Set(["claude", "claude-desktop", "codex", "codex-desktop"]);
+
+function maskApiKey(key: string) {
+  if (!key) return "";
+  if (key.length <= 12) return `${key.slice(0, 4)}****`;
+  return `${key.slice(0, 8)}****${key.slice(-4)}`;
+}
 
 function getConnectionPrefix(conn: any, providerNode?: any) {
   const specificPrefix = conn?.providerSpecificData?.prefix;
@@ -48,6 +56,8 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [cloudEnabled, setCloudEnabled] = useState(false);
   const [dynamicModels, setDynamicModels] = useState<any[]>([]);
+  const [modelPoolModels, setModelPoolModels] = useState<any[]>([]);
+  const [modelPoolLoaded, setModelPoolLoaded] = useState(false);
   const [providerNodes, setProviderNodes] = useState<any[]>([]);
   const [modelMappings, setModelMappings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
@@ -69,12 +79,41 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
       const res = await fetch("/api/cli-tools/keys");
       if (res.ok) {
         const data = await res.json();
-        setApiKeys(data.keys || []);
+        if (Array.isArray(data.keys) && data.keys.length > 0) {
+          setApiKeys(data.keys);
+          return;
+        }
+      }
+
+      if (category !== "code") {
+        setApiKeys([]);
+        return;
+      }
+
+      const createRes = await fetch("/api/keys", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Cli-code 自动接入" }),
+      });
+      if (!createRes.ok) {
+        setApiKeys([]);
+        return;
+      }
+
+      const created = await createRes.json();
+      if (created?.id && created?.key) {
+        setApiKeys([
+          {
+            ...created,
+            rawKey: created.key,
+            key: maskApiKey(created.key),
+          },
+        ]);
       }
     } catch (error) {
       console.log("Error fetching API keys:", error);
     }
-  }, []);
+  }, [category]);
 
   const fetchCloudSettings = useCallback(async () => {
     try {
@@ -112,6 +151,26 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
     }
   }, []);
 
+  const fetchModelPool = useCallback(async () => {
+    if (!MODEL_POOL_TOOL_IDS.has(toolId)) {
+      setModelPoolLoaded(true);
+      return;
+    }
+
+    const client = toolId === "claude" || toolId === "claude-desktop" ? "claude" : "codex";
+    try {
+      const res = await fetch(`/api/model-pool?client=${client}`);
+      if (res.ok) {
+        const data = await res.json();
+        setModelPoolModels(Array.isArray(data.models) ? data.models : []);
+      }
+    } catch (error) {
+      console.log("Error fetching model pool:", error);
+    } finally {
+      setModelPoolLoaded(true);
+    }
+  }, [toolId]);
+
   useEffect(() => {
     let cancelled = false;
     // "Load data on mount" pattern: fetch* callbacks call setState internally
@@ -119,21 +178,27 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
     // The react-hooks/set-state-in-effect rule flags this pattern conservatively
     // (it cannot distinguish sync vs async setState), but this is the canonical
     // way to load remote data on mount until we migrate to use()/Suspense.
-    /* eslint-disable react-hooks/set-state-in-effect */
     Promise.all([
       fetchConnections(),
       fetchApiKeys(),
       fetchCloudSettings(),
       fetchDynamicModels(),
       fetchProviderNodes(),
+      fetchModelPool(),
     ]).finally(() => {
       if (!cancelled) setLoading(false);
     });
-    /* eslint-enable react-hooks/set-state-in-effect */
     return () => {
       cancelled = true;
     };
-  }, [fetchConnections, fetchApiKeys, fetchCloudSettings, fetchDynamicModels, fetchProviderNodes]);
+  }, [
+    fetchConnections,
+    fetchApiKeys,
+    fetchCloudSettings,
+    fetchDynamicModels,
+    fetchProviderNodes,
+    fetchModelPool,
+  ]);
 
   const getActiveProviders = useCallback(() => {
     return connections.filter((c) => c.isActive !== false);
@@ -158,6 +223,7 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
             label: `${alias}/${m.id}`,
             provider: conn.provider,
             alias,
+            connectionId: conn.id,
             connectionName: conn.name,
             modelId: m.id,
           });
@@ -194,6 +260,7 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
         label: modelId,
         provider: matchedConnection?.provider || alias,
         alias,
+        connectionId: matchedConnection?.id,
         connectionName: matchedConnection?.name || "",
         modelId: bareModel,
         source: "imported",
@@ -219,7 +286,18 @@ export default function ToolDetailClient({ toolId, category }: ToolDetailClientP
   if (!tool) return null;
 
   const activeProviders = getActiveProviders();
-  const availableModels = getAllAvailableModels();
+  const rawAvailableModels = getAllAvailableModels();
+  const modelPoolClient: ModelPoolClient =
+    toolId === "claude" || toolId === "claude-desktop"
+      ? "claude"
+      : toolId === "codex" || toolId === "codex-desktop"
+        ? "codex"
+        : "all";
+  const availableModels = MODEL_POOL_TOOL_IDS.has(toolId)
+    ? modelPoolLoaded
+      ? modelPoolModels
+      : []
+    : rawAvailableModels;
   const hasActiveProviders = availableModels.length > 0;
 
   const backCategory = category === "code" ? "/dashboard/cli-code" : "/dashboard/cli-agents";

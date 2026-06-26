@@ -71,6 +71,8 @@ export type CompatModelRow = {
   id?: string;
   name?: string;
   source?: string;
+  connectionId?: string;
+  connectionIds?: string[];
   apiFormat?: string;
   supportedEndpoints?: string[];
   normalizeToolCallId?: boolean;

@@ -18,7 +18,8 @@ import {
   AUTO_SUFFIX_VARIANTS,
   createBuiltinAutoCombo,
 } from "@omniroute/open-sse/services/autoCombo/builtinCatalog";
-import { getAllSyncedAvailableModels, type SyncedAvailableModel } from "@/lib/db/models";
+import { type SyncedAvailableModel } from "@/lib/db/models";
+import { getActiveSyncedAvailableModels } from "@/lib/activeSyncedAvailableModels";
 import { getCompatibleFallbackModels } from "@/lib/providers/managedAvailableModels";
 import { getOpenRouterCatalog } from "@/lib/catalog/openrouterCatalog";
 import { hasEligibleConnectionForModel } from "@/domain/connectionModelRules";
@@ -740,7 +741,7 @@ export async function getUnifiedModelsResponse(
     // PROVIDER_MODELS entries for providers that have a live, API-fresh list.
     let syncedModelsByProvider: Record<string, SyncedAvailableModel[]> = {};
     try {
-      syncedModelsByProvider = await getAllSyncedAvailableModels();
+      syncedModelsByProvider = await getActiveSyncedAvailableModels();
     } catch (e) {
       // DB unavailable — log and fall through; static models remain as defaults.
       console.log("[catalog] Could not fetch synced available models:", e);

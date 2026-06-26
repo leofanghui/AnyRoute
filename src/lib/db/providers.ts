@@ -142,15 +142,15 @@ export async function getProviderConnections(filter: JsonRecord = {}) {
   const db = getDbInstance() as unknown as DbLike;
   let sql = "SELECT * FROM provider_connections";
   const conditions: string[] = [];
-  const params: Record<string, unknown> = {};
+  const params: unknown[] = [];
 
   if (filter.provider) {
-    conditions.push("provider = @provider");
-    params.provider = filter.provider;
+    conditions.push("provider = ?");
+    params.push(filter.provider);
   }
   if (filter.isActive !== undefined) {
-    conditions.push("is_active = @isActive");
-    params.isActive = filter.isActive ? 1 : 0;
+    conditions.push("is_active = ?");
+    params.push(filter.isActive ? 1 : 0);
   }
 
   if (conditions.length > 0) {
@@ -158,7 +158,7 @@ export async function getProviderConnections(filter: JsonRecord = {}) {
   }
   sql += " ORDER BY priority ASC, updated_at DESC";
 
-  const rows = db.prepare(sql).all(params);
+  const rows = db.prepare(sql).all(...params);
   return rows.map((r) => {
     const camelRow = rowToCamel(r);
     return decryptConnectionFields(
@@ -758,14 +758,17 @@ export function autoMigrateLegacyEncryptedConnections(): number {
 export async function getProviderNodes(filter: JsonRecord = {}) {
   const db = getDbInstance() as unknown as DbLike;
   let sql = "SELECT * FROM provider_nodes";
-  const params: Record<string, unknown> = {};
+  const params: unknown[] = [];
 
   if (filter.type) {
-    sql += " WHERE type = @type";
-    params.type = filter.type;
+    sql += " WHERE type = ?";
+    params.push(filter.type);
   }
 
-  return db.prepare(sql).all(params).map(rowToCamel);
+  return db
+    .prepare(sql)
+    .all(...params)
+    .map(rowToCamel);
 }
 
 export async function getProviderNodeById(id: string) {

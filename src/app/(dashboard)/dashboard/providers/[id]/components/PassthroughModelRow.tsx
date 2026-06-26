@@ -36,7 +36,8 @@ export interface PassthroughModelRowProps {
   compatDisabled?: boolean;
   onToggleHidden?: (modelId: string, hidden: boolean) => Promise<void>;
   togglingHidden?: boolean;
-  onTestModel?: (modelId: string, fullModel: string) => Promise<void>;
+  testConnectionId?: string;
+  onTestModel?: (modelId: string, fullModel: string, connectionId?: string) => Promise<void>;
   testStatus?: "ok" | "error" | null;
   testingModel?: boolean;
 }
@@ -63,6 +64,7 @@ export default function PassthroughModelRow({
   compatDisabled,
   onToggleHidden,
   togglingHidden,
+  testConnectionId,
   onTestModel,
   testStatus,
   testingModel,
@@ -108,7 +110,7 @@ export default function PassthroughModelRow({
           </button>
           {onTestModel && (
             <button
-              onClick={() => onTestModel(modelId, fullModel)}
+              onClick={() => onTestModel(modelId, fullModel, testConnectionId)}
               disabled={testingModel}
               className={`rounded p-0.5 hover:bg-sidebar transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${testStatus === "ok" ? "text-green-500" : testStatus === "error" ? "text-red-500" : "text-text-muted hover:text-primary"}`}
               title={

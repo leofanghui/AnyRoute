@@ -1,12 +1,12 @@
 import {
   getAllCustomModels,
-  getAllSyncedAvailableModels,
   getCombos,
   getModelIsHidden,
   getProviderConnections,
   getProviderNodes,
   getSettings,
 } from "@/lib/localDb";
+import { getActiveSyncedAvailableModels } from "@/lib/activeSyncedAvailableModels";
 import { getAccountDisplayName, getProviderDisplayName } from "@/lib/display/names";
 import { getCompatibleFallbackModels } from "@/lib/providers/managedAvailableModels";
 import { getResolvedModelCapabilities } from "@/lib/modelCapabilities";
@@ -367,7 +367,7 @@ export async function getComboBuilderOptions(): Promise<ComboBuilderOptionsPaylo
       getProviderConnections(),
       getProviderNodes(),
       getAllCustomModels(),
-      getAllSyncedAvailableModels(),
+      getActiveSyncedAvailableModels(),
       getCombos(),
       getSettings().catch(() => ({}) as Record<string, unknown>),
     ]);

@@ -100,15 +100,11 @@ export async function POST(request: Request) {
   for (const modelId of modelIds) {
     let entry: BatchTestResultEntry;
     try {
-      // `runSingleModelTest` only engages the Bottleneck rate limiter when
-      // `connectionId` is provided. To honor `respectRateLimit=false`, we
-      // omit the connectionId so the runner bypasses `withRateLimit`.
-      const effectiveConnectionId =
-        connectionId && respectRateLimit !== false ? connectionId : undefined;
       const result = await runSingleModelTest({
         providerId,
         modelId,
-        ...(effectiveConnectionId ? { connectionId: effectiveConnectionId } : {}),
+        ...(connectionId ? { connectionId } : {}),
+        respectRateLimit,
         timeoutMs: PER_MODEL_TIMEOUT_MS,
       });
       entry = toBatchEntry(result);

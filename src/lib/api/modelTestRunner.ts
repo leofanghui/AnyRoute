@@ -31,7 +31,11 @@ function extractProviderErrorMessage(body: unknown, fallback: string) {
   return typeof message === "string" && message.trim() ? message : fallback;
 }
 
-function buildInternalChatRequest(testBody: Record<string, unknown>, signal: AbortSignal) {
+export function buildInternalChatRequest(
+  testBody: Record<string, unknown>,
+  signal: AbortSignal,
+  connectionId?: string
+) {
   return new Request(`${INTERNAL_ORIGIN}/v1/chat/completions`, {
     method: "POST",
     headers: {
@@ -39,6 +43,7 @@ function buildInternalChatRequest(testBody: Record<string, unknown>, signal: Abo
       // Reuse the existing strict-mode internal bypass for live health checks.
       "X-Internal-Test": "combo-health-check",
       "X-OmniRoute-No-Cache": "true",
+      ...(connectionId ? { "X-OmniRoute-Connection": connectionId } : {}),
       "X-Request-Id": `model-test-${randomUUID()}`,
     },
     body: JSON.stringify(testBody),
@@ -78,6 +83,7 @@ export interface RunSingleModelTestOptions {
   providerId: string;
   modelId: string;
   connectionId?: string;
+  respectRateLimit?: boolean;
   timeoutMs?: number;
 }
 
@@ -95,7 +101,8 @@ export interface SingleModelTestResult {
 }
 
 /**
- * Run a single model test. When `connectionId` is provided, wraps the
+ * Run a single model test. When `connectionId` is provided, the internal
+ * request is pinned to that provider connection; by default it also wraps the
  * upstream call with `withRateLimit` (Bottleneck). Returns a plain
  * `SingleModelTestResult` (not an HTTP Response) so the single-test and
  * batch-test endpoints can format it differently.
@@ -103,7 +110,13 @@ export interface SingleModelTestResult {
 export async function runSingleModelTest(
   options: RunSingleModelTestOptions
 ): Promise<SingleModelTestResult> {
-  const { providerId, modelId, connectionId, timeoutMs = DEFAULT_TEST_TIMEOUT_MS } = options;
+  const {
+    providerId,
+    modelId,
+    connectionId,
+    respectRateLimit = true,
+    timeoutMs = DEFAULT_TEST_TIMEOUT_MS,
+  } = options;
 
   let fullModelStr = modelId;
   if (!fullModelStr.includes("/")) {
@@ -124,12 +137,12 @@ export async function runSingleModelTest(
   }, timeoutMs);
 
   const runInner = async (signal: AbortSignal): Promise<Response> => {
-    return postChatCompletion(buildInternalChatRequest(testBody, signal));
+    return postChatCompletion(buildInternalChatRequest(testBody, signal, connectionId));
   };
 
   let res: Response;
   try {
-    if (connectionId) {
+    if (connectionId && respectRateLimit !== false) {
       res = await withRateLimit(
         providerId,
         connectionId,

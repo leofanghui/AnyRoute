@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { REGISTRY } from "@omniroute/open-sse/config/providerRegistry.ts";
-import { getAllCustomModels, getAllSyncedAvailableModels, getPricing } from "@/lib/localDb";
+import { getAllCustomModels, getPricing } from "@/lib/localDb";
+import { getActiveSyncedAvailableModels } from "@/lib/activeSyncedAvailableModels";
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -89,7 +90,7 @@ export async function GET() {
     // ── 2. Synced available models (DB) ─────────────────────────────
     let syncedModelsMap: Record<string, unknown> = {};
     try {
-      syncedModelsMap = asRecord(await getAllSyncedAvailableModels());
+      syncedModelsMap = asRecord(await getActiveSyncedAvailableModels());
     } catch {
       /* DB may not be ready */
     }

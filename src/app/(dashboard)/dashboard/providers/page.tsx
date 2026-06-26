@@ -14,6 +14,7 @@ import { getErrorCode, getRelativeTime } from "@/shared/utils";
 import { parseBulkApiKeys } from "@/shared/utils/bulkApiKeyParser";
 import { pickDisplayValue } from "@/shared/utils/maskEmail";
 import { matchesSearch } from "@/shared/utils/turkishText";
+import type { ModelPoolOption } from "@/shared/utils/modelPool";
 import useEmailPrivacyStore from "@/store/emailPrivacyStore";
 import { useNotificationStore } from "@/store/notificationStore";
 import { useTranslations } from "next-intl";
@@ -64,10 +65,13 @@ type ModelMarketplaceItem = {
   id: string;
   name: string;
   providers: Array<{
+    sourceKey?: string;
     providerId: string;
     providerName: string;
     provider: DashboardProviderInfo;
     hasFree: boolean;
+    connectionName?: string;
+    modelValue?: string;
   }>;
   hasFree: boolean;
   contextLength?: number;
@@ -76,19 +80,14 @@ type ModelMarketplaceItem = {
   supportsReasoning?: boolean;
   supportsVision?: boolean;
   toolCalling?: boolean;
+  poolFamily?: string;
+  poolFamilyLabel?: string;
+  poolDisplayName?: string;
+  sourceCount?: number;
+  verificationStatus?: "ok" | "partial" | "error";
+  verificationMessage?: string;
+  capabilities?: ModelPoolOption["capabilities"];
 };
-
-type MarketplaceModel = Pick<
-  ModelMarketplaceItem,
-  | "id"
-  | "name"
-  | "contextLength"
-  | "apiFormat"
-  | "supportedEndpoints"
-  | "supportsReasoning"
-  | "supportsVision"
-  | "toolCalling"
->;
 
 function dedupeProviderEntries(entries: DashboardProviderEntry[]): DashboardProviderEntry[] {
   const seen = new Set<string>();
@@ -175,132 +174,52 @@ function matchesDashboardQuery(
   return values.some((value) => matchesSearch(String(value || ""), query));
 }
 
-function firstPositiveNumber(...values: unknown[]): number | undefined {
-  for (const value of values) {
-    if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
-  }
-  return undefined;
-}
-
-function normalizeModelEndpoints(value: unknown): string[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const endpoints = Array.from(
-    new Set(
-      value.map((endpoint) => (typeof endpoint === "string" ? endpoint.trim() : "")).filter(Boolean)
-    )
-  );
-  return endpoints.length > 0 ? endpoints : undefined;
-}
-
-function normalizeMarketplaceModel(model: unknown): MarketplaceModel | null {
-  const record = model && typeof model === "object" ? (model as Record<string, any>) : {};
-  const id =
-    typeof record.id === "string" && record.id.trim()
-      ? record.id.trim()
-      : typeof record.model === "string" && record.model.trim()
-        ? record.model.trim()
-        : "";
-  if (!id) return null;
-
-  const topProvider =
-    record.top_provider && typeof record.top_provider === "object"
-      ? (record.top_provider as Record<string, unknown>)
-      : {};
-  const name =
-    (typeof record.name === "string" && record.name.trim()) ||
-    (typeof record.displayName === "string" && record.displayName.trim()) ||
-    id;
+function mapModelPoolOptionToMarketplaceItem(
+  option: ModelPoolOption,
+  providerEntryById: Map<string, DashboardProviderEntry>,
+  providerNodeById: Map<string, any>
+): ModelMarketplaceItem {
+  const providers = option.sources.map((source, index) => {
+    const providerId = source.provider || option.provider || "";
+    const providerEntry = providerEntryById.get(providerId);
+    const providerNode = providerNodeById.get(providerId);
+    return {
+      sourceKey: source.value || `${providerId}:${source.modelId || option.modelId}:${index}`,
+      providerId,
+      providerName:
+        providerEntry?.provider.name ||
+        providerNode?.name ||
+        source.alias ||
+        source.connectionName ||
+        providerId,
+      provider: providerEntry?.provider || {
+        id: providerId,
+        name: providerNode?.name || providerId,
+        color: providerNode?.color,
+        apiType: providerNode?.apiType,
+      },
+      hasFree: providerEntry ? providerEntryHasFree(providerEntry) : false,
+      connectionName: source.connectionName,
+      modelValue: source.value,
+    };
+  });
 
   return {
-    id,
-    name,
-    contextLength: firstPositiveNumber(
-      record.contextLength,
-      record.context_length,
-      record.inputTokenLimit,
-      record.maxInputTokens,
-      topProvider.context_length
-    ),
-    apiFormat: typeof record.apiFormat === "string" ? record.apiFormat : undefined,
-    supportedEndpoints: normalizeModelEndpoints(record.supportedEndpoints),
-    supportsReasoning: record.supportsReasoning === true || record.supportsThinking === true,
-    supportsVision: record.supportsVision === true || record.vision === true,
-    toolCalling: record.toolCalling === true || record.supportsTools === true,
+    id: option.poolId || option.value,
+    name: option.poolDisplayName || option.name || option.label,
+    providers,
+    hasFree: providers.some((provider) => provider.hasFree),
+    supportsReasoning: /\b(o[134]|reason|think|r1)\b/i.test(option.modelId),
+    supportsVision: false,
+    toolCalling: option.capabilities?.tools === true,
+    poolFamily: option.poolFamily,
+    poolFamilyLabel: option.poolFamilyLabel,
+    poolDisplayName: option.poolDisplayName,
+    sourceCount: option.sourceCount,
+    verificationStatus: option.verificationStatus,
+    verificationMessage: option.verificationMessage,
+    capabilities: option.capabilities,
   };
-}
-
-function mergeMarketplaceModel(
-  modelsById: Map<string, MarketplaceModel>,
-  model: MarketplaceModel | null
-) {
-  if (!model) return;
-  const existing = modelsById.get(model.id);
-  if (!existing) {
-    modelsById.set(model.id, model);
-    return;
-  }
-
-  modelsById.set(model.id, {
-    ...existing,
-    name: existing.name && existing.name !== existing.id ? existing.name : model.name,
-    contextLength: existing.contextLength ?? model.contextLength,
-    apiFormat: existing.apiFormat ?? model.apiFormat,
-    supportedEndpoints: existing.supportedEndpoints ?? model.supportedEndpoints,
-    supportsReasoning: existing.supportsReasoning || model.supportsReasoning,
-    supportsVision: existing.supportsVision || model.supportsVision,
-    toolCalling: existing.toolCalling || model.toolCalling,
-  });
-}
-
-function getProviderModelsFromPayload(payload: unknown, providerId: string): unknown[] {
-  const record = payload && typeof payload === "object" ? (payload as Record<string, unknown>) : {};
-  const directModels = record[providerId];
-  if (Array.isArray(directModels)) return directModels;
-
-  const models = record.models;
-  if (Array.isArray(models)) return models;
-  if (models && typeof models === "object") {
-    const providerModels = (models as Record<string, unknown>)[providerId];
-    if (Array.isArray(providerModels)) return providerModels;
-  }
-
-  return [];
-}
-
-function mergeModelMarketplaceItem(
-  itemsById: Map<string, ModelMarketplaceItem>,
-  entry: DashboardProviderEntry,
-  model: MarketplaceModel
-) {
-  const key = model.id.trim().toLowerCase();
-  const providerInfo = {
-    providerId: entry.providerId,
-    providerName: getProviderDisplayName(entry),
-    provider: entry.provider,
-    hasFree: providerEntryHasFree(entry),
-  };
-  const existing = itemsById.get(key);
-
-  if (!existing) {
-    itemsById.set(key, {
-      ...model,
-      providers: [providerInfo],
-      hasFree: providerInfo.hasFree,
-    });
-    return;
-  }
-
-  if (!existing.providers.some((provider) => provider.providerId === entry.providerId)) {
-    existing.providers.push(providerInfo);
-  }
-  existing.hasFree = existing.hasFree || providerInfo.hasFree;
-  existing.name = existing.name && existing.name !== existing.id ? existing.name : model.name;
-  existing.contextLength = existing.contextLength ?? model.contextLength;
-  existing.apiFormat = existing.apiFormat ?? model.apiFormat;
-  existing.supportedEndpoints = existing.supportedEndpoints ?? model.supportedEndpoints;
-  existing.supportsReasoning = existing.supportsReasoning || model.supportsReasoning;
-  existing.supportsVision = existing.supportsVision || model.supportsVision;
-  existing.toolCalling = existing.toolCalling || model.toolCalling;
 }
 
 function getModelInitial(item: ModelMarketplaceItem): string {
@@ -320,7 +239,12 @@ function formatContextLength(tokens?: number): string | null {
 
 function getModelMarketplaceTags(item: ModelMarketplaceItem): string[] {
   const tags: string[] = [];
-  tags.push(item.supportedEndpoints?.[0] || "chat");
+  if (item.poolFamilyLabel) tags.push(item.poolFamilyLabel);
+  if (item.capabilities?.claudeMessages) tags.push("Claude");
+  if (item.capabilities?.openaiResponses) tags.push("Responses");
+  if (item.capabilities?.openaiChat) tags.push("Chat");
+  if (item.capabilities?.streaming) tags.push("Streaming");
+  if (tags.length === 0) tags.push(item.supportedEndpoints?.[0] || "chat");
   if (item.apiFormat === "responses") tags.push("responses");
   return Array.from(new Set(tags)).slice(0, 4);
 }
@@ -345,6 +269,12 @@ function providerText(
     );
   }
   return fallback;
+}
+
+async function fetchModelPoolOptions(): Promise<ModelPoolOption[]> {
+  const res = await fetch("/api/model-pool?client=all", { cache: "no-store" });
+  const data = res.ok ? await res.json() : {};
+  return Array.isArray(data?.models) ? data.models : [];
 }
 
 function buildCategoryTabs(
@@ -446,12 +376,11 @@ export default function ProvidersPage() {
   const [modelSearchQuery, setModelSearchQuery] = useState("");
   const [showFreeOnly, setShowFreeOnly] = useState(false);
   const [selectedModelItem, setSelectedModelItem] = useState<ModelMarketplaceItem | null>(null);
-  const [marketplaceModelsByProvider, setMarketplaceModelsByProvider] = useState<
-    Record<string, MarketplaceModel[]>
-  >({});
-  const [loadingMarketplaceModels, setLoadingMarketplaceModels] = useState(false);
+  const [modelPoolOptions, setModelPoolOptions] = useState<ModelPoolOption[]>([]);
+  const [loadingModelPool, setLoadingModelPool] = useState(false);
+  const [verifyingModelPool, setVerifyingModelPool] = useState(false);
   const [modelProviderFilter, setModelProviderFilter] = useState<string | null>(null);
-  const [modelSortMode, setModelSortMode] = useState<"name" | "context" | "providers">("name");
+  const [modelSortMode, setModelSortMode] = useState<"name" | "providers">("name");
   const notify = useNotificationStore();
   const t = useTranslations("providers") as ProviderMessageTranslator;
   const tc = useTranslations("common");
@@ -518,62 +447,71 @@ export default function ProvidersPage() {
     }>;
 
     if (connectionRefs.length === 0) {
-      setMarketplaceModelsByProvider({});
+      setModelPoolOptions([]);
       return;
     }
 
     let cancelled = false;
-    const loadMarketplaceModels = async () => {
-      setLoadingMarketplaceModels(true);
+    const loadModelPool = async () => {
+      setLoadingModelPool(true);
       try {
-        const [syncedRes, customRes] = await Promise.all([
-          fetch("/api/synced-available-models", { cache: "no-store" }),
-          fetch("/api/provider-models", { cache: "no-store" }),
-        ]);
-        const syncedData = syncedRes.ok ? await syncedRes.json() : {};
-        const customData = customRes.ok ? await customRes.json() : {};
-        const providerIds = Array.from(new Set(connectionRefs.map((ref) => ref.provider)));
-        const nextModelsByProvider: Record<string, MarketplaceModel[]> = {};
-
-        for (const providerId of providerIds) {
-          const modelsById = new Map<string, MarketplaceModel>();
-
-          for (const model of getModelsByProviderId(providerId)) {
-            mergeMarketplaceModel(modelsById, normalizeMarketplaceModel(model));
-          }
-          for (const model of getProviderModelsFromPayload(syncedData, providerId)) {
-            mergeMarketplaceModel(modelsById, normalizeMarketplaceModel(model));
-          }
-          for (const model of getProviderModelsFromPayload(customData, providerId)) {
-            mergeMarketplaceModel(modelsById, normalizeMarketplaceModel(model));
-          }
-          for (const ref of connectionRefs.filter((item) => item.provider === providerId)) {
-            if (ref.defaultModel) {
-              mergeMarketplaceModel(modelsById, {
-                id: ref.defaultModel,
-                name: ref.defaultModel,
-              });
-            }
-          }
-
-          nextModelsByProvider[providerId] = Array.from(modelsById.values());
+        const models = await fetchModelPoolOptions();
+        if (!cancelled) {
+          setModelPoolOptions(models);
         }
-
-        if (!cancelled) setMarketplaceModelsByProvider(nextModelsByProvider);
       } catch (error) {
-        console.log("Error fetching marketplace models:", error);
-        if (!cancelled) setMarketplaceModelsByProvider({});
+        console.log("Error fetching model pool:", error);
+        if (!cancelled) setModelPoolOptions([]);
       } finally {
-        if (!cancelled) setLoadingMarketplaceModels(false);
+        if (!cancelled) setLoadingModelPool(false);
       }
     };
 
-    loadMarketplaceModels();
+    loadModelPool();
 
     return () => {
       cancelled = true;
     };
   }, [marketplaceConnectionSnapshot]);
+
+  const handleVerifyModelPool = async () => {
+    setVerifyingModelPool(true);
+    try {
+      const res = await fetch("/api/model-pool/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ client: "all", limit: 80 }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error
+            : providerText(t, "modelPoolVerifyFailed", "模型池验证失败")
+        );
+      }
+      setModelPoolOptions(await fetchModelPoolOptions());
+      notify.success(
+        providerText(
+          t,
+          "modelPoolVerifySummary",
+          "模型池验证完成：{passed}/{verified} 个模型通过",
+          {
+            passed: Number(data?.passed || 0),
+            verified: Number(data?.verified || 0),
+          }
+        )
+      );
+    } catch (error) {
+      notify.error(
+        error instanceof Error
+          ? error.message
+          : providerText(t, "modelPoolVerifyFailed", "模型池验证失败")
+      );
+    } finally {
+      setVerifyingModelPool(false);
+    }
+  };
 
   const getProviderStats = (providerId, authType) => {
     const providerConnections = connections.filter((c) => {
@@ -943,30 +881,23 @@ export default function ProvidersPage() {
   const errorConnectionCount = connections.filter((connection) =>
     ["error", "expired", "unavailable"].includes(String(connection.testStatus || ""))
   ).length;
-  const modelMarketplaceItems: ModelMarketplaceItem[] = (() => {
-    const itemsById = new Map<string, ModelMarketplaceItem>();
-    for (const entry of channelProviderEntries) {
-      for (const model of marketplaceModelsByProvider[entry.providerId] || []) {
-        mergeModelMarketplaceItem(itemsById, entry, model);
-      }
-    }
-    return Array.from(itemsById.values())
-      .map((item) => ({
-        ...item,
-        providers: [...item.providers].sort((a, b) => a.providerName.localeCompare(b.providerName)),
-      }))
-      .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
-  })();
+  const modelMarketplaceItems: ModelMarketplaceItem[] = modelPoolOptions
+    .map((option) =>
+      mapModelPoolOptionToMarketplaceItem(option, channelProviderEntryById, providerNodeById)
+    )
+    .map((item) => ({
+      ...item,
+      providers: [...item.providers].sort((a, b) => a.providerName.localeCompare(b.providerName)),
+    }));
   const modelProviderFilterOptions = useMemo(() => {
-    const providerMap = new Map<string, string>();
+    const familyMap = new Map<string, string>();
     for (const item of modelMarketplaceItems) {
-      for (const p of item.providers) {
-        if (!providerMap.has(p.providerId)) {
-          providerMap.set(p.providerId, p.providerName);
-        }
+      const family = item.poolFamily || "other";
+      if (!familyMap.has(family)) {
+        familyMap.set(family, item.poolFamilyLabel || family);
       }
     }
-    return Array.from(providerMap.entries())
+    return Array.from(familyMap.entries())
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [modelMarketplaceItems]);
@@ -974,18 +905,19 @@ export default function ProvidersPage() {
     .filter(
       (item) =>
         (!showFreeOnly || item.hasFree) &&
-        (!modelProviderFilter ||
-          item.providers.some((p) => p.providerId === modelProviderFilter)) &&
+        (!modelProviderFilter || (item.poolFamily || "other") === modelProviderFilter) &&
         matchesDashboardQuery(
           modelSearchQuery,
           item.id,
           item.name,
+          item.poolFamilyLabel,
           ...item.providers.flatMap((provider) => [provider.providerId, provider.providerName])
         )
     )
     .sort((a, b) => {
-      if (modelSortMode === "context") return (b.contextLength ?? 0) - (a.contextLength ?? 0);
-      if (modelSortMode === "providers") return b.providers.length - a.providers.length;
+      if (modelSortMode === "providers") {
+        return (b.sourceCount ?? b.providers.length) - (a.sourceCount ?? a.providers.length);
+      }
       return 0;
     });
   const visibleModelMarketplaceItems = filteredModelMarketplaceItems.slice(0, 160);
@@ -1021,7 +953,7 @@ export default function ProvidersPage() {
                 "Connect an AI provider to start routing requests through OmniRoute. You can use free providers, API keys, or OAuth accounts."}
             </p>
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <Button icon="add" onClick={() => router.push("/dashboard/providers/new")}>
+              <Button icon="add" onClick={() => router.push("/dashboard/providers/onboarding")}>
                 {providerText(t, "onboardingWizard", "Provider Onboarding Wizard")}
               </Button>
               <a
@@ -1047,7 +979,7 @@ export default function ProvidersPage() {
           >
             {[
               { id: "channels" as const, label: providerText(t, "channelMarketplace", "渠道广场") },
-              { id: "models" as const, label: providerText(t, "modelMarketplace", "模型广场") },
+              { id: "models" as const, label: providerText(t, "modelMarketplace", "模型池") },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1075,9 +1007,9 @@ export default function ProvidersPage() {
             <Button
               icon="route"
               variant="secondary"
-              onClick={() => router.push("/dashboard/providers/new")}
+              onClick={() => router.push("/dashboard/providers/onboarding")}
             >
-              {providerText(t, "providerOnboarding", "配置向导")}
+              {providerText(t, "providerOnboarding", "路由连接")}
             </Button>
           </div>
         </div>
@@ -1176,7 +1108,6 @@ export default function ProvidersPage() {
                     key={connection.id}
                     connection={connection}
                     providerEntry={providerEntry}
-                    models={marketplaceModelsByProvider[connection.provider] || []}
                     testing={testingMode === connection.id}
                     onTestStart={() => setTestingMode(connection.id)}
                     onTestEnd={() => setTestingMode(null)}
@@ -1223,6 +1154,15 @@ export default function ProvidersPage() {
               </div>
               <div className="flex items-center gap-2">
                 <Button
+                  variant="secondary"
+                  icon={verifyingModelPool ? "sync" : "fact_check"}
+                  loading={verifyingModelPool}
+                  onClick={handleVerifyModelPool}
+                  disabled={verifyingModelPool || connections.length === 0}
+                >
+                  {providerText(t, "verifyModelPool", "验证模型池")}
+                </Button>
+                <Button
                   variant={showFreeOnly ? "primary" : "secondary"}
                   icon="local_offer"
                   onClick={() => setShowFreeOnly((value) => !value)}
@@ -1231,19 +1171,16 @@ export default function ProvidersPage() {
                 </Button>
                 <select
                   value={modelSortMode}
-                  onChange={(e) =>
-                    setModelSortMode(e.target.value as "name" | "context" | "providers")
-                  }
+                  onChange={(e) => setModelSortMode(e.target.value as "name" | "providers")}
                   className="h-9 rounded-control border border-border bg-bg px-2.5 text-xs text-text-main outline-none transition-colors focus:border-primary"
                 >
                   <option value="name">{providerText(t, "sortByName", "名称")}</option>
-                  <option value="context">{providerText(t, "sortByContext", "上下文长度")}</option>
                   <option value="providers">
-                    {providerText(t, "sortByProviders", "提供商数量")}
+                    {providerText(t, "sortByProviders", "来源数量")}
                   </option>
                 </select>
                 <span className="text-sm text-text-muted">
-                  {loadingMarketplaceModels ? "..." : filteredModelMarketplaceItems.length}
+                  {loadingModelPool ? "..." : filteredModelMarketplaceItems.length}
                   {providerText(t, "modelsCountSuffix", " 个模型")}
                 </span>
               </div>
@@ -1259,31 +1196,29 @@ export default function ProvidersPage() {
                       : "border border-border bg-surface text-text-muted hover:text-text-main"
                   }`}
                 >
-                  {providerText(t, "allProviders", "全部")}
+                  {providerText(t, "allModelFamilies", "全部模型")}
                 </button>
-                {modelProviderFilterOptions.map((provider) => (
+                {modelProviderFilterOptions.map((family) => (
                   <button
-                    key={provider.id}
+                    key={family.id}
                     type="button"
                     onClick={() =>
-                      setModelProviderFilter(
-                        modelProviderFilter === provider.id ? null : provider.id
-                      )
+                      setModelProviderFilter(modelProviderFilter === family.id ? null : family.id)
                     }
                     className={`inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-medium transition-colors ${
-                      modelProviderFilter === provider.id
+                      modelProviderFilter === family.id
                         ? "bg-primary/10 text-primary"
                         : "border border-border bg-surface text-text-muted hover:text-text-main"
                     }`}
                   >
-                    {provider.name}
+                    {family.name}
                   </button>
                 ))}
               </div>
             )}
           </Card>
 
-          {loadingMarketplaceModels ? (
+          {loadingModelPool ? (
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               <CardSkeleton />
               <CardSkeleton />
@@ -1328,7 +1263,7 @@ export default function ProvidersPage() {
                       <div className="flex shrink-0 items-center -space-x-1">
                         {item.providers.slice(0, 3).map((provider) => (
                           <span
-                            key={provider.providerId}
+                            key={provider.sourceKey || provider.providerId}
                             className="rounded-full ring-1 ring-border"
                           >
                             <ProviderIcon
@@ -1373,8 +1308,25 @@ export default function ProvidersPage() {
                           {providerText(t, "tools", "工具")}
                         </span>
                       )}
+                      {item.verificationStatus === "ok" && (
+                        <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-600 dark:text-emerald-400">
+                          {providerText(t, "validationPassed", "验证通过")}
+                        </span>
+                      )}
+                      {item.verificationStatus === "error" && (
+                        <span className="rounded-full border border-red-500/20 bg-red-500/10 px-2 py-0.5 text-xs text-red-600 dark:text-red-400">
+                          {providerText(t, "validationFailed", "验证失败")}
+                        </span>
+                      )}
+                      {(item.sourceCount ?? item.providers.length) > 0 && (
+                        <span className="rounded-full border border-border px-2 py-0.5 text-xs text-text-muted">
+                          {providerText(t, "modelPoolSourceCount", "{count} 个来源", {
+                            count: item.sourceCount ?? item.providers.length,
+                          })}
+                        </span>
+                      )}
                       <span className="ml-auto shrink-0 text-xs font-medium text-primary">
-                        {providerText(t, "viewProviders", "查看提供商")}
+                        {providerText(t, "viewSources", "查看来源")}
                       </span>
                     </div>
                   </button>
@@ -1384,7 +1336,15 @@ export default function ProvidersPage() {
           ) : (
             <div className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-border py-10 text-sm text-text-muted">
               <span className="material-symbols-outlined text-[18px]">search_off</span>
-              <span>{providerText(t, "noModelsMatch", "没有匹配的模型。")}</span>
+              <span>
+                {modelMarketplaceItems.length === 0
+                  ? providerText(
+                      t,
+                      "noVerifiedModelPoolModels",
+                      "暂无验证通过的模型池模型。请先验证渠道模型可用性。"
+                    )
+                  : providerText(t, "noModelsMatch", "没有匹配的模型。")}
+              </span>
             </div>
           )}
 
@@ -1454,7 +1414,7 @@ export default function ProvidersPage() {
       <Modal
         isOpen={selectedModelItem !== null}
         onClose={() => setSelectedModelItem(null)}
-        title={selectedModelItem?.name || providerText(t, "viewProviders", "查看提供商")}
+        title={selectedModelItem?.name || providerText(t, "viewSources", "查看来源")}
         size="md"
       >
         {selectedModelItem && (
@@ -1462,15 +1422,15 @@ export default function ProvidersPage() {
             <div className="rounded-lg border border-border bg-bg-subtle p-3">
               <p className="truncate font-mono text-xs text-text-muted">{selectedModelItem.id}</p>
               <p className="mt-1 text-sm text-text-main">
-                {providerText(t, "providersAvailable", "{count} 个提供商可用", {
-                  count: selectedModelItem.providers.length,
+                {providerText(t, "sourcesAvailable", "{count} 个来源可用", {
+                  count: selectedModelItem.sourceCount ?? selectedModelItem.providers.length,
                 })}
               </p>
             </div>
             <div className="flex flex-col gap-2">
               {selectedModelItem.providers.map((provider) => (
                 <div
-                  key={provider.providerId}
+                  key={provider.sourceKey || provider.providerId}
                   className="flex items-center gap-3 rounded-lg border border-border bg-surface p-3 transition-colors hover:border-primary/40 hover:bg-bg-subtle"
                 >
                   <ProviderIcon
@@ -1485,10 +1445,10 @@ export default function ProvidersPage() {
                     }}
                   >
                     <span className="block truncate text-sm font-medium text-text-main">
-                      {provider.providerName}
+                      {provider.connectionName || provider.providerName}
                     </span>
                     <span className="mt-0.5 block truncate font-mono text-xs text-text-muted">
-                      {provider.providerId}
+                      {provider.modelValue || provider.providerId}
                     </span>
                   </div>
                   {provider.hasFree && (
@@ -1590,7 +1550,6 @@ function getAuthTypeDescription(
 function ChannelCard({
   connection,
   providerEntry,
-  models = [],
   testing,
   onTestStart,
   onTestEnd,
@@ -1600,7 +1559,6 @@ function ChannelCard({
 }: {
   connection: any;
   providerEntry?: DashboardProviderEntry;
-  models: Array<{ id: string; name?: string }>;
   testing: boolean;
   onTestStart: () => void;
   onTestEnd: () => void;
@@ -1685,36 +1643,10 @@ function ChannelCard({
   const handleTest = async () => {
     if (testing) return;
 
-    // Determine validation model ID: defaultModel → first synced model → auto-sync
-    let modelId = connection.defaultModel;
-
-    if (!modelId && models.length > 0) {
-      modelId = models[0].id;
-    }
-
-    if (!modelId) {
-      try {
-        const syncRes = await fetch(`/api/providers/${connection.provider}/sync-models`, {
-          method: "POST",
-        });
-        if (syncRes.ok) {
-          const syncData = await syncRes.json();
-          const syncedModels = syncData?.models || syncData?.importedModels || [];
-          if (syncedModels.length > 0) {
-            modelId = syncedModels[0].id || syncedModels[0].model || syncedModels[0];
-          }
-        }
-      } catch {
-        // sync failed — proceed without modelId, test will likely fail
-      }
-    }
-
     onTestStart();
     try {
       const res = await fetch(`/api/providers/${connection.id}/test`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ validationModelId: modelId || undefined }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
@@ -1833,25 +1765,6 @@ function ChannelCard({
             {identity && identity !== channelName ? ` · ${identity}` : ""}
           </p>
         </div>
-      </div>
-
-      <div className="flex min-h-0 flex-wrap gap-1.5">
-        {(models.length > 0 ? models : [{ id: connection.defaultModel || "-" }])
-          .slice(0, 20)
-          .map((model) => (
-            <span
-              key={model.id}
-              className="inline-block truncate rounded-full bg-bg-subtle px-2.5 py-0.5 text-[11px] font-mono text-text-muted"
-              title={model.name || model.id}
-            >
-              {model.id}
-            </span>
-          ))}
-        {models.length > 20 && (
-          <span className="inline-block rounded-full bg-bg-subtle px-2.5 py-0.5 text-[11px] text-text-muted">
-            +{models.length - 20}
-          </span>
-        )}
       </div>
 
       {hasError && connection.lastError && (

@@ -566,17 +566,28 @@ test("provider models route honors autoFetchModels=false and skips remote discov
   assert.ok(body.models.some((model) => model.id === "glm-5"));
 });
 
-test("provider models route uses synced models as the authoritative local catalog (#3148)", async () => {
+test("provider models route keeps other connection synced models out of the local catalog", async () => {
   // A connection that resolves to the local catalog (auto-fetch off, no remote
-  // discovery). Once a sync has populated the synced-models table for this
-  // provider, the route must surface the synced list — even on a connection
-  // that never ran the sync itself — instead of the static catalog.
-  const connection = await seedConnection("opencode-go", {
-    apiKey: "opencode-go-key",
-    providerSpecificData: {
-      autoFetchModels: false,
-    },
-  });
+  // discovery). Synced models from another connection must not be shown here,
+  // otherwise the detail page can claim this connection supports a stale model.
+  await core.ensureDbInitialized();
+  const connection = { id: "opencode-go-current" };
+  const now = new Date().toISOString();
+  core
+    .getDbInstance()
+    .prepare(
+      "INSERT INTO provider_connections (id, provider, auth_type, is_active, test_status, provider_specific_data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    )
+    .run(
+      connection.id,
+      "opencode-go",
+      "apikey",
+      1,
+      "active",
+      JSON.stringify({ autoFetchModels: false }),
+      now,
+      now
+    );
 
   await modelsDb.replaceSyncedAvailableModelsForConnection("opencode-go", "synced-conn", [
     { id: "synced-only-model", name: "Synced Only Model" },
@@ -594,16 +605,35 @@ test("provider models route uses synced models as the authoritative local catalo
   assert.equal(response.status, 200);
   assert.equal(body.source, "local_catalog");
   assert.equal(called, false);
-  // Synced models become the catalog…
-  assert.ok(
-    body.models.some((model) => model.id === "synced-only-model"),
-    "synced model should be present in the local catalog"
-  );
-  // …and the static catalog entries are no longer surfaced for this provider.
   assert.equal(
-    body.models.some((model) => model.id === "glm-5"),
+    body.models.some((model) => model.id === "synced-only-model"),
     false,
-    "static catalog should be superseded by the synced list"
+    "other connection synced model should not be present in this connection catalog"
+  );
+  assert.ok(body.models.some((model) => model.id === "glm-5"));
+
+  await modelsDb.replaceSyncedAvailableModelsForConnection("opencode-go", connection.id, [
+    { id: "current-synced-model", name: "Current Synced Model" },
+  ]);
+
+  const syncedResponse = await callRoute(connection.id);
+  const syncedBody = (await syncedResponse.json()) as any;
+
+  assert.equal(syncedResponse.status, 200);
+  assert.equal(syncedBody.source, "cache");
+  assert.ok(
+    syncedBody.models.some((model) => model.id === "current-synced-model"),
+    "current connection synced model should be present"
+  );
+  assert.equal(
+    syncedBody.models.some((model) => model.id === "synced-only-model"),
+    false,
+    "other connection synced model should still be excluded"
+  );
+  assert.equal(
+    syncedBody.models.some((model) => model.id === "glm-5"),
+    false,
+    "static catalog should be superseded by the current connection synced list"
   );
 });
 

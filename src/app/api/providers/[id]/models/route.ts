@@ -77,7 +77,7 @@ import {
   parseGeminiModelsList,
   type GeminiDiscoveryModel,
 } from "@/lib/providerModels/geminiModelsParser";
-import { getSyncedAvailableModels } from "@/lib/db/models";
+import { getSyncedAvailableModelsForConnection } from "@/lib/db/models";
 import { fetchCursorAgentModels } from "@/lib/providerModels/cursorAgent";
 
 type JsonRecord = Record<string, unknown>;
@@ -894,9 +894,8 @@ export async function GET(
     const autoFetchModels = isAutoFetchModelsEnabled(connection.providerSpecificData);
     const cachedDiscoveryModels = await getCachedDiscoveredModels(provider, connectionId);
 
-    // Check for synced models from ANY connection of this provider.
-    // When sync has been performed (even on a different connection),
-    // use the synced list as the authoritative source instead of static models.
+    // Check synced models for this connection only. Provider-wide unioned cache can
+    // leak stale or inactive connection models into the current connection detail page.
     let providerSyncedModels: Array<{
       id: string;
       name: string;
@@ -904,9 +903,9 @@ export async function GET(
       supportedEndpoints?: string[];
     }> | null = null;
     try {
-      const allSynced = await getSyncedAvailableModels(provider);
-      if (Array.isArray(allSynced) && allSynced.length > 0) {
-        providerSyncedModels = allSynced.map((m) => ({
+      const currentSynced = await getSyncedAvailableModelsForConnection(provider, connectionId);
+      if (Array.isArray(currentSynced) && currentSynced.length > 0) {
+        providerSyncedModels = currentSynced.map((m) => ({
           id: m.id,
           name: m.name || m.id,
           ...(m.apiFormat ? { apiFormat: m.apiFormat } : {}),
@@ -1026,12 +1025,10 @@ export async function GET(
       // persistDiscoveredModels([])). `providerSyncedModels` was read at the top
       // of the handler and is now stale, so it must not leak the just-cleared
       // models back into the response (#3148 made synced authoritative for the
-      // normal path; here we re-read the current state instead). Re-derive the
-      // local catalog from the provider's remaining synced models (union across
-      // its other connections) or the static catalog when none remain.
-      let freshSynced: Awaited<ReturnType<typeof getSyncedAvailableModels>> = [];
+      // normal path; here we re-read the current connection state instead).
+      let freshSynced: Awaited<ReturnType<typeof getSyncedAvailableModelsForConnection>> = [];
       try {
-        freshSynced = await getSyncedAvailableModels(provider);
+        freshSynced = await getSyncedAvailableModelsForConnection(provider, connectionId);
       } catch {
         /* DB unavailable — fall through to static catalog */
       }

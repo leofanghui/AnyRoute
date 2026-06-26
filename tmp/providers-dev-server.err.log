@@ -1,0 +1,96 @@
+[bootstrap] ℹ️  The following OAuth integrations are not configured:
+[bootstrap]    • Antigravity OAuth (ANTIGRAVITY_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Qoder OAuth (QODER_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Gemini OAuth (GEMINI_CLI_OAUTH_CLIENT_SECRET or GEMINI_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    These providers will not work until configured.
+[bootstrap] ⚠️  INITIAL_PASSWORD is not set — using default 'CHANGEME'. Change it in Settings!
+18:49:39.032 [AUTO] auto/coding:free matched no connected models; using the full pool
+18:49:39.346 [AUTO] auto/coding:free matched no connected models; using the full pool
+❌ deepseek-web [502]: Provider returned empty content
+18:56:13.587 [AUTO] auto/coding:free matched no connected models; using the full pool
+18:56:13.824 [AUTO] auto/coding:free matched no connected models; using the full pool
+[browser] Encountered two children with the same key, `gpt-4o`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `gpt-4o`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+19:17:34.785 [AUTO] auto/coding:free matched no connected models; using the full pool
+19:17:35.282 [AUTO] auto/coding:free matched no connected models; using the full pool
+19:17:35.754 [AUTO] auto/coding:free matched no connected models; using the full pool
+19:18:51.125 [AUTO] auto/coding:free matched no connected models; using the full pool
+19:20:02.009 [AUTO] auto/coding:free matched no connected models; using the full pool
+19:20:02.352 [AUTO] auto/coding:free matched no connected models; using the full pool
+[browser] [CliCodePage] Expected 21 code tools, found 6. Check F1 catalog edits. (src/app/(dashboard)
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:16032) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 12 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+19:23:58.600 [AUTO] auto/coding:free matched no connected models; using the full pool
+19:23:58.757 [AUTO] auto/coding:free matched no connected models; using the full pool
+[browser] Encountered two children with the same key, `deepseek-v4-pro`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `deepseek-v4-pro`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `claude-haiku-4-5-20251001`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `deepseek-v4-flash`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `minimax-m3`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `claude-sonnet-4-6`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `glm-5.2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `gpt-3.5-turbo`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `kimi-k2.6`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `minimax-m2.7`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `deepseek-v4-pro`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `deepseek-v4-pro`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `claude-haiku-4-5-20251001`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `deepseek-v4-flash`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `minimax-m3`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `claude-sonnet-4-6`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `glm-5.2`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `gpt-3.5-turbo`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `kimi-k2.6`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] Encountered two children with the same key, `minimax-m2.7`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] Encountered two children with the same key, `deepseek-v4-pro`. Keys should be unique so that components maintain their identity across updates. Non-unique keys may cause children to be duplicated and/or omitted — the behavior is unsupported and could change in a future version. 
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+[browser] The width(-1) and height(-1) of chart should be greater than 0,
+       please check the style of container, or the props width(100%) and height(100%),
+       or add a minWidth(0) or minHeight(undefined) or use aspect(undefined) to control the
+       height and width.
+19:25:53.812 [AUTO] auto/coding:free matched no connected models; using the full pool
+19:52:37.859 [AUTO] auto/coding:free matched no connected models; using the full pool
+[CliCodePage] Expected 21 code tools, found 6. Check F1 catalog edits.
+[browser] [CliCodePage] Expected 21 code tools, found 6. Check F1 catalog edits. (src/app/(dashboard)
+20:11:33.791 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:11:42.145 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:11:53.626 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:12:06.254 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:12:16.373 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:12:30.504 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:12:40.230 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:13:15.384 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:13:46.397 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:14:22.886 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:15:07.706 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:15:51.001 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:16:31.495 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:17:03.776 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:17:54.806 [AUTO] auto/coding:free matched no connected models; using the full pool
+20:29:43.025 [AUTO] auto/coding:free matched no connected models; using the full pool

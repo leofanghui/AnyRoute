@@ -15,6 +15,12 @@ import type { CliCatalogEntry } from "@/shared/schemas/cliCatalog";
 const CODE_TOOLS: [string, CliCatalogEntry][] = Object.entries(CLI_TOOLS).filter(
   ([, tool]) => tool.category === "code" && tool.baseUrlSupport !== "none"
 ) as [string, CliCatalogEntry][];
+const PRIMARY_TOOL_IDS = ["claude", "claude-desktop", "codex", "codex-desktop"];
+const primaryTools = PRIMARY_TOOL_IDS.map((id) => [id, CLI_TOOLS[id]] as [string, CliCatalogEntry])
+  .filter(([, tool]) => !!tool)
+  .filter(([, tool]) => tool.category === "code" && tool.baseUrlSupport !== "none");
+const primaryToolIdSet = new Set(primaryTools.map(([id]) => id));
+const secondaryTools = CODE_TOOLS.filter(([id]) => !primaryToolIdSet.has(id));
 
 // Cardinality guard (D15) — non-blocking, log only
 if (CODE_TOOLS.length !== EXPECTED_CODE_COUNT) {
@@ -133,16 +139,43 @@ export default function CliCodePageClient({ machineId: _machineId }: CliCodePage
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {CODE_TOOLS.map(([id, tool]) => (
-            <CliToolCard
-              key={id}
-              tool={tool}
-              batchStatus={statuses?.[id] ?? null}
-              detailHref={`/dashboard/cli-code/${id}`}
-              hasActiveProviders={hasActiveProviders}
-            />
-          ))}
+        <div className="flex flex-col gap-6">
+          <section className="flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-text-main">推荐接入</h2>
+                <p className="text-xs text-text-muted">
+                  优先配置 Claude 和 Codex，模型从统一模型池中选择。
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {primaryTools.map(([id, tool]) => (
+                <CliToolCard
+                  key={id}
+                  tool={tool}
+                  batchStatus={statuses?.[id] ?? null}
+                  detailHref={`/dashboard/cli-code/${id}`}
+                  hasActiveProviders={hasActiveProviders}
+                />
+              ))}
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="text-sm font-semibold text-text-main">更多工具</h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {secondaryTools.map(([id, tool]) => (
+                <CliToolCard
+                  key={id}
+                  tool={tool}
+                  batchStatus={statuses?.[id] ?? null}
+                  detailHref={`/dashboard/cli-code/${id}`}
+                  hasActiveProviders={hasActiveProviders}
+                />
+              ))}
+            </div>
+          </section>
         </div>
       )}
     </div>

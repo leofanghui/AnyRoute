@@ -1,0 +1,37 @@
+[bootstrap] ℹ️  The following OAuth integrations are not configured:
+[bootstrap]    • Antigravity OAuth (ANTIGRAVITY_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Qoder OAuth (QODER_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Gemini OAuth (GEMINI_CLI_OAUTH_CLIENT_SECRET or GEMINI_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    These providers will not work until configured.
+[bootstrap] ⚠️  INITIAL_PASSWORD is not set — using default 'CHANGEME'. Change it in Settings!
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:41000) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 26 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+17:58:03.049 [AUTO] auto/coding:free matched no connected models; using the full pool
+
+<--- Last few GCs --->
+
+[41000:00000241405A5000] 11373483 ms: Mark-Compact 4031.9 (4143.8) -> 4031.9 (4143.8) MB, pooled: 21 MB, 627.34 / 0.00 ms  (average mu = 0.150, current mu = 0.030) allocation failure; scavenge might not succeed
+[41000:00000241405A5000] 11374239 ms: Mark-Compact 4032.1 (4143.9) -> 4032.1 (4143.9) MB, pooled: 21 MB, 642.25 / 0.00 ms  (average mu = 0.150, current mu = 0.151) allocation failure; GC in old space requested
+
+
+<--- JS stacktrace --->
+
+FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF75A1ABA4B node::SetCppgcReference+16011
+ 2: 00007FF75A1153F8 SSL_get_quiet_shutdown+92008
+ 3: 00007FF75ACA2D81 v8::Isolate::ReportExternalAllocationLimitReached+65
+ 4: 00007FF75AC8FB86 v8::Function::Experimental_IsNopFunction+2918
+ 5: 00007FF75AADB830 v8::internal::StrongRootAllocatorBase::StrongRootAllocatorBase+31552
+ 6: 00007FF75AAD54FD v8::internal::StrongRootAllocatorBase::StrongRootAllocatorBase+6157
+ 7: 00007FF75AAD0D95 v8::internal::ThreadIsolation::JitPageReference::Size+190789
+ 8: 00007FF75A44A30D BIO_ssl_shutdown+189
+ 9: 7FF8000000000000 

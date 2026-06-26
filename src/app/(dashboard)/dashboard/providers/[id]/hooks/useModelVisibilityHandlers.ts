@@ -85,8 +85,10 @@ export interface UseModelVisibilityHandlersReturn {
     hidden: boolean
   ) => Promise<void>;
   handleClearAllModels: () => Promise<void>;
-  onTestModel: (modelId: string, fullModel: string) => Promise<void>;
-  handleTestAll: (targets: Array<{ modelId: string; fullModel: string }>) => Promise<void>;
+  onTestModel: (modelId: string, fullModel: string, connectionId?: string) => Promise<void>;
+  handleTestAll: (
+    targets: Array<{ modelId: string; fullModel: string; connectionId?: string }>
+  ) => Promise<void>;
   /** Apply a model's test-all result to the per-row status icon (used by the
    *  passthrough section, which runs its own test-all loop). */
   onModelTestStatusChange: (modelId: string, status: "ok" | "error") => void;
@@ -283,17 +285,18 @@ export function useModelVisibilityHandlers({
     }
   };
 
-  const onTestModel = async (modelId: string, fullModel: string) => {
+  const onTestModel = async (modelId: string, fullModel: string, connectionId?: string) => {
     setTestingModelId(modelId);
     setModelTestStatus((prev) => ({ ...prev, [modelId]: undefined as any }));
     try {
+      const testConnectionId = connectionId || selectedConnection?.id;
       const res = await fetch("/api/models/test", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           providerId: selectedConnection?.provider || providerNode?.id || providerId,
           modelId: fullModel,
-          connectionId: selectedConnection?.id,
+          connectionId: testConnectionId,
         }),
       });
       const data = await res.json();
@@ -323,7 +326,7 @@ export function useModelVisibilityHandlers({
   };
 
   const handleTestAll = async (
-    targets: Array<{ modelId: string; fullModel: string }>
+    targets: Array<{ modelId: string; fullModel: string; connectionId?: string }>
   ): Promise<void> => {
     if (testingAll) return;
     if (targets.length === 0) {
@@ -341,8 +344,9 @@ export function useModelVisibilityHandlers({
     for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
       const chunk = targets.slice(i, i + CHUNK_SIZE);
       await Promise.all(
-        chunk.map(async ({ modelId, fullModel }) => {
+        chunk.map(async ({ modelId, fullModel, connectionId }) => {
           try {
+            const testConnectionId = connectionId || selectedConnection?.id;
             const result: {
               results?: Record<
                 string,
@@ -358,7 +362,7 @@ export function useModelVisibilityHandlers({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 providerId: providerId,
-                connectionId: selectedConnection?.id,
+                connectionId: testConnectionId,
                 modelIds: [fullModel],
               }),
             }).then((r) => r.json());

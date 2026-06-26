@@ -1,0 +1,838 @@
+[bootstrap] ℹ️  The following OAuth integrations are not configured:
+[bootstrap]    • Antigravity OAuth (ANTIGRAVITY_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Qoder OAuth (QODER_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Gemini OAuth (GEMINI_CLI_OAUTH_CLIENT_SECRET or GEMINI_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    These providers will not work until configured.
+[bootstrap] ⚠️  INITIAL_PASSWORD is not set — using default 'CHANGEME'. Change it in Settings!
+(node:8304) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 unpipe listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 error listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 close listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:8304) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 23 finish listeners added to [SyncWriteStream]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(node:15108) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:20588) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:15344) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:14564) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:15768) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:24364) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:12292) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:19156) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:24472) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[chatCore] heap pressure guard tripped: 3674MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3675MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3677MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3683MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3685MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3686MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3689MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+22:21:39.101 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.103 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.105 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.107 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.108 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.111 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.114 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.116 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.118 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.121 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.123 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.126 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.128 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.131 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.133 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.135 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.138 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.140 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.142 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.145 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.147 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.150 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.152 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.157 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.161 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.163 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.166 [AUTO] No connected providers with valid credentials for virtual auto-combo
+22:21:39.169 [AUTO] No connected providers with valid credentials for virtual auto-combo
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3770MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3772MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3773MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3779MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3781MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3783MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3786MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3792MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3797MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3780MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+(node:16572) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3673MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3682MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3682MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3694MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3976MB > 3645MB; returning 503
+[REDIS] Error: 
+[chatCore] heap pressure guard tripped: 3982MB > 3645MB; returning 503
+[chatCore] heap pressure guard tripped: 3984MB > 3645MB; returning 503
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+[REDIS] Error: 
+
+<--- Last few GCs --->
+
+[8304:00000247F0FFF000]  7544881 ms: Mark-Compact 4050.6 (4115.2) -> 4045.8 (4129.2) MB, pooled: 0 MB, 937.24 / 0.00 ms  (average mu = 0.724, current mu = 0.074) allocation failure; scavenge might not succeed
+[8304:00000247F0FFF000]  7545919 ms: Mark-Compact 4063.8 (4129.9) -> 4054.6 (4137.2) MB, pooled: 0 MB, 962.35 / 0.00 ms  (average mu = 0.593, current mu = 0.073) allocation failure; scavenge might not succeed
+
+FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory
+----- Native stack trace -----
+
+ 1: 00007FF70A75C36F node::OnFatalError+1343
+ 2: 00007FF70B3A4D77 v8::Function::NewInstance+423
+ 3: 00007FF70B1A5467 v8::base::AddressSpaceReservation::AddressSpaceReservation+322071
+ 4: 00007FF70B1A3106 v8::base::AddressSpaceReservation::AddressSpaceReservation+313014
+ 5: 00007FF70B1BD7BA X509_STORE_set_cleanup+5098
+ 6: 00007FF70B1C9C56 uv_timer_set_repeat+20694
+ 7: 00007FF70AD9CD47 v8::String::Utf8Value::~Utf8Value+143495
+ 8: 00000247AFE7733A 

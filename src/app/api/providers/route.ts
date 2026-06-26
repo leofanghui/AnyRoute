@@ -33,6 +33,19 @@ import {
   buildModelSyncInternalHeaders,
   getModelSyncInternalBaseUrl,
 } from "@/shared/services/modelSyncScheduler";
+import { persistDetectedModelsForConnection } from "@/lib/detectedModelsSync";
+
+function getProviderInternalOrigin(request: Request): string {
+  const requestUrl = new URL(request.url);
+  if (
+    requestUrl.hostname === "localhost" ||
+    requestUrl.hostname === "127.0.0.1" ||
+    requestUrl.hostname === "::1"
+  ) {
+    return requestUrl.origin;
+  }
+  return getModelSyncInternalBaseUrl();
+}
 
 // GET /api/providers - List all connections
 export async function GET(request: Request) {
@@ -167,6 +180,15 @@ export async function POST(request: Request) {
       testStatus: testStatus || "unknown",
     });
 
+    try {
+      await persistDetectedModelsForConnection({ ...newConnection, providerSpecificData });
+    } catch (error) {
+      console.log(
+        `[providers] Failed to persist detected models for ${newConnection.id}:`,
+        error?.message || error
+      );
+    }
+
     // Auto-trigger model discovery for the newly created connection.
     // Fire-and-forget: model sync can take seconds and should NOT block the
     // POST response. If it fails, we log and move on — the connection itself
@@ -181,7 +203,7 @@ export async function POST(request: Request) {
       // controlled Host header, which would let a caller redirect this
       // credential-bearing internal self-fetch to an arbitrary host
       // (SSRF + internal-auth-header exfiltration; CodeQL js/request-forgery).
-      const internalOrigin = getModelSyncInternalBaseUrl();
+      const internalOrigin = getProviderInternalOrigin(request);
       const cookieHeader = request.headers.get("cookie") || "";
       const syncHeaders: Record<string, string> = {
         "Content-Type": "application/json",
@@ -199,6 +221,26 @@ export async function POST(request: Request) {
         })
         .catch((err) => {
           console.log(`[providers] Auto-sync error for ${newConnection.id}:`, err?.message || err);
+        });
+
+      const verifyUrl = `${internalOrigin}/api/model-pool/verify`;
+      void fetch(verifyUrl, {
+        method: "POST",
+        headers: syncHeaders,
+        body: JSON.stringify({ connectionId: newConnection.id, limit: 12 }),
+      })
+        .then((verifyRes) => {
+          if (!verifyRes.ok) {
+            console.log(
+              `[providers] Auto model-pool verification failed for ${newConnection.id}: ${verifyRes.status}`
+            );
+          }
+        })
+        .catch((err) => {
+          console.log(
+            `[providers] Auto model-pool verification error for ${newConnection.id}:`,
+            err?.message || err
+          );
         });
     } catch (syncSetupError) {
       // Defensive: if URL parsing or header construction itself throws, do

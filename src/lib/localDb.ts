@@ -66,6 +66,7 @@ export {
 
   // Synced Available Models
   getSyncedAvailableModels,
+  getSyncedAvailableModelsForConnection,
   getAllSyncedAvailableModels,
   replaceSyncedAvailableModelsForConnection,
   deleteSyncedAvailableModelsForConnection,
@@ -398,3 +399,11 @@ export type {
   WeeklyPatternRow,
   PresetCostModelRow,
 } from "./db/usageAnalytics";
+
+export {
+  saveModelPoolVerification,
+  getAllModelPoolVerifications,
+  deleteModelPoolVerificationsForConnection,
+} from "./db/cliToolState";
+
+export type { ModelPoolVerification, ModelPoolVerificationStatus } from "./db/cliToolState";

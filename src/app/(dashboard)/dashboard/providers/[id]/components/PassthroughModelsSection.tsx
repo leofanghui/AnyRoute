@@ -66,7 +66,7 @@ export interface PassthroughModelsSectionProps {
   onBulkToggleHidden: (modelIds: string[], hidden: boolean) => Promise<void>;
   bulkTogglePending?: boolean;
   togglingModelId?: string | null;
-  onTestModel?: (modelId: string, fullModel: string) => Promise<void>;
+  onTestModel?: (modelId: string, fullModel: string, connectionId?: string) => Promise<void>;
   modelTestStatus?: Record<string, "ok" | "error" | null>;
   /** Report a model's test-all result so the parent updates the green/red icon. */
   onModelTestStatusChange?: (modelId: string, status: "ok" | "error") => void;
@@ -163,8 +163,8 @@ export default function PassthroughModelsSection({
           body: JSON.stringify(
             buildPassthroughTestBody({
               providerId,
-              connectionId,
-              modelId: model.modelId,
+              connectionId: model.connectionId || connectionId,
+              modelId: model.fullModel,
               autoHideFailed,
             })
           ),
@@ -222,6 +222,7 @@ export default function PassthroughModelsSection({
       source: string;
       isFree: boolean;
       isHidden: boolean;
+      connectionId?: string;
     }> = [];
     const seenModelIds = new Set<string>();
 
@@ -241,6 +242,9 @@ export default function PassthroughModelsSection({
         alias: aliasByModelId.get(model.id) || null,
         displayName: model.name || model.id,
         source,
+        connectionId:
+          model.connectionId ||
+          (Array.isArray(model.connectionIds) ? model.connectionIds[0] : undefined),
         isFree:
           Boolean((model as any).free) ||
           model.id.endsWith(":free") ||
@@ -407,31 +411,36 @@ export default function PassthroughModelsSection({
             onSortFreeFirstChange={setSortFreeFirst}
           />
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            {displayModels.map(({ modelId, fullModel, alias, isHidden, source, isFree }) => (
-              <PassthroughModelRow
-                key={fullModel as string}
-                modelId={modelId}
-                fullModel={fullModel}
-                source={source}
-                isFree={isFree}
-                isHidden={isHidden}
-                copied={copied}
-                onCopy={onCopy}
-                onDeleteAlias={source === "alias" && alias ? () => onDeleteAlias(alias) : undefined}
-                t={t}
-                showDeveloperToggle
-                effectiveModelNormalize={effectiveModelNormalize}
-                effectiveModelPreserveDeveloper={effectiveModelPreserveDeveloper}
-                getUpstreamHeadersRecord={(p) => getUpstreamHeadersRecord(modelId, p)}
-                saveModelCompatFlags={saveModelCompatFlags}
-                compatDisabled={compatSavingModelId === modelId}
-                onToggleHidden={onToggleHidden}
-                togglingHidden={togglingModelId === modelId}
-                onTestModel={onTestModel}
-                testStatus={modelTestStatus?.[modelId] || null}
-                testingModel={testingModelId === modelId}
-              />
-            ))}
+            {displayModels.map(
+              ({ modelId, fullModel, alias, isHidden, source, isFree, connectionId }) => (
+                <PassthroughModelRow
+                  key={fullModel as string}
+                  modelId={modelId}
+                  fullModel={fullModel}
+                  source={source}
+                  isFree={isFree}
+                  isHidden={isHidden}
+                  copied={copied}
+                  onCopy={onCopy}
+                  onDeleteAlias={
+                    source === "alias" && alias ? () => onDeleteAlias(alias) : undefined
+                  }
+                  t={t}
+                  showDeveloperToggle
+                  effectiveModelNormalize={effectiveModelNormalize}
+                  effectiveModelPreserveDeveloper={effectiveModelPreserveDeveloper}
+                  getUpstreamHeadersRecord={(p) => getUpstreamHeadersRecord(modelId, p)}
+                  saveModelCompatFlags={saveModelCompatFlags}
+                  compatDisabled={compatSavingModelId === modelId}
+                  onToggleHidden={onToggleHidden}
+                  togglingHidden={togglingModelId === modelId}
+                  onTestModel={onTestModel}
+                  testConnectionId={connectionId}
+                  testStatus={modelTestStatus?.[modelId] || null}
+                  testingModel={testingModelId === modelId}
+                />
+              )
+            )}
           </div>
           {filteredModels.length === 0 && modelFilter && (
             <p className="py-2 text-sm text-text-muted">

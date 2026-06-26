@@ -86,19 +86,17 @@ export interface ProviderModelsSectionProps {
   setAutoHideFailed: (v: boolean) => void;
   setVisibilityFilter: (v: "all" | "visible" | "hidden") => void;
   saveModelCompatFlags: (modelId: string, patch: ModelCompatSavePatch) => Promise<void>;
-  handleToggleModelHidden: (
-    providerKey: string,
-    modelId: string,
-    hidden: boolean
-  ) => Promise<void>;
+  handleToggleModelHidden: (providerKey: string, modelId: string, hidden: boolean) => Promise<void>;
   handleBulkToggleModelHidden: (
     providerKey: string,
     modelIds: string[],
     hidden: boolean
   ) => Promise<void>;
   handleClearAllModels: () => Promise<void>;
-  onTestModel: (modelId: string, fullModel: string) => Promise<void>;
-  handleTestAll: (targets: Array<{ modelId: string; fullModel: string }>) => Promise<void>;
+  onTestModel: (modelId: string, fullModel: string, connectionId?: string) => Promise<void>;
+  handleTestAll: (
+    targets: Array<{ modelId: string; fullModel: string; connectionId?: string }>
+  ) => Promise<void>;
 
   // Compat state (from useModelCompatState)
   effectiveModelNormalize: (modelId: string, protocol?: string) => boolean;
@@ -187,8 +185,7 @@ export default function ProviderModelsSection({
     </button>
   );
 
-  const clearAllButton = (modelMeta.customModels.length > 0 ||
-    providerAliasEntries.length > 0) && (
+  const clearAllButton = (modelMeta.customModels.length > 0 || providerAliasEntries.length > 0) && (
     <button
       onClick={handleClearAllModels}
       disabled={clearingModels}
@@ -402,7 +399,13 @@ export default function ProviderModelsSection({
   const visibleFilteredCount = filteredModels.length - hiddenFilteredCount;
   const testAllTargets = filteredModels
     .filter((m) => !m.isHidden)
-    .map((m) => ({ modelId: m.id, fullModel: `${providerDisplayAlias}/${m.id}` }));
+    .map((m) => ({
+      modelId: m.id,
+      fullModel: `${providerDisplayAlias}/${m.id}`,
+      connectionId:
+        (m as any).connectionId ||
+        (Array.isArray((m as any).connectionIds) ? (m as any).connectionIds[0] : undefined),
+    }));
 
   return (
     <div>
@@ -465,6 +468,12 @@ export default function ProviderModelsSection({
               }
               togglingHidden={togglingModelId === model.id}
               onTestModel={onTestModel}
+              testConnectionId={
+                (model as any).connectionId ||
+                (Array.isArray((model as any).connectionIds)
+                  ? (model as any).connectionIds[0]
+                  : undefined)
+              }
               testStatus={modelTestStatus[model.id] || null}
               testingModel={testingModelId === model.id}
             />

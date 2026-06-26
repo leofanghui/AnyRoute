@@ -3,6 +3,8 @@ import { wildcardMatch } from "@omniroute/open-sse/services/wildcardRouter.ts";
 type JsonRecord = Record<string, unknown>;
 
 interface ConnectionLike {
+  id?: string;
+  provider?: string;
   providerSpecificData?: unknown;
 }
 
@@ -34,7 +36,7 @@ function uniquePatterns(patterns: string[]): string[] {
   return Array.from(new Set(patterns));
 }
 
-function getModelMatchCandidates(modelId: string): string[] {
+export function getModelMatchCandidates(modelId: string): string[] {
   const normalized = modelId.trim();
   if (!normalized) return [];
 

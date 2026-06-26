@@ -1,6 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseRetryAfterHeader, detectTestKind } from "@/lib/api/modelTestRunner.ts";
+import {
+  parseRetryAfterHeader,
+  detectTestKind,
+  buildInternalChatRequest,
+} from "@/lib/api/modelTestRunner.ts";
 
 // ---------------------------------------------------------------------------
 // parseRetryAfterHeader — Retry-After is either delta-seconds or an HTTP-date.
@@ -85,4 +89,15 @@ test("detectTestKind ignores pruned non-chat custom-model metadata", () => {
       isEmbedding: false,
     }
   );
+});
+
+test("buildInternalChatRequest forwards a forced connection id", async () => {
+  const request = buildInternalChatRequest(
+    { model: "gateway/claude-sonnet-4", messages: [] },
+    new AbortController().signal,
+    "conn-forced"
+  );
+
+  assert.equal(request.headers.get("x-omniroute-connection"), "conn-forced");
+  assert.equal(request.headers.get("x-internal-test"), "combo-health-check");
 });

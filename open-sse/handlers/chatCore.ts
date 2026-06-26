@@ -2307,9 +2307,15 @@ export async function handleChatCore({
                 }
 
                 // Fetch next available codex connection (excluding all previously failed ones)
-                const nextCreds = await getProviderCredentials("codex", null, null, null, {
-                  excludeConnectionIds: [...codexExcludedIds],
-                }).catch(() => null);
+                const nextCreds = await getProviderCredentials(
+                  "codex",
+                  null,
+                  null,
+                  requestedModel || null,
+                  {
+                    excludeConnectionIds: [...codexExcludedIds],
+                  }
+                ).catch(() => null);
 
                 if (!nextCreds || nextCreds.allRateLimited) {
                   log?.warn?.("CODEX_FAILOVER", "No more codex accounts available — returning 429");

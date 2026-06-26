@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, Button, ModelSelectModal, ManualConfigModal } from "@/shared/components";
 import CliStatusBadge from "./CliStatusBadge";
 import { useTranslations } from "next-intl";
@@ -29,6 +29,7 @@ export default function CodexToolCard({
   const [codexStatus, setCodexStatus] = useState(null);
   const [checkingCodex, setCheckingCodex] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [message, setMessage] = useState(null);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
@@ -47,12 +48,15 @@ export default function CodexToolCard({
   const codexMappingModels = isDesktopTarget ? CODEX_DESKTOP_MODELS : CODEX_DEFAULT_MODELS;
   const [modelMappings, setModelMappings] = useState<Record<string, string>>({});
   const [reasoningEffort, setReasoningEffort] = useState("xhigh");
-  const [wireApi, setWireApi] = useState(isDesktopTarget ? "responses" : "chat");
-  const [preserveOfficialAuth, setPreserveOfficialAuth] = useState(isDesktopTarget);
+  const defaultWireApi = isDesktopTarget ? "responses" : "chat";
+  const [wireApi, setWireApi] = useState(defaultWireApi);
+  const [wireApiTouched, setWireApiTouched] = useState(false);
+  const [preserveOfficialAuth, setPreserveOfficialAuth] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTarget, setModalTarget] = useState<string | null>(null); // null = default model, string = mapping key
   const [modelAliases, setModelAliases] = useState({});
   const [showManualConfigModal, setShowManualConfigModal] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [customBaseUrl, setCustomBaseUrl] = useState("");
   // Profiles state
   const [profiles, setProfiles] = useState([]);
@@ -65,6 +69,28 @@ export default function CodexToolCard({
   const [showBackups, setShowBackups] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(null);
   const cliReady = !!(codexStatus?.installed && codexStatus?.runnable);
+
+  const getModelDisplayLabel = useCallback(
+    (value) => {
+      if (!value) return "";
+      const model = (availableModels || []).find((item) => item?.value === value);
+      return model?.label || model?.name || value;
+    },
+    [availableModels]
+  );
+
+  const checkCodexStatus = useCallback(async () => {
+    setCheckingCodex(true);
+    try {
+      const res = await fetch(codexSettingsUrl);
+      const data = await res.json();
+      setCodexStatus(data);
+    } catch (error) {
+      setCodexStatus({ installed: false, error: error.message });
+    } finally {
+      setCheckingCodex(false);
+    }
+  }, [codexSettingsUrl]);
 
   useEffect(() => {
     // Store the key *id* so the backend can resolve the real secret from DB
@@ -80,7 +106,7 @@ export default function CodexToolCard({
       fetchProfiles();
       fetchBackups();
     }
-  }, [isExpanded, codexStatus]);
+  }, [isExpanded, codexStatus, checkCodexStatus]);
 
   const fetchModelAliases = async () => {
     try {
@@ -102,7 +128,10 @@ export default function CodexToolCard({
       if (effortMatch) setReasoningEffort(effortMatch[1]);
 
       const wireMatch = codexStatus.config.match(/^wire_api\s*=\s*"([^"]+)"/im);
-      if (wireMatch) setWireApi(wireMatch[1]);
+      if (wireMatch) {
+        setWireApi(wireMatch[1]);
+        setWireApiTouched(true);
+      }
 
       if (isDesktopTarget && codexStatus.config.includes("[model_providers.omniroute]")) {
         setPreserveOfficialAuth(
@@ -142,20 +171,100 @@ export default function CodexToolCard({
   // Use batch status as fallback when card hasn't been expanded yet
   const effectiveConfigStatus = configStatus || batchStatus?.configStatus || null;
 
-  const getEffectiveBaseUrl = () => normalizeCodexBaseUrl(customBaseUrl || baseUrl, wireApi);
+  const getSelectedModelOption = (modelValue = selectedModel) =>
+    availableModels?.find((model) => {
+      if (!modelValue) return false;
+      return (
+        model.value === modelValue ||
+        model.modelId === modelValue ||
+        model.name === modelValue ||
+        model.label === modelValue
+      );
+    });
 
-  const getDisplayUrl = () => normalizeCodexBaseUrl(customBaseUrl || baseUrl, wireApi);
+  const getModelCapability = (modelValue: string, key: "openaiChat" | "openaiResponses") => {
+    const model = getSelectedModelOption(modelValue);
+    const capabilities = model?.capabilities;
+    if (capabilities && typeof capabilities === "object" && capabilities[key] === true) {
+      return true;
+    }
 
-  const checkCodexStatus = async () => {
-    setCheckingCodex(true);
+    return Array.isArray(model?.sources)
+      ? model.sources.some((source) => {
+          const sourceCapabilities =
+            source && typeof source === "object"
+              ? (source as Record<string, any>).capabilities
+              : null;
+          return (
+            sourceCapabilities &&
+            typeof sourceCapabilities === "object" &&
+            sourceCapabilities[key] === true
+          );
+        })
+      : false;
+  };
+
+  const getRecommendedWireApi = (modelValue = selectedModel) => {
+    const supportsChat = getModelCapability(modelValue, "openaiChat");
+    const supportsResponses = getModelCapability(modelValue, "openaiResponses");
+
+    if (supportsResponses && !supportsChat) return "responses";
+    if (supportsChat && !supportsResponses) return "chat";
+    return defaultWireApi;
+  };
+
+  const getEffectiveWireApi = (modelValue = selectedModel) =>
+    wireApiTouched ? wireApi : getRecommendedWireApi(modelValue);
+
+  const getEffectiveBaseUrl = (api = getEffectiveWireApi()) =>
+    normalizeCodexBaseUrl(customBaseUrl || baseUrl, api);
+
+  const getDisplayUrl = () =>
+    normalizeCodexBaseUrl(customBaseUrl || baseUrl, getEffectiveWireApi());
+
+  const verifyCurrentConfig = async (api = getEffectiveWireApi()) => {
+    if (!selectedModel) return null;
+    const selectedOption = getSelectedModelOption(selectedModel);
+    const selectedConnectionId =
+      typeof selectedOption?.connectionId === "string" ? selectedOption.connectionId : undefined;
+
+    setVerifying(true);
     try {
-      const res = await fetch(codexSettingsUrl);
-      const data = await res.json();
-      setCodexStatus(data);
+      const res = await fetch("/api/cli-tools/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tool: isDesktopTarget ? "codex-desktop" : "codex",
+          model: selectedModel,
+          ...(selectedConnectionId ? { connectionId: selectedConnectionId } : {}),
+          wireApi: api,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || (data?.status !== "ok" && data?.status !== "partial")) {
+        const preferredProbe = data?.probes?.[api];
+        const fallbackProbe = api === "responses" ? data?.probes?.chat : data?.probes?.responses;
+        const error =
+          data?.diagnosis?.message ||
+          preferredProbe?.error ||
+          fallbackProbe?.error ||
+          data?.error ||
+          "Codex 链路验证失败，请检查模型或上游渠道。";
+        return { ok: false, error };
+      }
+      return {
+        ok: true,
+        partial: data.status === "partial",
+        error:
+          data?.diagnosis?.message ||
+          data?.probes?.[`${api}_stream`]?.error ||
+          data?.probes?.chat_tools?.error ||
+          "部分能力未通过验证。",
+      };
     } catch (error) {
-      setCodexStatus({ installed: false, error: error.message });
+      return { ok: false, error: error.message || "Codex 链路验证失败" };
     } finally {
-      setCheckingCodex(false);
+      setVerifying(false);
     }
   };
 
@@ -164,25 +273,24 @@ export default function CodexToolCard({
     setMessage(null);
     try {
       // Use sk_omniroute for localhost if no key, otherwise use selected key
+      const selectedKeyId = selectedApiKey?.trim() || (apiKeys?.length > 0 ? apiKeys[0].id : "");
       const keyToUse =
-        selectedApiKey && selectedApiKey.trim()
-          ? selectedApiKey
-          : !cloudEnabled
-            ? "sk_omniroute"
-            : selectedApiKey;
+        selectedKeyId && selectedKeyId.trim() ? selectedKeyId : !cloudEnabled ? "sk_omniroute" : "";
+      const effectiveWireApi = getEffectiveWireApi();
 
       // Send both apiKey (as fallback) and keyId to look up the unmasked string natively
       const res = await fetch("/api/cli-tools/codex-settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          baseUrl: getEffectiveBaseUrl(),
+          baseUrl: getEffectiveBaseUrl(effectiveWireApi),
           apiKey: keyToUse,
-          keyId: selectedApiKey,
+          keyId: selectedKeyId,
           model: selectedModel || CODEX_DEFAULT_MODELS[0],
           reasoningEffort,
-          wireApi,
-          ...(isDesktopTarget ? { codexTarget: "desktop", preserveOfficialAuth } : {}),
+          wireApi: effectiveWireApi,
+          codexTarget: isDesktopTarget ? "desktop" : "cli",
+          preserveOfficialAuth,
           modelMappings,
         }),
       });
@@ -190,6 +298,20 @@ export default function CodexToolCard({
       if (res.ok) {
         setMessage({ type: "success", text: t("settingsApplied") });
         checkCodexStatus();
+        const verification = await verifyCurrentConfig(effectiveWireApi);
+        if (verification?.ok && verification.partial) {
+          setMessage({
+            type: "success",
+            text: `配置已写入，Codex 基础链路可用；部分能力需注意：${verification.error}`,
+          });
+        } else if (verification?.ok) {
+          setMessage({ type: "success", text: "配置已写入，Codex 链路验证通过。" });
+        } else if (verification) {
+          setMessage({
+            type: "error",
+            text: `配置已写入，但 Codex 链路验证失败：${verification.error}`,
+          });
+        }
       } else {
         setMessage({
           type: "error",
@@ -214,6 +336,8 @@ export default function CodexToolCard({
       if (res.ok) {
         setMessage({ type: "success", text: t("settingsReset") });
         setSelectedModel("");
+        setWireApi(defaultWireApi);
+        setWireApiTouched(false);
         checkCodexStatus();
       } else {
         setMessage({
@@ -237,6 +361,7 @@ export default function CodexToolCard({
     } else {
       // Writing to the default model
       setSelectedModel(model.value);
+      if (!wireApiTouched) setWireApi(getRecommendedWireApi(model.value));
     }
     setModalOpen(false);
     setModalTarget(null);
@@ -367,7 +492,8 @@ export default function CodexToolCard({
 
   const getManualConfigs = () => {
     const keyToUse = !cloudEnabled ? "sk_omniroute" : "<YOUR_OMNIROUTE_API_KEY>";
-    const shouldPreserveOfficialAuth = isDesktopTarget && preserveOfficialAuth;
+    const shouldPreserveOfficialAuth = preserveOfficialAuth;
+    const effectiveWireApi = getEffectiveWireApi();
 
     let configContent = `# OmniRoute Configuration for ${isDesktopTarget ? "Codex Desktop" : "Codex CLI"}
 model = "${selectedModel || CODEX_DEFAULT_MODELS[0]}"`;
@@ -376,14 +502,14 @@ model = "${selectedModel || CODEX_DEFAULT_MODELS[0]}"`;
       configContent += `\nmodel_reasoning_effort = "${reasoningEffort}"`;
     }
 
-    if (isDesktopTarget || wireApi === "responses") {
+    if (shouldPreserveOfficialAuth || isDesktopTarget || effectiveWireApi === "responses") {
       configContent += `
 model_provider = "omniroute"
 
 [model_providers.omniroute]
 name = "OmniRoute"
-base_url = "${getEffectiveBaseUrl()}"
-wire_api = "${wireApi}"
+base_url = "${getEffectiveBaseUrl(effectiveWireApi)}"
+wire_api = "${effectiveWireApi}"
 `;
 
       if (shouldPreserveOfficialAuth) {
@@ -397,7 +523,7 @@ experimental_bearer_token = "${keyToUse}"
     } else {
       configContent += `
 # Utilize the built-in OpenAI provider pointed to OmniRoute
-openai_base_url = "${getEffectiveBaseUrl()}"
+openai_base_url = "${getEffectiveBaseUrl(effectiveWireApi)}"
 `;
     }
 
@@ -531,99 +657,6 @@ openai_base_url = "${getEffectiveBaseUrl()}"
           {!checkingCodex && cliReady && (
             <>
               <div className="flex flex-col gap-2">
-                {/* Current Base URL */}
-                {codexStatus?.config &&
-                  (() => {
-                    const parsed = codexStatus.config.match(/base_url\s*=\s*"([^"]+)"/);
-                    const currentBaseUrl = parsed ? parsed[1] : null;
-                    return currentBaseUrl ? (
-                      <div className="flex items-center gap-2">
-                        <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                          {t("current")}
-                        </span>
-                        <span className="material-symbols-outlined text-text-muted text-[14px]">
-                          arrow_forward
-                        </span>
-                        <span className="flex-1 px-2 py-1.5 text-xs text-text-muted truncate">
-                          {currentBaseUrl}
-                        </span>
-                      </div>
-                    ) : null;
-                  })()}
-
-                {/* Base URL */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                    {t("baseUrl")}
-                  </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">
-                    arrow_forward
-                  </span>
-                  <input
-                    type="text"
-                    value={getDisplayUrl()}
-                    onChange={(e) => setCustomBaseUrl(e.target.value)}
-                    placeholder={t("baseUrlPlaceholder")}
-                    className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-                  />
-                  {customBaseUrl && getDisplayUrl() !== normalizeCodexBaseUrl(baseUrl, wireApi) && (
-                    <button
-                      onClick={() => setCustomBaseUrl("")}
-                      className="p-1 text-text-muted hover:text-primary rounded transition-colors"
-                      title={t("resetToDefault")}
-                    >
-                      <span className="material-symbols-outlined text-[14px]">restart_alt</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* API Key */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                    {t("apiKey")}
-                  </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">
-                    arrow_forward
-                  </span>
-                  {apiKeys.length > 0 ? (
-                    <select
-                      value={selectedApiKey}
-                      onChange={(e) => setSelectedApiKey(e.target.value)}
-                      className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    >
-                      {apiKeys.map((key) => (
-                        <option key={key.id} value={key.id}>
-                          {key.key}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="flex-1 text-xs text-text-muted px-2 py-1.5">
-                      {cloudEnabled ? t("noApiKeysCreateOne") : t("defaultOmnirouteKey")}
-                    </span>
-                  )}
-                </div>
-
-                {isDesktopTarget && (
-                  <div className="flex items-start gap-2">
-                    <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">
-                      官方登录
-                    </span>
-                    <span className="material-symbols-outlined text-text-muted text-[14px] pt-1">
-                      arrow_forward
-                    </span>
-                    <label className="flex flex-1 items-start gap-2 text-xs text-text-muted">
-                      <input
-                        type="checkbox"
-                        checked={preserveOfficialAuth}
-                        onChange={(e) => setPreserveOfficialAuth(e.target.checked)}
-                        className="mt-0.5"
-                      />
-                      <span>切换到 AnyRoute 时保留 Codex 官方登录，不覆盖 ~/.codex/auth.json</span>
-                    </label>
-                  </div>
-                )}
-
                 {/* Default Model */}
                 <div className="flex items-center gap-2">
                   <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
@@ -642,13 +675,12 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                   >
                     {t("selectModel")}
                   </button>
-                  <input
-                    type="text"
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    placeholder="gpt-5.5"
-                    className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-                  />
+                  <span
+                    className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs text-text-main truncate"
+                    title={getModelDisplayLabel(selectedModel)}
+                  >
+                    {getModelDisplayLabel(selectedModel) || t("selectModel")}
+                  </span>
                   {selectedModel && (
                     <button
                       onClick={() => setSelectedModel("")}
@@ -660,92 +692,223 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                   )}
                 </div>
 
-                {/* Reasoning Effort */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                    Reasoning Effort
-                  </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">
-                    arrow_forward
-                  </span>
-                  <select
-                    value={reasoningEffort}
-                    onChange={(e) => setReasoningEffort(e.target.value)}
-                    className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
+                <button
+                  type="button"
+                  className="ml-[8.5rem] flex items-center gap-1 text-xs text-text-muted hover:text-text-main"
+                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                  aria-expanded={showAdvancedSettings}
+                >
+                  <span
+                    className={`material-symbols-outlined text-[14px] transition-transform ${showAdvancedSettings ? "rotate-90" : ""}`}
                   >
-                    <option value="none">{t("reasoningEffortNone")}</option>
-                    <option value="low">{t("reasoningEffortLow")}</option>
-                    <option value="medium">{t("reasoningEffortMedium")}</option>
-                    <option value="high">{t("reasoningEffortHigh")}</option>
-                    <option value="xhigh">{t("reasoningEffortXHigh")}</option>
-                  </select>
-                </div>
-
-                {/* Wire API */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                    {t("wireApiLabel")}
+                    chevron_right
                   </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">
-                    arrow_forward
-                  </span>
-                  <select
-                    value={wireApi}
-                    onChange={(e) => setWireApi(e.target.value)}
-                    className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
-                  >
-                    <option value="chat">{t("wireApiChatCompletions")}</option>
-                    <option value="responses">{t("wireApiResponses")}</option>
-                  </select>
-                </div>
+                  高级设置
+                </button>
 
-                <div className="h-px bg-border/50 my-2"></div>
+                {showAdvancedSettings && (
+                  <>
+                    {/* Current Base URL */}
+                    {codexStatus?.config &&
+                      (() => {
+                        const parsed = codexStatus.config.match(/base_url\s*=\s*"([^"]+)"/);
+                        const currentBaseUrl = parsed ? parsed[1] : null;
+                        return currentBaseUrl ? (
+                          <div className="flex items-center gap-2">
+                            <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                              {t("current")}
+                            </span>
+                            <span className="material-symbols-outlined text-text-muted text-[14px]">
+                              arrow_forward
+                            </span>
+                            <span className="flex-1 px-2 py-1.5 text-xs text-text-muted truncate">
+                              {currentBaseUrl}
+                            </span>
+                          </div>
+                        ) : null;
+                      })()}
 
-                <div className="text-[11px] text-text-muted mb-2 font-medium uppercase tracking-wider text-right">
-                  {t("modelAliasesTitle")}
-                </div>
-                {codexMappingModels.map((defaultModel) => (
-                  <div key={defaultModel} className="flex items-center gap-2 group">
-                    <span className="w-32 shrink-0 text-[11px] font-mono text-text-main text-right truncate opacity-70 group-hover:opacity-100 transition-opacity">
-                      {defaultModel}
-                    </span>
-                    <span className="material-symbols-outlined text-border group-hover:text-primary transition-colors text-[14px]">
-                      arrow_forward
-                    </span>
-                    <button
-                      onClick={() => {
-                        setModalTarget(defaultModel);
-                        setModalOpen(true);
-                      }}
-                      disabled={!activeProviders?.length}
-                      className={`px-2 py-1.5 rounded border text-xs transition-colors shrink-0 whitespace-nowrap ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
-                    >
-                      {t("selectModel")}
-                    </button>
-                    <input
-                      type="text"
-                      value={modelMappings[defaultModel] || ""}
-                      onChange={(e) =>
-                        setModelMappings({ ...modelMappings, [defaultModel]: e.target.value })
-                      }
-                      placeholder={t("routeModelPlaceholder", { model: defaultModel })}
-                      className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    />
-                    {modelMappings[defaultModel] && (
-                      <button
-                        onClick={() => {
-                          const next = { ...modelMappings };
-                          delete next[defaultModel];
-                          setModelMappings(next);
-                        }}
-                        className="p-1 text-text-muted hover:text-red-500 rounded transition-colors"
-                        title={t("clear")}
+                    {/* Base URL */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                        {t("baseUrl")}
+                      </span>
+                      <span className="material-symbols-outlined text-text-muted text-[14px]">
+                        arrow_forward
+                      </span>
+                      <input
+                        type="text"
+                        value={getDisplayUrl()}
+                        onChange={(e) => setCustomBaseUrl(e.target.value)}
+                        placeholder={t("baseUrlPlaceholder")}
+                        className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      />
+                      {customBaseUrl &&
+                        getDisplayUrl() !==
+                          normalizeCodexBaseUrl(baseUrl, getEffectiveWireApi()) && (
+                          <button
+                            onClick={() => setCustomBaseUrl("")}
+                            className="p-1 text-text-muted hover:text-primary rounded transition-colors"
+                            title={t("resetToDefault")}
+                          >
+                            <span className="material-symbols-outlined text-[14px]">
+                              restart_alt
+                            </span>
+                          </button>
+                        )}
+                    </div>
+
+                    {/* API Key */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                        {t("apiKey")}
+                      </span>
+                      <span className="material-symbols-outlined text-text-muted text-[14px]">
+                        arrow_forward
+                      </span>
+                      {apiKeys.length > 0 ? (
+                        <select
+                          value={selectedApiKey}
+                          onChange={(e) => setSelectedApiKey(e.target.value)}
+                          className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
+                        >
+                          {apiKeys.map((key) => (
+                            <option key={key.id} value={key.id}>
+                              {key.key}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="flex-1 text-xs text-text-muted px-2 py-1.5">
+                          {cloudEnabled ? t("noApiKeysCreateOne") : t("defaultOmnirouteKey")}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-start gap-2">
+                      <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right pt-1">
+                        官方登录
+                      </span>
+                      <span className="material-symbols-outlined text-text-muted text-[14px] pt-1">
+                        arrow_forward
+                      </span>
+                      <label className="flex flex-1 items-start gap-2 text-xs text-text-muted">
+                        <input
+                          type="checkbox"
+                          checked={preserveOfficialAuth}
+                          onChange={(e) => setPreserveOfficialAuth(e.target.checked)}
+                          className="mt-0.5"
+                        />
+                        <span>
+                          切换到 AnyRoute 时保留 Codex 官方登录，不覆盖 ~/.codex/auth.json
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Reasoning Effort */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                        Reasoning Effort
+                      </span>
+                      <span className="material-symbols-outlined text-text-muted text-[14px]">
+                        arrow_forward
+                      </span>
+                      <select
+                        value={reasoningEffort}
+                        onChange={(e) => setReasoningEffort(e.target.value)}
+                        className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
                       >
-                        <span className="material-symbols-outlined text-[14px]">close</span>
-                      </button>
-                    )}
-                  </div>
-                ))}
+                        <option value="none">{t("reasoningEffortNone")}</option>
+                        <option value="low">{t("reasoningEffortLow")}</option>
+                        <option value="medium">{t("reasoningEffortMedium")}</option>
+                        <option value="high">{t("reasoningEffortHigh")}</option>
+                        <option value="xhigh">{t("reasoningEffortXHigh")}</option>
+                      </select>
+                    </div>
+
+                    {/* Wire API */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                        {t("wireApiLabel")}
+                      </span>
+                      <span className="material-symbols-outlined text-text-muted text-[14px]">
+                        arrow_forward
+                      </span>
+                      <select
+                        value={wireApi}
+                        onChange={(e) => {
+                          setWireApi(e.target.value);
+                          setWireApiTouched(true);
+                        }}
+                        className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      >
+                        <option value="chat">{t("wireApiChatCompletions")}</option>
+                        <option value="responses">{t("wireApiResponses")}</option>
+                      </select>
+                    </div>
+
+                    <div className="h-px bg-border/50 my-2"></div>
+
+                    <div className="text-[11px] text-text-muted mb-2 font-medium uppercase tracking-wider text-right">
+                      {t("modelAliasesTitle")}
+                    </div>
+                    {codexMappingModels.map((defaultModel) => (
+                      <div key={defaultModel} className="flex items-center gap-2 group">
+                        <span className="w-32 shrink-0 text-[11px] font-mono text-text-main text-right truncate opacity-70 group-hover:opacity-100 transition-opacity">
+                          {defaultModel}
+                        </span>
+                        <span className="material-symbols-outlined text-border group-hover:text-primary transition-colors text-[14px]">
+                          arrow_forward
+                        </span>
+                        <button
+                          onClick={() => {
+                            setModalTarget(defaultModel);
+                            setModalOpen(true);
+                          }}
+                          disabled={!activeProviders?.length}
+                          className={`px-2 py-1.5 rounded border text-xs transition-colors shrink-0 whitespace-nowrap ${activeProviders?.length ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
+                        >
+                          {t("selectModel")}
+                        </button>
+                        <input
+                          type="text"
+                          value={modelMappings[defaultModel] || ""}
+                          onChange={(e) =>
+                            setModelMappings({ ...modelMappings, [defaultModel]: e.target.value })
+                          }
+                          placeholder={t("routeModelPlaceholder", { model: defaultModel })}
+                          className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+                        />
+                        {modelMappings[defaultModel] && (
+                          <button
+                            onClick={() => {
+                              const next = { ...modelMappings };
+                              delete next[defaultModel];
+                              setModelMappings(next);
+                            }}
+                            className="p-1 text-text-muted hover:text-red-500 rounded transition-colors"
+                            title={t("clear")}
+                          >
+                            <span className="material-symbols-outlined text-[14px]">close</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    <div className="ml-[8.5rem] flex">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowManualConfigModal(true)}
+                      >
+                        <span className="material-symbols-outlined text-[14px] mr-1">
+                          content_copy
+                        </span>
+                        {t("manualConfig")}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
 
               {message && (
@@ -764,11 +927,11 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                   variant="primary"
                   size="sm"
                   onClick={handleApplySettings}
-                  disabled={!selectedApiKey || !selectedModel}
-                  loading={applying}
+                  disabled={!selectedModel || (cloudEnabled && apiKeys.length === 0)}
+                  loading={applying || verifying}
                 >
                   <span className="material-symbols-outlined text-[14px] mr-1">save</span>
-                  {t("apply")}
+                  {verifying ? "验证中" : t("apply")}
                 </Button>
                 <Button
                   variant="outline"
@@ -779,10 +942,6 @@ openai_base_url = "${getEffectiveBaseUrl()}"
                 >
                   <span className="material-symbols-outlined text-[14px] mr-1">restore</span>
                   {t("reset")}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>
-                  {t("manualConfig")}
                 </Button>
                 <div className="flex-1" />
                 <Button
@@ -926,7 +1085,7 @@ openai_base_url = "${getEffectiveBaseUrl()}"
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         onSelect={handleModelSelect}
-        selectedModel={selectedModel}
+        selectedModel={modalTarget ? modelMappings[modalTarget] || "" : selectedModel}
         activeProviders={activeProviders}
         availableModels={availableModels}
         modelAliases={modelAliases}

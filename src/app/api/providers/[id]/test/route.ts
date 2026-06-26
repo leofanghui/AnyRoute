@@ -1,13 +1,9 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
-import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
 import {
   getProviderConnectionById,
-  getProviderNodeById,
   updateProviderConnection,
   resolveProxyForConnection,
 } from "@/lib/localDb";
-import { getSyncedAvailableModels, getSyncedAvailableModelsForConnection } from "@/lib/db/models";
 import { validateProviderApiKey } from "@/lib/providers/validation";
 import { getCliRuntimeStatus } from "@/shared/services/cliRuntime";
 // Use the shared open-sse token refresh with built-in dedup/race-condition cache
@@ -106,73 +102,10 @@ const OAUTH_TEST_CONFIG = {
 
 import { CLI_RUNTIME_PROVIDER_MAP } from "./cliRuntimeProviderMap";
 
-/** POST body is optional; when present, only known fields are validated. */
-const providerConnectionTestBodySchema = z.object({
-  validationModelId: z.string().max(500).optional(),
-});
-
 function toSafeMessage(value: any, fallback = "Unknown error"): string {
   if (typeof value !== "string") return fallback;
   const trimmed = value.trim();
   return trimmed || fallback;
-}
-
-function toNonEmptyString(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-async function resolveConnectionValidationModelId(
-  connection: any,
-  explicitModelId?: string
-): Promise<string> {
-  const explicit = toNonEmptyString(explicitModelId);
-  if (explicit) return explicit;
-
-  const configured = toNonEmptyString(connection?.providerSpecificData?.validationModelId);
-  if (configured) return configured;
-
-  const provider = toNonEmptyString(connection?.provider);
-  const connectionId = toNonEmptyString(connection?.id);
-  if (!provider || !connectionId) return "";
-
-  try {
-    const connectionModels = await getSyncedAvailableModelsForConnection(provider, connectionId);
-    const firstConnectionModel = toNonEmptyString(connectionModels[0]?.id);
-    if (firstConnectionModel) return firstConnectionModel;
-
-    const providerModels = await getSyncedAvailableModels(provider);
-    return toNonEmptyString(providerModels[0]?.id) || "";
-  } catch {
-    return "";
-  }
-}
-
-async function buildApiKeyTestProviderSpecificData(
-  connection: any,
-  validationModelId: string
-): Promise<Record<string, unknown>> {
-  const providerSpecificData =
-    connection?.providerSpecificData && typeof connection.providerSpecificData === "object"
-      ? { ...connection.providerSpecificData }
-      : {};
-  const provider = toNonEmptyString(connection?.provider);
-  const node = provider
-    ? ((await getProviderNodeById(provider)) as Record<string, unknown> | null)
-    : null;
-
-  for (const key of ["baseUrl", "apiType", "chatPath", "modelsPath"] as const) {
-    if (!toNonEmptyString(providerSpecificData[key]) && toNonEmptyString(node?.[key])) {
-      providerSpecificData[key] = node?.[key];
-    }
-  }
-
-  if (validationModelId) {
-    providerSpecificData.validationModelId = validationModelId;
-  }
-
-  return providerSpecificData;
 }
 
 function makeDiagnosis(
@@ -658,10 +591,16 @@ async function testApiKeyConnection(connection: any) {
     };
   }
 
+  const providerSpecificData =
+    connection.providerSpecificData && typeof connection.providerSpecificData === "object"
+      ? { ...connection.providerSpecificData }
+      : {};
+  delete providerSpecificData.validationModelId;
+
   const result = await validateProviderApiKey({
     provider: connection.provider,
     apiKey: connection.apiKey,
-    providerSpecificData: connection.providerSpecificData,
+    providerSpecificData,
   });
 
   if (result.unsupported) {
@@ -712,10 +651,9 @@ async function pingBaseUrl(connection: any): Promise<number> {
 /**
  * Core test logic — reusable by test-batch without HTTP self-calls.
  * @param {string} connectionId
- * @param {string} validationModelId Optional custom model ID to test connection with
  * @returns {Promise<object>} Test result (same shape as the JSON response)
  */
-export async function testSingleConnection(connectionId: string, validationModelId?: string) {
+export async function testSingleConnection(connectionId: string) {
   const connection = await getProviderConnectionById(connectionId);
 
   if (!connection) {
@@ -757,22 +695,8 @@ export async function testSingleConnection(connectionId: string, validationModel
       diagnosis: (runtime as any).diagnosis,
     };
   } else if (connection.authType === "apikey") {
-    const resolvedValidationModelId = await resolveConnectionValidationModelId(
-      connection,
-      validationModelId
-    );
-    const providerSpecificData = await buildApiKeyTestProviderSpecificData(
-      connection,
-      resolvedValidationModelId
-    );
-    const enrichedConnection = resolvedValidationModelId
-      ? {
-          ...connection,
-          providerSpecificData,
-        }
-      : { ...connection, providerSpecificData };
     result = await runWithProxyContext(proxyInfo?.proxy || null, () =>
-      testApiKeyConnection(enrichedConnection)
+      testApiKeyConnection(connection)
     );
   } else {
     result = await runWithProxyContext(proxyInfo?.proxy || null, () =>
@@ -877,23 +801,11 @@ export async function testSingleConnection(connectionId: string, validationModel
 }
 
 // POST /api/providers/[id]/test - Test connection
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
 
-    let rawBody: unknown = {};
-    try {
-      rawBody = await request.json();
-    } catch {
-      // Empty or non-JSON body — treat as {}
-    }
-    const validation = validateBody(providerConnectionTestBodySchema, rawBody);
-    if (isValidationFailure(validation)) {
-      return NextResponse.json({ error: validation.error }, { status: 400 });
-    }
-    const { validationModelId } = validation.data;
-
-    const data = await testSingleConnection(id, validationModelId);
+    const data = await testSingleConnection(id);
 
     if (data.error === "Connection not found") {
       return NextResponse.json({ error: "Connection not found" }, { status: 404 });

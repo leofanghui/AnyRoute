@@ -15,11 +15,7 @@ import {
 } from "@/shared/utils/modelCatalogSearch";
 import { resolveManagedModelAlias } from "@/shared/utils/providerModelAliases";
 import { useNotificationStore } from "@/store/notificationStore";
-import {
-  buildCompatMap,
-  providerText,
-  type CompatModelRow,
-} from "../providerPageHelpers";
+import { buildCompatMap, providerText, type CompatModelRow } from "../providerPageHelpers";
 import { ModelVisibilityToolbar } from "./ModelRow";
 import { sortModelsFreeFirst, isFreeModel } from "@/shared/utils/freeModels";
 import PassthroughModelRow, { type PassthroughModelRowProps } from "./PassthroughModelRow";
@@ -57,10 +53,7 @@ export interface CompatibleModelsSectionProps {
   effectiveModelNormalize: (alias: string) => boolean;
   effectiveModelPreserveDeveloper: (alias: string) => boolean;
   getUpstreamHeadersRecord: (modelId: string, protocol: string) => Record<string, string>;
-  saveModelCompatFlags: (
-    modelId: string,
-    flags: CompatibleModelsSaveFlags
-  ) => Promise<void>;
+  saveModelCompatFlags: (modelId: string, flags: CompatibleModelsSaveFlags) => Promise<void>;
   compatSavingModelId?: string;
   onModelsChanged?: () => void;
   isModelHidden: (modelId: string) => boolean;
@@ -68,10 +61,12 @@ export interface CompatibleModelsSectionProps {
   onBulkToggleHidden: (modelIds: string[], hidden: boolean) => Promise<void>;
   bulkTogglePending?: boolean;
   togglingModelId?: string | null;
-  onTestModel?: (modelId: string, fullModel: string) => Promise<void>;
+  onTestModel?: (modelId: string, fullModel: string, connectionId?: string) => Promise<void>;
   modelTestStatus?: Record<string, "ok" | "error" | null>;
   testingModelId?: string | null;
-  onTestAll?: (targets: Array<{ modelId: string; fullModel: string }>) => Promise<void>;
+  onTestAll?: (
+    targets: Array<{ modelId: string; fullModel: string; connectionId?: string }>
+  ) => Promise<void>;
   testingAll?: boolean;
   testProgress?: { done: number; total: number } | null;
   autoHideFailed?: boolean;
@@ -149,6 +144,7 @@ export default function CompatibleModelsSection({
       source: string;
       isFree: boolean;
       isHidden: boolean;
+      connectionId?: string;
     }> = [];
     const seenModelIds = new Set<string>();
 
@@ -165,6 +161,9 @@ export default function CompatibleModelsSection({
         alias: aliasByModelId.get(model.id) || null,
         displayName: model.name || model.id,
         source,
+        connectionId:
+          model.connectionId ||
+          (Array.isArray(model.connectionIds) ? model.connectionIds[0] : undefined),
         isFree:
           Boolean((model as any).free) ||
           model.id.endsWith(":free") ||
@@ -419,6 +418,7 @@ export default function CompatibleModelsSection({
                 .map((m) => ({
                   modelId: m.modelId,
                   fullModel: `${providerDisplayAlias}/${m.modelId}`,
+                  connectionId: m.connectionId,
                 }));
               return onTestAll?.(targets);
             }}
@@ -428,7 +428,7 @@ export default function CompatibleModelsSection({
             onAutoHideFailedChange={onAutoHideFailedChange}
           />
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            {displayModels.map(({ modelId, alias, isHidden, source, isFree }) => {
+            {displayModels.map(({ modelId, alias, isHidden, source, isFree, connectionId }) => {
               const fullModel = `${providerDisplayAlias}/${modelId}`;
               return (
                 <PassthroughModelRow
@@ -457,6 +457,7 @@ export default function CompatibleModelsSection({
                   onToggleHidden={onToggleHidden}
                   togglingHidden={togglingModelId === modelId}
                   onTestModel={onTestModel}
+                  testConnectionId={connectionId}
                   testStatus={modelTestStatus?.[modelId] || null}
                   testingModel={testingModelId === modelId}
                 />

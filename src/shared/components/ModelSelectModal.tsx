@@ -41,6 +41,16 @@ type ModelSelectModalProps = {
     modelId?: string;
     name?: string;
     source?: string;
+    poolId?: string;
+    poolFamily?: string;
+    poolFamilyLabel?: string;
+    poolDisplayName?: string;
+    sourceCount?: number;
+    sources?: unknown[];
+    verificationStatus?: "ok" | "partial" | "error";
+    verificationCheckedAt?: string;
+    verificationMessage?: string;
+    capabilities?: Record<string, boolean>;
   }>;
   title?: string;
   modelAliases?: Record<string, string>;
@@ -57,6 +67,43 @@ function getActiveProviderPrefix(provider: {
 }) {
   const prefix = provider.providerSpecificData?.prefix;
   return typeof prefix === "string" && prefix.trim() ? prefix.trim() : null;
+}
+
+function getVerificationLabel(status: unknown) {
+  if (status === "ok") return "可用";
+  if (status === "partial") return "部分可用";
+  if (status === "error") return "不可用";
+  return "";
+}
+
+function buildModelPoolTitle(model: any) {
+  const lines: string[] = [];
+  if (Array.isArray(model.sources) && model.sources.length > 0) {
+    lines.push("来源：");
+    for (const source of model.sources.slice(0, 8)) {
+      const record = source && typeof source === "object" ? (source as Record<string, any>) : {};
+      const sourceName = record.connectionName || record.alias || record.provider || "未知来源";
+      const modelId = record.modelId || record.value || "";
+      lines.push(`- ${sourceName}${modelId ? ` / ${modelId}` : ""}`);
+    }
+    if (model.sources.length > 8) lines.push(`- 另有 ${model.sources.length - 8} 个来源`);
+  }
+  const statusLabel = getVerificationLabel(model.verificationStatus);
+  if (statusLabel) {
+    lines.push(`最近验证：${statusLabel}`);
+    if (model.verificationMessage) lines.push(String(model.verificationMessage));
+  }
+  if (model.capabilities && typeof model.capabilities === "object") {
+    const capabilities = [
+      model.capabilities.openaiChat ? "Chat" : "",
+      model.capabilities.openaiResponses ? "Responses" : "",
+      model.capabilities.claudeMessages ? "Claude Messages" : "",
+      model.capabilities.streaming ? "Stream" : "",
+      model.capabilities.tools ? "Tools" : "",
+    ].filter(Boolean);
+    if (capabilities.length > 0) lines.push(`能力：${capabilities.join(" / ")}`);
+  }
+  return lines.join("\n") || undefined;
 }
 
 export default function ModelSelectModal({
@@ -145,6 +192,78 @@ export default function ModelSelectModal({
   // Group models by provider with priority order
   const groupedModels = useMemo(() => {
     const groups: Record<string, any> = {};
+    const selectedValues = (multiSelect ? selectedModels : selectedModel ? [selectedModel] : [])
+      .filter((value) => typeof value === "string" && value.trim())
+      .map((value) => value.trim());
+    const addCurrentConfigModels = () => {
+      if (selectedValues.length === 0) return;
+      const knownValues = new Set<string>();
+      Object.values(groups).forEach((group: any) => {
+        for (const model of group.models || []) {
+          if (typeof model.value === "string") knownValues.add(model.value);
+        }
+      });
+      const missingValues = selectedValues.filter((value) => !knownValues.has(value));
+      if (missingValues.length === 0) return;
+      groups["current-config"] = {
+        name: "当前配置",
+        alias: "当前配置",
+        color: "#64748B",
+        models: missingValues.map((value) => ({
+          id: `current:${value}`,
+          name: value,
+          value,
+          source: "custom",
+        })),
+      };
+    };
+    const modelPoolEntries = availableModels.filter((model) => model.source === "model-pool");
+
+    if (modelPoolEntries.length > 0) {
+      const familyColors: Record<string, string> = {
+        claude: "#D97757",
+        gpt: "#10A37F",
+        deepseek: "#4F46E5",
+        qwen: "#2563EB",
+        kimi: "#7C3AED",
+        glm: "#0891B2",
+        other: "#64748B",
+      };
+
+      for (const model of modelPoolEntries) {
+        const family = model.poolFamily || "other";
+        const groupId = `model-pool:${family}`;
+        if (!groups[groupId]) {
+          groups[groupId] = {
+            name: model.poolFamilyLabel || family,
+            alias: model.poolFamilyLabel || family,
+            color: familyColors[family] || familyColors.other,
+            models: [],
+            isModelPool: true,
+          };
+        }
+        groups[groupId].models.push({
+          id: model.poolId || model.value,
+          name: model.label || model.poolDisplayName || model.name || model.value,
+          value: model.value,
+          source: model.source,
+          provider: model.provider,
+          alias: model.alias,
+          connectionId: model.connectionId,
+          connectionName: model.connectionName,
+          modelId: model.modelId,
+          sourceCount: model.sourceCount,
+          sources: model.sources,
+          verificationStatus: model.verificationStatus,
+          verificationCheckedAt: model.verificationCheckedAt,
+          verificationMessage: model.verificationMessage,
+          capabilities: model.capabilities,
+        });
+      }
+
+      addCurrentConfigModels();
+      return groups;
+    }
 
     // Get all active provider IDs from connections
     const activeConnectionIds = activeProviders.map((p) => p.provider);
@@ -337,6 +456,7 @@ export default function ModelSelectModal({
       }
     });
 
+    addCurrentConfigModels();
     return groups;
   }, [
     activeProviders,
@@ -346,6 +466,9 @@ export default function ModelSelectModal({
     providerNodes,
     customModels,
     availableModels,
+    multiSelect,
+    selectedModel,
+    selectedModels,
   ]);
 
   // Filter combos by search query
@@ -570,10 +693,12 @@ export default function ModelSelectModal({
               {group.models.map((model) => {
                 const isSelected = isValueSelected(model.value);
                 const isAdded = addedModelValues.includes(model.value);
+                const verificationLabel = getVerificationLabel(model.verificationStatus);
                 return (
                   <button
                     key={model.id}
                     onClick={() => handleSelect(model)}
+                    title={group.isModelPool ? buildModelPoolTitle(model) : undefined}
                     className={`
                       px-2 py-1 rounded-xl text-xs font-medium transition-all border hover:cursor-pointer
                       ${
@@ -587,7 +712,10 @@ export default function ModelSelectModal({
                   >
                     {isAdded && <span className="mr-0.5 opacity-70">✓</span>}
                     {model.name}
-                    {model.source && (
+                    {verificationLabel && (
+                      <span className="ml-1 text-[10px] opacity-70">{verificationLabel}</span>
+                    )}
+                    {model.source && model.source !== "model-pool" && (
                       <span className="ml-1 text-[10px] uppercase opacity-70">
                         {getModelCatalogSourceLabel(model.source)}
                       </span>

@@ -53,6 +53,7 @@ import {
   WEB_COOKIE_PROVIDERS,
 } from "@/shared/constants/providers";
 import { isModelExcludedByConnection } from "@/domain/connectionModelRules";
+import { filterConnectionsByKnownModelSupport } from "@/sse/services/connectionModelSupport";
 import { isNoAuthProviderBlockedBySettings } from "./noAuthProviderSettings";
 import * as log from "../utils/logger";
 import { fisherYatesShuffle, getNextFromDeckSync } from "@/shared/utils/shuffleDeck";
@@ -178,6 +179,63 @@ function toProviderConnection(value: unknown): ProviderConnectionView {
     maxConcurrent: toNullableNumber(row.maxConcurrent),
     quotaWindowThresholds,
   };
+}
+
+function isCompatibleProvider(provider: string): boolean {
+  return provider.startsWith("openai-compatible-") || provider.startsWith("anthropic-compatible-");
+}
+
+function providerNodeData(node: JsonRecord): JsonRecord {
+  const data: JsonRecord = {};
+  if (typeof node.baseUrl === "string" && node.baseUrl.trim()) data.baseUrl = node.baseUrl;
+  if (typeof node.apiType === "string" && node.apiType.trim()) data.apiType = node.apiType;
+  if (typeof node.chatPath === "string" && node.chatPath.trim()) data.chatPath = node.chatPath;
+  if (typeof node.modelsPath === "string" && node.modelsPath.trim()) {
+    data.modelsPath = node.modelsPath;
+  }
+  if (node.customHeaders && typeof node.customHeaders === "object") {
+    data.customHeaders = node.customHeaders;
+  }
+  return data;
+}
+
+export function mergeCompatibleProviderNodeData<T extends { providerSpecificData?: JsonRecord }>(
+  connection: T,
+  node: JsonRecord
+): T {
+  return {
+    ...connection,
+    providerSpecificData: {
+      ...providerNodeData(node),
+      ...(connection.providerSpecificData || {}),
+    },
+  };
+}
+
+async function hydrateCompatibleProviderNodeData<T extends ProviderConnectionView>(
+  connections: T[]
+): Promise<T[]> {
+  if (!connections.some((connection) => isCompatibleProvider(connection.provider))) {
+    return connections;
+  }
+
+  try {
+    const nodes = await getProviderNodes();
+    const nodeById = new Map(
+      (Array.isArray(nodes) ? nodes : [])
+        .map((node) => asRecord(node))
+        .filter((node) => typeof node.id === "string")
+        .map((node) => [node.id as string, node])
+    );
+
+    return connections.map((connection) => {
+      const node = nodeById.get(connection.provider);
+      if (!node) return connection;
+      return mergeCompatibleProviderNodeData(connection, node);
+    });
+  } catch {
+    return connections;
+  }
 }
 
 function toBooleanOrDefault(value: unknown, fallback: boolean): boolean {
@@ -999,12 +1057,21 @@ export async function getProviderCredentials(
     let connections = (Array.isArray(connectionsRaw) ? connectionsRaw : [])
       .map(toProviderConnection)
       .filter((conn) => conn.id.length > 0);
+    connections = await hydrateCompatibleProviderNodeData(connections);
     // allowedConnections: restrict to specific connection IDs (from API key policy, #363)
     if (allowedConnections && allowedConnections.length > 0) {
       connections = connections.filter((conn) => allowedConnections.includes(conn.id));
     }
     if (forcedConnectionId) {
       connections = connections.filter((conn) => conn.id === forcedConnectionId);
+    }
+    const beforeModelSupportFilter = connections.length;
+    connections = await filterConnectionsByKnownModelSupport(provider, connections, requestedModel);
+    if (connections.length !== beforeModelSupportFilter) {
+      log.debug(
+        "AUTH",
+        `${provider} | known model support filtered ${beforeModelSupportFilter} → ${connections.length} for ${requestedModel}`
+      );
     }
     log.debug(
       "AUTH",
@@ -1022,6 +1089,7 @@ export async function getProviderCredentials(
       let allConnections = (allConnectionsResults.filter(Array.isArray).flat() as unknown[])
         .map(toProviderConnection)
         .filter((conn) => conn.id.length > 0);
+      allConnections = await hydrateCompatibleProviderNodeData(allConnections);
       if (allowedConnections && allowedConnections.length > 0) {
         allConnections = allConnections.filter((conn) => allowedConnections.includes(conn.id));
       }

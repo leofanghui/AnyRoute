@@ -1,0 +1,132 @@
+
+> omniroute@3.8.29 dev
+> node scripts/dev/run-next.mjs dev
+
+[MDX] generated files in 20.898499999999785ms
+○ Compiling /instrumentation ...
+[STARTUP] Global fetch proxy patch initialized
+[DB] SQLite database ready: C:\Users\Administrator\AppData\Roaming\omniroute\storage.sqlite (DATA_DIR=C:\Users\Administrator\AppData\Roaming\omniroute, SQLITE_FILE=C:\Users\Administrator\AppData\Roaming\omniroute\storage.sqlite)
+[CREDENTIALS] No external credentials file found, using defaults.
+[HealthCheck] Starting proactive token health-check (tick every 60s)
+[Shutdown] Graceful shutdown handlers registered.
+[STARTUP] Spend batch writer started
+[STARTUP] Guardrail registry initialized
+[STARTUP] Runtime settings hydrated: payloadRules, modelAliases, backgroundDegradation, cliCompatProviders, cacheControl, usageTracking, healthCheckLogs, thoughtSignature, modelsDevSync, corsOrigins, ccBridgeTransforms, systemTransforms, authzBypass, bannedSignals
+[STARTUP] Model alias seed: applied=0, skipped=9, failed=0
+[HOT_RELOAD] Runtime config hot-reload started (poll=5000ms, fsWatch=on)
+[COMPLIANCE] Audit log table initialized
+[Next] dev server listening on http://0.0.0.0:20129 (webpack)
+[proxyLogger] Loaded 50 proxy logs from SQLite
+[SSE] Translators initialized
+ GET /v1/models 200 in 14.7s (next.js: 14.0s, proxy.ts: 597ms, application-code: 87ms)
+ POST /v1/chat/completions 501 in 14.7s (next.js: 14.0s, proxy.ts: 600ms, application-code: 95ms)
+[19:41:28.872] [32mINFO[39m: [36m[sse] 📥 POST /v1/chat/completions | gemini/gemini-pro | 1 msgs[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "HTTP"
+    [35mmethod[39m: "POST"
+    [35mpath[39m: "/v1/chat/completions | gemini/gemini-pro | 1 msgs"
+[19:41:28.872] [34mDEBUG[39m: [36m[sse] No API key provided (local mode)[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "AUTH"
+[19:41:28.874] [34mDEBUG[39m: [36m[sse] vision-bridge pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:41:28.875] [34mDEBUG[39m: [36m[sse] pii-masker pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:41:28.875] [34mDEBUG[39m: [36m[sse] prompt-injection pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:41:28.879] [33mWARN[39m: [36m[sse] Provider 'gemini' is disabled while OMNIROUTE_PROFILE=lean. Configure an OpenAI-compatible or Anthropic provider instead.[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "CHAT"
+    [35mmodel[39m: "gemini/gemini-pro"
+    [35mprovider[39m: "gemini"
+[proxyLogger] Loaded 50 proxy logs from SQLite
+[SSE] Translators initialized
+ GET /v1/models 200 in 5.3s (next.js: 4.7s, proxy.ts: 493ms, application-code: 102ms)
+ POST /v1/chat/completions 501 in 5.3s (next.js: 4.7s, proxy.ts: 499ms, application-code: 109ms)
+[19:43:48.329] [32mINFO[39m: [36m[sse] 📥 POST /v1/chat/completions | gemini/gemini-pro | 1 msgs[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "HTTP"
+    [35mmethod[39m: "POST"
+    [35mpath[39m: "/v1/chat/completions | gemini/gemini-pro | 1 msgs"
+[19:43:48.329] [34mDEBUG[39m: [36m[sse] No API key provided (local mode)[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "AUTH"
+[19:43:48.331] [34mDEBUG[39m: [36m[sse] vision-bridge pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:43:48.332] [34mDEBUG[39m: [36m[sse] pii-masker pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:43:48.332] [34mDEBUG[39m: [36m[sse] prompt-injection pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:43:48.336] [33mWARN[39m: [36m[sse] Provider 'gemini' is disabled while OMNIROUTE_PROFILE=lean. Configure an OpenAI-compatible or Anthropic provider instead.[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "CHAT"
+    [35mmodel[39m: "gemini/gemini-pro"
+    [35mprovider[39m: "gemini"
+ POST /v1/chat/completions 501 in 38ms (next.js: 9ms, proxy.ts: 20ms, application-code: 9ms)
+[19:44:05.683] [32mINFO[39m: [36m[sse] 📥 POST /v1/chat/completions | auto | 1 msgs[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "HTTP"
+    [35mmethod[39m: "POST"
+    [35mpath[39m: "/v1/chat/completions | auto | 1 msgs"
+[19:44:05.683] [34mDEBUG[39m: [36m[sse] No API key provided (local mode)[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "AUTH"
+[19:44:05.684] [34mDEBUG[39m: [36m[sse] vision-bridge pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:44:05.685] [34mDEBUG[39m: [36m[sse] pii-masker pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:44:05.685] [34mDEBUG[39m: [36m[sse] prompt-injection pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[proxyLogger] Loaded 50 proxy logs from SQLite
+[SSE] Translators initialized
+ POST /v1/chat/completions 501 in 9.1s (next.js: 9.0s, proxy.ts: 26ms, application-code: 37ms)
+[19:47:20.258] [32mINFO[39m: [36m[sse] 📥 POST /v1/chat/completions | auto | 1 msgs[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "HTTP"
+    [35mmethod[39m: "POST"
+    [35mpath[39m: "/v1/chat/completions | auto | 1 msgs"
+[19:47:20.258] [34mDEBUG[39m: [36m[sse] No API key provided (local mode)[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "AUTH"
+[19:47:20.261] [34mDEBUG[39m: [36m[sse] vision-bridge pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:47:20.261] [34mDEBUG[39m: [36m[sse] pii-masker pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:47:20.262] [34mDEBUG[39m: [36m[sse] prompt-injection pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+ POST /v1/chat/completions 501 in 971ms (next.js: 5ms, proxy.ts: 958ms, application-code: 9ms)
+[19:47:20.294] [32mINFO[39m: [36m[sse] 📥 POST /v1/chat/completions | gemini/gemini-pro | 1 msgs[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "HTTP"
+    [35mmethod[39m: "POST"
+    [35mpath[39m: "/v1/chat/completions | gemini/gemini-pro | 1 msgs"
+[19:47:20.294] [34mDEBUG[39m: [36m[sse] No API key provided (local mode)[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "AUTH"
+[19:47:20.296] [34mDEBUG[39m: [36m[sse] vision-bridge pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:47:20.296] [34mDEBUG[39m: [36m[sse] pii-masker pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:47:20.296] [34mDEBUG[39m: [36m[sse] prompt-injection pre-call passed[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "GUARDRAIL"
+[19:47:20.299] [33mWARN[39m: [36m[sse] Provider 'gemini' is disabled while OMNIROUTE_PROFILE=lean. Configure an OpenAI-compatible or Anthropic provider instead.[39m
+    [35mmodule[39m: "sse"
+    [35mtag[39m: "CHAT"
+    [35mmodel[39m: "gemini/gemini-pro"
+    [35mprovider[39m: "gemini"
+  Reload env: .env

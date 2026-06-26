@@ -4,7 +4,7 @@ import {
   createProviderNodeSchema,
   createProviderSchema,
   validateProviderApiKeySchema,
-} from "@/shared/validation/schemas";
+} from "@/shared/validation/schemas/provider";
 
 export type OnboardingConnection = {
   id: string;
@@ -25,12 +25,21 @@ export type OnboardingTestResult = {
   [key: string]: unknown;
 };
 
+export type OnboardingModelPoolVerificationResult = {
+  verified?: number;
+  passed?: number;
+  partial?: number;
+  failed?: number;
+  [key: string]: unknown;
+};
+
 export type CompatibleNodeMode = "openai" | "anthropic" | "cc";
 
 export type CompatibleProviderNode = {
   id: string;
   name?: string;
   baseUrl?: string;
+  detected?: Record<string, unknown>;
   [key: string]: unknown;
 };
 
@@ -44,6 +53,15 @@ export type CreateCompatibleProviderNodeInput = {
   prefix: string;
   baseUrl: string;
   apiType?: string;
+  chatPath?: string;
+  modelsPath?: string;
+};
+
+export type AutoCompatibleProviderInput = {
+  baseUrl: string;
+  apiKey: string;
+  name?: string;
+  prefix?: string;
   chatPath?: string;
   modelsPath?: string;
 };
@@ -68,6 +86,15 @@ const compatibleProviderNodeInputSchema = z.object({
   modelsPath: z.string().trim().optional(),
 });
 
+const autoCompatibleProviderInputSchema = z.object({
+  baseUrl: z.string().trim().min(1, "Base URL is required"),
+  apiKey: z.string().trim().min(1, "API key is required"),
+  name: z.string().trim().optional(),
+  prefix: z.string().trim().optional(),
+  chatPath: z.string().trim().optional(),
+  modelsPath: z.string().trim().optional(),
+});
+
 const providerNodesResponseSchema = z
   .object({
     ccCompatibleProviderEnabled: z.boolean().optional(),
@@ -87,6 +114,11 @@ async function parseJson(response: Response): Promise<Record<string, unknown>> {
 }
 
 function extractError(data: Record<string, unknown>, fallback: string): string {
+  const diagnosis = data.diagnosis;
+  if (diagnosis && typeof diagnosis === "object" && "message" in diagnosis) {
+    const message = (diagnosis as { message?: unknown }).message;
+    if (typeof message === "string") return message;
+  }
   const error = data.error;
   if (typeof error === "string") return error;
   if (error && typeof error === "object" && "message" in error) {
@@ -104,6 +136,28 @@ function formatZodError(error: z.ZodError): string {
       return `${path}${issue.message}`;
     })
     .join("; ");
+}
+
+function slugifyPrefix(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+function inferNameFromBaseUrl(baseUrl: string) {
+  try {
+    return new URL(baseUrl).hostname.replace(/^api\./, "") || "Custom Gateway";
+  } catch {
+    return "Custom Gateway";
+  }
+}
+
+function inferPrefixFromBaseUrl(baseUrl: string) {
+  const source = inferNameFromBaseUrl(baseUrl);
+  return slugifyPrefix(source) || `gateway-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function parseOrThrow<T>(schema: z.ZodType<T>, value: unknown, fallback: string): T {
@@ -201,6 +255,20 @@ export async function testOnboardingConnection(
   return expectOk<OnboardingTestResult>(response, "Failed to test provider connection");
 }
 
+export async function verifyOnboardingModelPoolConnection(
+  connectionId: string
+): Promise<OnboardingModelPoolVerificationResult> {
+  const response = await fetch("/api/model-pool/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ connectionId }),
+  });
+  return expectOk<OnboardingModelPoolVerificationResult>(
+    response,
+    "Failed to verify model pool models"
+  );
+}
+
 export function buildCompatibleNodeRequest(input: CreateCompatibleProviderNodeInput) {
   const sanitizedInput = parseOrThrow(
     compatibleProviderNodeInputSchema,
@@ -258,4 +326,74 @@ export async function createCompatibleProviderNode(
     throw new Error("Compatible provider was created without an id");
   }
   return data.node;
+}
+
+export async function validateCompatibleProviderAuto(input: AutoCompatibleProviderInput) {
+  const payload = parseOrThrow(
+    autoCompatibleProviderInputSchema,
+    input,
+    "Compatible provider data is invalid"
+  );
+  const response = await fetch("/api/provider-nodes/validate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      baseUrl: payload.baseUrl,
+      apiKey: payload.apiKey,
+      chatPath: payload.chatPath || undefined,
+      modelsPath: payload.modelsPath || undefined,
+    }),
+  });
+  const data = await expectOk<Record<string, unknown>>(
+    response,
+    "Failed to auto-detect compatible provider"
+  );
+  if (data.valid === false) {
+    throw new Error(extractError(data, "Compatible provider auto-detect failed"));
+  }
+  return data;
+}
+
+export async function createCompatibleProviderNodeAuto(
+  input: AutoCompatibleProviderInput
+): Promise<CompatibleProviderNode> {
+  const payload = parseOrThrow(
+    autoCompatibleProviderInputSchema,
+    input,
+    "Compatible provider data is invalid"
+  );
+  const detected = await validateCompatibleProviderAuto(payload);
+  return createCompatibleProviderNodeFromDetection(payload, detected);
+}
+
+export async function createCompatibleProviderNodeFromDetection(
+  input: AutoCompatibleProviderInput,
+  detected: Record<string, unknown>
+): Promise<CompatibleProviderNode> {
+  const payload = parseOrThrow(
+    autoCompatibleProviderInputSchema,
+    input,
+    "Compatible provider data is invalid"
+  );
+  const detectedType =
+    typeof detected.detectedType === "string" ? detected.detectedType : "openai-compatible";
+  const mode: CompatibleNodeMode =
+    detectedType === "claude-code-compatible"
+      ? "cc"
+      : detectedType === "anthropic-compatible"
+        ? "anthropic"
+        : "openai";
+  const baseUrl =
+    typeof detected.baseUrl === "string" && detected.baseUrl ? detected.baseUrl : payload.baseUrl;
+
+  const node = await createCompatibleProviderNode({
+    mode,
+    name: payload.name || inferNameFromBaseUrl(baseUrl),
+    prefix: payload.prefix || inferPrefixFromBaseUrl(baseUrl),
+    baseUrl,
+    apiType: typeof detected.apiType === "string" ? detected.apiType : "chat",
+    chatPath: payload.chatPath || "",
+    modelsPath: payload.modelsPath || "",
+  });
+  return { ...node, detected };
 }

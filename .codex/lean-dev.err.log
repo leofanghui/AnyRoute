@@ -1,0 +1,815 @@
+[bootstrap] ℹ️  The following OAuth integrations are not configured:
+[bootstrap]    • Antigravity OAuth (ANTIGRAVITY_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Qoder OAuth (QODER_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Gemini OAuth (GEMINI_CLI_OAUTH_CLIENT_SECRET or GEMINI_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    These providers will not work until configured.
+[bootstrap] ⚠️  INITIAL_PASSWORD is not set — using default 'CHANGEME'. Change it in Settings!
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/handlers/chatCore.ts
+./src/sse/handlers/chatHelpers.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/app/api/v1/models/catalog.ts
+./src/app/api/v1/models/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/handlers/chatCore.ts
+./src/sse/handlers/chatHelpers.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/app/api/v1/models/catalog.ts
+./src/app/api/v1/models/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/app/api/v1/models/catalog.ts
+./src/app/api/v1/models/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/handlers/chatCore.ts
+./src/sse/handlers/chatHelpers.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/app/api/v1/models/catalog.ts
+./src/app/api/v1/models/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/handlers/chatCore.ts
+./src/sse/handlers/chatHelpers.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/app/api/v1/models/catalog.ts
+./src/app/api/v1/models/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/handlers/chatCore.ts
+./src/sse/handlers/chatHelpers.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/app/api/v1/models/catalog.ts
+./src/app/api/v1/models/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/handlers/chatCore.ts
+./src/sse/handlers/chatHelpers.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./src/lib/usage/providerLimits.ts
+./src/shared/services/providerLimitsSyncScheduler.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/lib/images/imageRouteModel.ts
+./src/app/api/v1/images/generations/route.ts
+./src/lib/batches/dispatch.ts
+./open-sse/services/batchProcessor.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/handlers/chatCore.ts
+./src/sse/handlers/chatHelpers.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/services/combo.ts
+./src/sse/handlers/chat.ts
+./src/app/api/v1/chat/completions/route.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/index.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/handlers/chatCore.ts
+./open-sse/index.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/index.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/handlers/chatCore.ts
+./open-sse/index.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/index.ts
+./src/instrumentation-node.ts
+
+./open-sse/services/compression/engines/llmlingua/worker.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/compression/engines/llmlingua/worker.ts
+./open-sse/services/compression/engines/llmlingua/index.ts
+./open-sse/services/compression/engines/index.ts
+./open-sse/services/compression/strategySelector.ts
+./open-sse/handlers/chatCore.ts
+./open-sse/index.ts
+./src/instrumentation-node.ts
+⚠ ./open-sse/services/browserPool.ts
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+./open-sse/services/browserPool.ts
+./open-sse/services/browserBackedChat.ts
+./open-sse/executors/duckduckgo-web.ts
+./open-sse/executors/index.ts
+./open-sse/index.ts
+./src/instrumentation-node.ts

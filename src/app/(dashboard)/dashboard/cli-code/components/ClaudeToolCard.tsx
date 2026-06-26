@@ -31,6 +31,7 @@ export default function ClaudeToolCard({
   const [claudeStatus, setClaudeStatus] = useState(null);
   const [checkingClaude, setCheckingClaude] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [message, setMessage] = useState(null);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
@@ -39,6 +40,7 @@ export default function ClaudeToolCard({
   const [selectedApiKey, setSelectedApiKey] = useState("");
   const [modelAliases, setModelAliases] = useState({});
   const [showManualConfigModal, setShowManualConfigModal] = useState(false);
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [customBaseUrl, setCustomBaseUrl] = useState("");
   const hasInitializedModels = useRef(false);
   // Backups state
@@ -46,6 +48,18 @@ export default function ClaudeToolCard({
   const [showBackups, setShowBackups] = useState(false);
   const [restoringBackup, setRestoringBackup] = useState(null);
   const cliReady = !!(claudeStatus?.installed && claudeStatus?.runnable);
+
+  const getModelDisplayLabel = (value) => {
+    if (!value) return "";
+    const model = (availableModels || []).find((item) => item?.value === value);
+    return model?.label || model?.name || value;
+  };
+
+  const getModelConnectionId = (value) => {
+    if (!value) return "";
+    const model = (availableModels || []).find((item) => item?.value === value);
+    return typeof model?.connectionId === "string" ? model.connectionId : "";
+  };
 
   const getConfigStatus = () => {
     if (!cliReady) return null;
@@ -137,6 +151,83 @@ export default function ClaudeToolCard({
     return normalizeClaudeBaseUrl(url);
   };
 
+  const getDefaultFlowModels = () => {
+    const models = (tool.defaultModels || [])
+      .filter((model) => model.isTopLevel)
+      .map((model) => modelMappings[model.alias] || model.defaultValue || "")
+      .filter(Boolean);
+    return [...new Set(models)];
+  };
+
+  const verifyCurrentConfig = async () => {
+    const models = getDefaultFlowModels();
+    if (models.length === 0) return null;
+
+    setVerifying(true);
+    try {
+      const modelConnections = Object.fromEntries(
+        models
+          .map((model) => [model, getModelConnectionId(model)])
+          .filter(([, connectionId]) => Boolean(connectionId))
+      );
+      const res = await fetch("/api/cli-tools/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tool: "claude",
+          models,
+          ...(Object.keys(modelConnections).length > 0 ? { modelConnections } : {}),
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      const results = Array.isArray(data?.results) ? data.results : [data].filter(Boolean);
+
+      const failed = results.filter((result) => result?.status === "error" || result?.ok === false);
+      if (failed.length > 0) {
+        return {
+          ok: false,
+          error: failed
+            .map(
+              (result) =>
+                `${result.model}: ${
+                  result?.diagnosis?.message ||
+                  result?.probes?.claude?.error ||
+                  result.error ||
+                  "验证失败"
+                }`
+            )
+            .join("；"),
+        };
+      }
+
+      if (!res.ok || (data?.status !== "ok" && data?.status !== "partial")) {
+        return {
+          ok: false,
+          error: data?.diagnosis?.message || data?.error || "Claude 链路验证失败",
+        };
+      }
+
+      const partial = results.find((result) => result?.status === "partial" || result?.partial);
+      if (partial) {
+        return {
+          ok: true,
+          partial: true,
+          error: `${partial.model}: ${
+            partial?.diagnosis?.message ||
+            partial?.probes?.claude_stream?.error ||
+            partial?.probes?.claude_tools?.error ||
+            partial.error ||
+            "部分能力未通过验证。"
+          }`,
+        };
+      }
+
+      return { ok: true, partial: false, error: "" };
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const handleApplySettings = async () => {
     setApplying(true);
     setMessage(null);
@@ -169,6 +260,20 @@ export default function ClaudeToolCard({
           hasBackup: true,
           settings: { ...prev?.settings, env },
         }));
+        const verification = await verifyCurrentConfig();
+        if (verification?.ok && verification.partial) {
+          setMessage({
+            type: "success",
+            text: `配置已写入，Claude 基础链路可用；部分能力需注意：${verification.error}`,
+          });
+        } else if (verification?.ok) {
+          setMessage({ type: "success", text: "配置已写入，Claude 链路验证通过。" });
+        } else if (verification) {
+          setMessage({
+            type: "error",
+            text: `配置已写入，但 Claude 链路验证失败：${verification.error}`,
+          });
+        }
       } else {
         setMessage({
           type: "error",
@@ -219,6 +324,9 @@ export default function ClaudeToolCard({
   const handleModelSelect = (model) => {
     if (currentEditingAlias) onModelMappingChange(currentEditingAlias, model.value);
   };
+
+  const primaryModelRows = (tool.defaultModels || []).filter((model) => model.isTopLevel);
+  const advancedModelRows = (tool.defaultModels || []).filter((model) => !model.isTopLevel);
 
   // Generate settings.json content for manual copy
   const getManualConfigs = () => {
@@ -371,76 +479,8 @@ export default function ClaudeToolCard({
           {!checkingClaude && cliReady && (
             <>
               <div className="flex flex-col gap-2">
-                {/* Current Base URL */}
-                {claudeStatus?.settings?.env?.ANTHROPIC_BASE_URL && (
-                  <div className="flex items-center gap-2">
-                    <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                      {t("current")}
-                    </span>
-                    <span className="material-symbols-outlined text-text-muted text-[14px]">
-                      arrow_forward
-                    </span>
-                    <span className="flex-1 px-2 py-1.5 text-xs text-text-muted truncate">
-                      {claudeStatus.settings.env.ANTHROPIC_BASE_URL}
-                    </span>
-                  </div>
-                )}
-
-                {/* Base URL */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                    {t("baseUrl")}
-                  </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">
-                    arrow_forward
-                  </span>
-                  <input
-                    type="text"
-                    value={getDisplayUrl()}
-                    onChange={(e) => setCustomBaseUrl(e.target.value)}
-                    placeholder={t("baseUrlPlaceholder")}
-                    className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-                  />
-                  {customBaseUrl && customBaseUrl !== baseUrl && (
-                    <button
-                      onClick={() => setCustomBaseUrl("")}
-                      className="p-1 text-text-muted hover:text-primary rounded transition-colors"
-                      title={t("resetToDefault")}
-                    >
-                      <span className="material-symbols-outlined text-[14px]">restart_alt</span>
-                    </button>
-                  )}
-                </div>
-
-                {/* API Key */}
-                <div className="flex items-center gap-2">
-                  <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
-                    {t("apiKey")}
-                  </span>
-                  <span className="material-symbols-outlined text-text-muted text-[14px]">
-                    arrow_forward
-                  </span>
-                  {apiKeys.length > 0 ? (
-                    <select
-                      value={selectedApiKey}
-                      onChange={(e) => setSelectedApiKey(e.target.value)}
-                      className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    >
-                      {apiKeys.map((key) => (
-                        <option key={key.id} value={key.id}>
-                          {key.key}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <span className="flex-1 text-xs text-text-muted px-2 py-1.5">
-                      {cloudEnabled ? t("noApiKeysCreateOne") : t("noApiKeysAvailable")}
-                    </span>
-                  )}
-                </div>
-
                 {/* Model Mappings */}
-                {tool.defaultModels.map((model) => (
+                {primaryModelRows.map((model) => (
                   <div key={model.alias} className="flex items-center gap-2">
                     <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
                       {model.name}
@@ -455,13 +495,12 @@ export default function ClaudeToolCard({
                     >
                       {t("selectModel")}
                     </button>
-                    <input
-                      type="text"
-                      value={modelMappings[model.alias] || ""}
-                      onChange={(e) => onModelMappingChange(model.alias, e.target.value)}
-                      placeholder={t("providerModelPlaceholder")}
-                      className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
-                    />
+                    <span
+                      className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs text-text-main truncate"
+                      title={getModelDisplayLabel(modelMappings[model.alias])}
+                    >
+                      {getModelDisplayLabel(modelMappings[model.alias]) || t("selectModel")}
+                    </span>
                     {modelMappings[model.alias] && (
                       <button
                         onClick={() => onModelMappingChange(model.alias, "")}
@@ -473,6 +512,139 @@ export default function ClaudeToolCard({
                     )}
                   </div>
                 ))}
+
+                <button
+                  type="button"
+                  className="ml-[8.5rem] flex items-center gap-1 text-xs text-text-muted hover:text-text-main"
+                  onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+                  aria-expanded={showAdvancedSettings}
+                >
+                  <span
+                    className={`material-symbols-outlined text-[14px] transition-transform ${showAdvancedSettings ? "rotate-90" : ""}`}
+                  >
+                    chevron_right
+                  </span>
+                  高级设置
+                </button>
+
+                {showAdvancedSettings && (
+                  <>
+                    {/* Current Base URL */}
+                    {claudeStatus?.settings?.env?.ANTHROPIC_BASE_URL && (
+                      <div className="flex items-center gap-2">
+                        <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                          {t("current")}
+                        </span>
+                        <span className="material-symbols-outlined text-text-muted text-[14px]">
+                          arrow_forward
+                        </span>
+                        <span className="flex-1 px-2 py-1.5 text-xs text-text-muted truncate">
+                          {claudeStatus.settings.env.ANTHROPIC_BASE_URL}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Base URL */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                        {t("baseUrl")}
+                      </span>
+                      <span className="material-symbols-outlined text-text-muted text-[14px]">
+                        arrow_forward
+                      </span>
+                      <input
+                        type="text"
+                        value={getDisplayUrl()}
+                        onChange={(e) => setCustomBaseUrl(e.target.value)}
+                        placeholder={t("baseUrlPlaceholder")}
+                        className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+                      />
+                      {customBaseUrl && customBaseUrl !== baseUrl && (
+                        <button
+                          onClick={() => setCustomBaseUrl("")}
+                          className="p-1 text-text-muted hover:text-primary rounded transition-colors"
+                          title={t("resetToDefault")}
+                        >
+                          <span className="material-symbols-outlined text-[14px]">restart_alt</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* API Key */}
+                    <div className="flex items-center gap-2">
+                      <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                        {t("apiKey")}
+                      </span>
+                      <span className="material-symbols-outlined text-text-muted text-[14px]">
+                        arrow_forward
+                      </span>
+                      {apiKeys.length > 0 ? (
+                        <select
+                          value={selectedApiKey}
+                          onChange={(e) => setSelectedApiKey(e.target.value)}
+                          className="flex-1 px-2 py-1.5 bg-surface rounded text-xs border border-border focus:outline-none focus:ring-1 focus:ring-primary/50"
+                        >
+                          {apiKeys.map((key) => (
+                            <option key={key.id} value={key.id}>
+                              {key.key}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <span className="flex-1 text-xs text-text-muted px-2 py-1.5">
+                          {cloudEnabled ? t("noApiKeysCreateOne") : t("noApiKeysAvailable")}
+                        </span>
+                      )}
+                    </div>
+
+                    {advancedModelRows.map((model) => (
+                      <div key={model.alias} className="flex items-center gap-2">
+                        <span className="w-32 shrink-0 text-sm font-semibold text-text-main text-right">
+                          {model.name}
+                        </span>
+                        <span className="material-symbols-outlined text-text-muted text-[14px]">
+                          arrow_forward
+                        </span>
+                        <button
+                          onClick={() => openModelSelector(model.alias)}
+                          disabled={!hasActiveProviders}
+                          className={`px-2 py-1.5 rounded border text-xs transition-colors shrink-0 whitespace-nowrap ${hasActiveProviders ? "bg-surface border-border text-text-main hover:border-primary cursor-pointer" : "opacity-50 cursor-not-allowed border-border"}`}
+                        >
+                          {t("selectModel")}
+                        </button>
+                        <input
+                          type="text"
+                          value={modelMappings[model.alias] || ""}
+                          onChange={(e) => onModelMappingChange(model.alias, e.target.value)}
+                          placeholder={t("providerModelPlaceholder")}
+                          className="flex-1 px-2 py-1.5 bg-surface rounded border border-border text-xs focus:outline-none focus:ring-1 focus:ring-primary/50"
+                        />
+                        {modelMappings[model.alias] && (
+                          <button
+                            onClick={() => onModelMappingChange(model.alias, "")}
+                            className="p-1 text-text-muted hover:text-red-500 rounded transition-colors"
+                            title={t("clear")}
+                          >
+                            <span className="material-symbols-outlined text-[14px]">close</span>
+                          </button>
+                        )}
+                      </div>
+                    ))}
+
+                    <div className="ml-[8.5rem] flex">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowManualConfigModal(true)}
+                      >
+                        <span className="material-symbols-outlined text-[14px] mr-1">
+                          content_copy
+                        </span>
+                        {t("manualConfig")}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
 
               {message && (
@@ -491,11 +663,11 @@ export default function ClaudeToolCard({
                   variant="primary"
                   size="sm"
                   onClick={handleApplySettings}
-                  disabled={!hasActiveProviders}
-                  loading={applying}
+                  disabled={!hasActiveProviders || (cloudEnabled && apiKeys.length === 0)}
+                  loading={applying || verifying}
                 >
                   <span className="material-symbols-outlined text-[14px] mr-1">save</span>
-                  {t("apply")}
+                  {verifying ? "验证中" : t("apply")}
                 </Button>
                 <Button
                   variant="outline"
@@ -506,10 +678,6 @@ export default function ClaudeToolCard({
                 >
                   <span className="material-symbols-outlined text-[14px] mr-1">restore</span>
                   {t("reset")}
-                </Button>
-                <Button variant="ghost" size="sm" onClick={() => setShowManualConfigModal(true)}>
-                  <span className="material-symbols-outlined text-[14px] mr-1">content_copy</span>
-                  {t("manualConfig")}
                 </Button>
                 <div className="flex-1" />
                 <Button

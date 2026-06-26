@@ -1,0 +1,14 @@
+[bootstrap] ℹ️  The following OAuth integrations are not configured:
+[bootstrap]    • Antigravity OAuth (ANTIGRAVITY_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Qoder OAuth (QODER_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    • Gemini OAuth (GEMINI_CLI_OAUTH_CLIENT_SECRET or GEMINI_OAUTH_CLIENT_SECRET) — set in .env or C:\Users\Administrator\AppData\Roaming\omniroute\server.env
+[bootstrap]    These providers will not work until configured.
+[bootstrap] ⚠️  INITIAL_PASSWORD is not set — using default 'CHANGEME'. Change it in Settings!
+⨯ Another next dev server is already running.
+
+- Local:        http://localhost:28888
+- PID:          17032
+- Dir:          D:\spiderMonkey\CODE\AnyRoute
+- Log:          .build\next\dev\logs\next-development.log
+
+Run taskkill /PID 17032 /F to stop it.

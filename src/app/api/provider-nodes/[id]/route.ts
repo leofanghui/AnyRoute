@@ -10,6 +10,7 @@ import {
 import { isClaudeCodeCompatibleProvider } from "@/shared/constants/providers";
 import { updateProviderNodeSchema } from "@/shared/validation/schemas";
 import { isValidationFailure, validateBody } from "@/shared/validation/helpers";
+import { deleteModelPoolVerificationsForConnection } from "@/lib/db/cliToolState";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -127,6 +128,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         return [
           updateProviderConnection(connectionId, {
             providerSpecificData,
+          }).then((result) => {
+            deleteModelPoolVerificationsForConnection(connectionId);
+            return result;
           }),
         ];
       })
@@ -149,7 +153,12 @@ export async function DELETE(_request: Request, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Provider node not found" }, { status: 404 });
     }
 
+    const connections = await getProviderConnections({ provider: id });
     await deleteProviderConnectionsByProvider(id);
+    for (const connectionRaw of connections) {
+      const connectionId = typeof connectionRaw?.id === "string" ? connectionRaw.id : "";
+      if (connectionId) deleteModelPoolVerificationsForConnection(connectionId);
+    }
     await deleteProviderNode(id);
 
     return NextResponse.json({ success: true });
